@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NayarSound — Mapa de Eventos</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:      #050a0d;
+    --panel:   #0a1216;
+    --line:    #142329;
+    --cyan:    #00e0ff;
+    --blue:    #0a84ff;
+    --text:    #eaf6f8;
+    --muted:   #5c7a82;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html, body{
+    height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Mono', monospace;
+    overflow:hidden;
+  }
+
+  #app{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    width:100vw;
+  }
+
+  header{
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    z-index:1000;
+  }
+
+  .row-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:14px 20px 10px;
+  }
+
+  .brand{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:0.02em;
+    white-space:nowrap;
+  }
+  .brand span{ color:var(--cyan); }
+
+  .counter{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .counter-label{
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:var(--muted);
+  }
+  .counter-value{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:26px;
+    color:var(--cyan);
+    text-shadow:0 0 14px rgba(0,224,255,0.35);
+    min-width:1.6ch;
+    text-align:right;
+  }
+
+  .row-controls{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:0 20px 12px;
+  }
+
+  .segmented{
+    display:inline-flex;
+    border:1px solid var(--line);
+    border-radius:6px;
+    overflow:hidden;
+  }
+
+  .segmented button{
+    appearance:none;
+    background:transparent;
+    border:none;
+    color:var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.06em;
+    padding:7px 12px;
+    cursor:pointer;
+    border-right:1px solid var(--line);
+    transition:background 0.15s ease, color 0.15s ease;
+    white-space:nowrap;
+  }
+  .segmented button:last-child{ border-right:none; }
+  .segmented button:hover{ color:var(--text); }
+  .segmented button.active{
+    background:rgba(0,224,255,0.12);
+    color:var(--cyan);
+  }
+
+  #map{
+    flex:1;
+    width:100%;
+    background:var(--bg);
+  }
+
+  .leaflet-control-attribution{
+    background:rgba(5,10,13,0.75) !important;
+    color:var(--muted) !important;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+  }
+  .leaflet-control-attribution a{ color:var(--muted) !important; }
+  .leaflet-control-zoom a{
+    background:var(--panel) !important;
+    color:var(--cyan) !important;
+    border-color:var(--line) !important;
+  }
+  .leaflet-control-zoom a:hover{ background:#0f1c22 !important; }
+
+  /* punto individual */
+  .event-marker{
+    display:block;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #bdfbff, var(--cyan) 55%, var(--blue) 100%);
+    box-shadow:0 0 0 4px rgba(0,224,255,0.15), 0 0 10px rgba(0,224,255,0.55);
+  }
+
+  /* cluster personalizado */
+  .cluster-inner{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(189,251,255,0.9), rgba(0,224,255,0.85) 60%, rgba(10,132,255,0.85) 100%);
+    box-shadow:0 0 0 4px rgba(0,224,255,0.15), 0 0 16px rgba(0,224,255,0.5);
+    color:#04141a;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+  }
+
+  /* etiqueta permanente — NIVEL 2, cada una de las 16 subzonas */
+  .quad-label{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--text);
+    text-shadow:0 1px 3px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.8);
+    pointer-events:none;
+    line-height:1.3;
+  }
+  .quad-label-name{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:10px;
+    letter-spacing:0.03em;
+    color:var(--cyan);
+  }
+  .quad-label-count{
+    font-size:13px;
+    font-weight:700;
+  }
+  .quad-label-pct{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:0.01em;
+    color:#ffffff;
+    text-shadow:0 1px 2px rgba(0,0,0,0.6);
+  }
+
+  /* etiqueta permanente — NIVEL 1, los 4 cuadrantes principales */
+  .quad-label-name-lg{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:0.05em;
+    color:var(--cyan);
+  }
+  .quad-label-count-lg{
+    font-size:16px;
+    font-weight:700;
+  }
+  .quad-label-pct-lg{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:16px;
+    letter-spacing:0.01em;
+    color:#ffffff;
+    text-shadow:0 1px 2px rgba(0,0,0,0.6);
+  }
+
+  #status{
+    position:absolute;
+    bottom:12px;
+    left:20px;
+    font-size:10px;
+    letter-spacing:0.05em;
+    color:var(--muted);
+    background:rgba(5,10,13,0.7);
+    padding:5px 9px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    z-index:1000;
+  }
+
+  .out-of-zone-label{
+    position:absolute;
+    bottom:12px;
+    right:20px;
+    font-size:10px;
+    letter-spacing:0.05em;
+    color:var(--muted);
+    background:rgba(5,10,13,0.7);
+    padding:5px 9px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    z-index:1000;
+  }
+
+  .quadrant-overlay{
+    position:absolute;
+    top:0; left:0; right:0; bottom:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(5,10,13,0.6);
+    z-index:900;
+    pointer-events:none;
+  }
+  .quadrant-overlay.visible{ display:flex; }
+  .quadrant-overlay-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:18px 22px;
+    min-width:220px;
+  }
+  .quadrant-overlay-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--cyan);
+    text-align:center;
+    margin-bottom:14px;
+  }
+  .quadrant-overlay-row{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    font-size:11px;
+    padding:6px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .quadrant-overlay-row:last-child{ border-bottom:none; }
+  .quadrant-overlay-row span:first-child{ color:var(--muted); }
+  .quadrant-overlay-row span:last-child{ color:var(--text); font-weight:700; }
+
+  @media (max-width: 640px){
+    .row-controls{ justify-content:flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="row-top">
+      <div class="brand">NAYAR<span>SOUND</span></div>
+      <div class="counter">
+        <span class="counter-label" id="counterLabel">EVENTOS REGISTRADOS:</span>
+        <span class="counter-value" id="counterValue">—</span>
+      </div>
+    </div>
+    <div class="row-controls">
+      <div class="segmented" id="viewSelector">
+        <button data-view="points" class="active">PUNTOS</button>
+        <button data-view="quadrants">CUADRANTES</button>
+      </div>
+      <div class="segmented" id="citySelector">
+        <button data-city="TODOS" class="active">TODOS</button>
+        <button data-city="TEPIC">TEPIC</button>
+        <button data-city="GUADALAJARA">GUADALAJARA</button>
+        <button data-city="LEON">LEÓN</button>
+        <button data-city="QUERETARO" id="queretaroBtn" style="display:none;">QUERÉTARO</button>
+      </div>
+      <div class="segmented" id="periodSelector">
+        <button data-period="GLOBAL" class="active">GLOBAL</button>
+        <button data-period="2026">2026</button>
+        <button data-period="2025">2025</button>
+        <button data-period="90D">ÚLTIMOS 90 DÍAS</button>
+      </div>
+    </div>
+  </header>
+  <div id="map"></div>
+  <div id="quadrantOverlay" class="quadrant-overlay"></div>
+  <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
+  <div id="status">Cargando datos…</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+(function(){
+
+  // ================= CONFIGURACIÓN =================
+  var SHEET_ID    = '1FKaobilQ1HNHXntMxnFgoPld5In4dwSNsQgt-78yk4o';
+  var SHEET_NAME  = 'AGENDA';
+  var DATA_RANGE  = 'C13:Q5000'; // columna C (CIUDAD) ... columna Q (COORDENADAS)
+  var CITY_COL_IDX  = 0;  // C es la primera columna del rango
+  var FECHA_COL_IDX = 2;  // E (FECHA) está 2 columnas después de C — solo se usa para filtrar, nunca se muestra
+  var COORD_COL_IDX = 14; // Q está 14 columnas después de C
+  var REFRESH_MS  = 5 * 60 * 1000;
+
+  var statusEl  = document.getElementById('status');
+  var counterEl = document.getElementById('counterValue');
+  var counterLabelEl = document.getElementById('counterLabel');
+  var quadrantOverlayEl = document.getElementById('quadrantOverlay');
+  var outOfZoneEl = document.getElementById('outOfZoneLabel');
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  // ================= MAPA BASE (100% gratis, sin API key) =================
+  var map = L.map('map', {
+    zoomControl: true,
+    attributionControl: true,
+    center: [21.3, -104.2],
+    zoom: 8
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    subdomains: 'abc',
+    maxZoom: 19
+  }).addTo(map);
+
+  var eventDivIcon = L.divIcon({
+    className: '',
+    html: '<span class="event-marker"></span>',
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+  });
+
+  function createClusterIcon(cluster){
+    var count = cluster.getChildCount();
+    var size = count < 10 ? 34 : (count < 50 ? 44 : 56);
+    var fontSize = count < 100 ? 13 : 11;
+    return L.divIcon({
+      html: '<div class="cluster-inner" style="width:' + size + 'px;height:' + size + 'px;font-size:' + fontSize + 'px;">' + count + '</div>',
+      className: '',
+      iconSize: L.point(size, size)
+    });
+  }
+
+  // ================= ESTADO =================
+  var allEvents = [];  // [{lat, lng, cityNorm}]
+  var currentView = 'points';
+  var currentCityFilter = 'TODOS';
+  var currentCityDisplay = 'TODOS';
+  var currentPeriodFilter = 'GLOBAL';
+  var clusterGroup = null;
+  var quadrantLayerGroup = null;
+  var quadrantCityData = null;   // datos calculados (counts/insideTotal/outCount/zoneBounds) de la ciudad en vista
+  var quadrantBaseZoom = null;   // zoom en el que la zona urbana completa cabe en pantalla (nivel 1)
+  var quadrantCurrentLevel = null; // 4 o 16 — nivel actualmente dibujado, evita redibujos innecesarios
+  var ZOOM_STEPS_FOR_SUBDIVISION = 2; // cuántos niveles de zoom hay que acercarse para pasar a las 16 subzonas
+
+  // Zona urbana FIJA por ciudad: centro + bounding box en km, totalmente independiente
+  // de dónde estén los eventos. Esto evita que localidades lejanas (San Blas, Compostela,
+  // Santiago Ixcuintla, etc.) deformen o agranden los cuadrantes.
+  var KM_PER_DEGREE_LAT = 111.32;
+
+  var CITY_ZONES_RAW = {
+    TEPIC:       { center: { lat: 21.5041, lng: -104.8946 }, halfWidthKm: 8,  halfHeightKm: 8  },
+    GUADALAJARA: { center: { lat: 20.6597, lng: -103.3496 }, halfWidthKm: 20, halfHeightKm: 20 },
+    LEON:        { center: { lat: 21.1250, lng: -101.6860 }, halfWidthKm: 15, halfHeightKm: 15 },
+    QUERETARO:   { center: { lat: 20.5888, lng: -100.3899 }, halfWidthKm: 15, halfHeightKm: 15 }
+  };
+
+  var CITY_DISPLAY_NAMES = {
+    TEPIC: 'TEPIC',
+    GUADALAJARA: 'GUADALAJARA',
+    LEON: 'LEÓN',
+    QUERETARO: 'QUERÉTARO'
+  };
+
+  function buildZoneBounds(zone){
+    var latHalfDeg = zone.halfHeightKm / KM_PER_DEGREE_LAT;
+    var lngHalfDeg = zone.halfWidthKm / (KM_PER_DEGREE_LAT * Math.cos(zone.center.lat * Math.PI / 180));
+    return {
+      center: zone.center,
+      south: zone.center.lat - latHalfDeg,
+      north: zone.center.lat + latHalfDeg,
+      west:  zone.center.lng - lngHalfDeg,
+      east:  zone.center.lng + lngHalfDeg
+    };
+  }
+
+  var CITY_ZONE_BOUNDS = {};
+  Object.keys(CITY_ZONES_RAW).forEach(function(key){
+    CITY_ZONE_BOUNDS[key] = buildZoneBounds(CITY_ZONES_RAW[key]);
+  });
+
+  var QUADRANT_LABELS = {
+    NW: 'NOROESTE',
+    NE: 'NORESTE',
+    SW: 'SUROESTE',
+    SE: 'SURESTE'
+  };
+
+  function normalizeCity(s){
+    return String(s || '')
+      .toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  // Interpreta el valor interno de fecha que entrega Google Sheets (Date(YYYY,MM,DD)).
+  // Este valor jamás se muestra: solo se usa para el filtro de periodo.
+  function parseSheetDate(cell){
+    if (!cell || cell.v == null) return null;
+    var raw = cell.v;
+    if (typeof raw === 'string'){
+      var m = raw.match(/^Date\((\d+),(\d+),(\d+)/);
+      if (m){
+        var year = parseInt(m[1], 10);
+        var month = parseInt(m[2], 10); // viene en base 0
+        var day = parseInt(m[3], 10);
+        return new Date(year, month, day);
+      }
+    }
+    return null;
+  }
+
+  function matchesPeriod(event){
+    if (currentPeriodFilter === 'GLOBAL') return true;
+    if (!event.date) return false;
+
+    if (currentPeriodFilter === '2026') return event.date.getFullYear() === 2026;
+    if (currentPeriodFilter === '2025') return event.date.getFullYear() === 2025;
+
+    if (currentPeriodFilter === '90D'){
+      var now = new Date();
+      var cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      return event.date >= cutoff && event.date <= now;
+    }
+
+    return true;
+  }
+
+  function parseCoordinate(raw){
+    if (!raw) return null;
+    var parts = String(raw).split(',');
+    if (parts.length !== 2) return null;
+
+    var lat = parseFloat(parts[0].trim());
+    var lng = parseFloat(parts[1].trim());
+
+    if (isNaN(lat) || isNaN(lng)) return null;
+    if (lat < -90 || lat > 90) return null;
+    if (lng < -180 || lng > 180) return null;
+
+    return { lat: lat, lng: lng };
+  }
+
+  function updateQueretaroVisibility(){
+    var hasQueretaro = allEvents.some(function(e){ return e.cityNorm === 'QUERETARO'; });
+    var btn = document.getElementById('queretaroBtn');
+    btn.style.display = hasQueretaro ? '' : 'none';
+
+    if (!hasQueretaro && currentCityFilter === 'QUERETARO'){
+      currentCityFilter = 'TODOS';
+      currentCityDisplay = 'TODOS';
+      setActive(document.getElementById('citySelector'), document.querySelector('#citySelector [data-city="TODOS"]'));
+    }
+  }
+
+  // ================= CARGA DE DATOS (JSONP, evita el bloqueo CORS de Sheets) =================
+  function loadEvents(){
+    var callbackName = '__gvizCallback_' + Date.now();
+    var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+              '/gviz/tq?sheet=' + encodeURIComponent(SHEET_NAME) +
+              '&range=' + DATA_RANGE + '&headers=0' +
+              '&tqx=out:json;responseHandler:' + callbackName;
+
+    var script = document.createElement('script');
+    var settled = false;
+
+    var timeoutId = setTimeout(function(){
+      if (settled) return;
+      settled = true;
+      cleanup();
+      console.error('Tiempo de espera agotado al cargar Google Sheets');
+      setStatus('No se pudo actualizar — reintentando…');
+    }, 10000);
+
+    function cleanup(){
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[callbackName] = function(json){
+      if (settled) return;
+      settled = true;
+      cleanup();
+
+      try {
+        var rows = (json.table && json.table.rows) ? json.table.rows : [];
+        var events = [];
+
+        rows.forEach(function(row){
+          var cells = row.c || [];
+          var cityRaw  = cells[CITY_COL_IDX]  ? cells[CITY_COL_IDX].v  : null;
+          var coordRaw = cells[COORD_COL_IDX] ? cells[COORD_COL_IDX].v : null;
+          var eventDate = parseSheetDate(cells[FECHA_COL_IDX]);
+          var coord = parseCoordinate(coordRaw);
+          if (!coord) return;
+
+          events.push({ lat: coord.lat, lng: coord.lng, cityNorm: normalizeCity(cityRaw), date: eventDate });
+        });
+
+        allEvents = events;
+        updateQueretaroVisibility();
+        renderCurrentView();
+        setStatus('Actualizado ' + new Date().toLocaleTimeString('es-MX'));
+      } catch (err){
+        console.error('Error al procesar datos de Google Sheets:', err);
+        setStatus('No se pudo actualizar — reintentando…');
+      }
+    };
+
+    script.onerror = function(){
+      if (settled) return;
+      settled = true;
+      cleanup();
+      console.error('Error al cargar el script de Google Sheets');
+      setStatus('No se pudo actualizar — reintentando…');
+    };
+
+    script.src = url;
+    document.body.appendChild(script);
+  }
+
+  // ================= RENDER =================
+  function clearLayers(){
+    if (clusterGroup){ map.removeLayer(clusterGroup); clusterGroup = null; }
+    if (quadrantLayerGroup){ map.removeLayer(quadrantLayerGroup); quadrantLayerGroup = null; }
+  }
+
+  function renderPoints(events){
+    clusterGroup = L.markerClusterGroup({
+      iconCreateFunction: createClusterIcon,
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 60
+    });
+
+    events.forEach(function(e){
+      clusterGroup.addLayer(L.marker([e.lat, e.lng], { icon: eventDivIcon, interactive: false }));
+    });
+
+    clusterGroup.addTo(map);
+  }
+
+  // Lista de las 16 subzonas: cada uno de los 4 cuadrantes principales (NW/NE/SW/SE)
+  // dividido en una matriz interna 2x2 (1=sup-izq, 2=sup-der, 3=inf-izq, 4=inf-der).
+  var SUBQUADRANT_KEYS = [];
+  ['NW', 'NE', 'SW', 'SE'].forEach(function(m){
+    for (var i = 1; i <= 4; i++) SUBQUADRANT_KEYS.push(m + i);
+  });
+
+  function quadrantRectBounds(zoneBounds, qKey){
+    var b = zoneBounds;
+    var c = zoneBounds.center;
+    if (qKey === 'NW') return [[c.lat, b.west], [b.north, c.lng]];
+    if (qKey === 'NE') return [[c.lat, c.lng], [b.north, b.east]];
+    if (qKey === 'SW') return [[b.south, b.west], [c.lat, c.lng]];
+    return [[b.south, c.lng], [c.lat, b.east]]; // SE
+  }
+
+  function subQuadrantRectBounds(zoneBounds, mainKey, subNum){
+    var mBounds = quadrantRectBounds(zoneBounds, mainKey);
+    var latMin = mBounds[0][0], lngMin = mBounds[0][1];
+    var latMax = mBounds[1][0], lngMax = mBounds[1][1];
+    var midLat = (latMin + latMax) / 2;
+    var midLng = (lngMin + lngMax) / 2;
+
+    if (subNum === 1) return [[midLat, lngMin], [latMax, midLng]]; // superior-izquierda
+    if (subNum === 2) return [[midLat, midLng], [latMax, lngMax]]; // superior-derecha
+    if (subNum === 3) return [[latMin, lngMin], [midLat, midLng]]; // inferior-izquierda
+    return [[latMin, midLng], [midLat, lngMax]]; // 4: inferior-derecha
+  }
+
+  // Clasifica un evento contra la zona urbana FIJA de su ciudad.
+  // Devuelve 'OUT' si cae fuera del bounding box definido (no altera los cuadrantes),
+  // o una de las 16 claves de subzona (p. ej. "SW3").
+  function classifyEvent(event, zoneBounds){
+    if (event.lat < zoneBounds.south || event.lat > zoneBounds.north ||
+        event.lng < zoneBounds.west  || event.lng > zoneBounds.east){
+      return 'OUT';
+    }
+
+    var c = zoneBounds.center;
+    var mainKey = (event.lat >= c.lat)
+      ? (event.lng < c.lng ? 'NW' : 'NE')
+      : (event.lng < c.lng ? 'SW' : 'SE');
+
+    var mBounds = quadrantRectBounds(zoneBounds, mainKey);
+    var latMin = mBounds[0][0], lngMin = mBounds[0][1];
+    var latMax = mBounds[1][0], lngMax = mBounds[1][1];
+    var midLat = (latMin + latMax) / 2;
+    var midLng = (lngMin + lngMax) / 2;
+
+    var subNum = (event.lat >= midLat)
+      ? (event.lng < midLng ? 1 : 2)
+      : (event.lng < midLng ? 3 : 4);
+
+    return mainKey + subNum;
+  }
+
+  function computeCityQuadrants(cityKey, cityEvents){
+    var zoneBounds = CITY_ZONE_BOUNDS[cityKey];
+    if (!zoneBounds) return null;
+
+    var counts = {};
+    SUBQUADRANT_KEYS.forEach(function(k){ counts[k] = 0; });
+    var outCount = 0;
+
+    cityEvents.forEach(function(e){
+      var q = classifyEvent(e, zoneBounds);
+      if (q === 'OUT') outCount++;
+      else counts[q]++;
+    });
+
+    var insideTotal = SUBQUADRANT_KEYS.reduce(function(sum, k){ return sum + counts[k]; }, 0);
+
+    return {
+      cityKey: cityKey,
+      zoneBounds: zoneBounds,
+      counts: counts,
+      insideTotal: insideTotal, // base para los % (sin "fuera de zona")
+      outCount: outCount
+    };
+  }
+
+  function sumSubcounts(cityData, mainKey){
+    return cityData.counts[mainKey + '1'] + cityData.counts[mainKey + '2'] +
+           cityData.counts[mainKey + '3'] + cityData.counts[mainKey + '4'];
+  }
+
+  // NIVEL 1 — vista general: un rectángulo por cada uno de los 4 cuadrantes principales.
+  function drawMainQuadrant(cityData, mainKey, maxCount){
+    var rectBounds = quadrantRectBounds(cityData.zoneBounds, mainKey);
+    var count = sumSubcounts(cityData, mainKey);
+    var percentage = cityData.insideTotal > 0 ? (count / cityData.insideTotal * 100) : 0;
+    var intensity = maxCount > 0 ? (count / maxCount) : 0;
+    var fillOpacity = 0.10 + intensity * 0.65;
+
+    var rect = L.rectangle(rectBounds, {
+      color: '#00e0ff',
+      weight: 1,
+      opacity: 0.4,
+      fillColor: '#00e0ff',
+      fillOpacity: fillOpacity,
+      interactive: false
+    });
+    quadrantLayerGroup.addLayer(rect);
+
+    var center = L.latLngBounds(rectBounds).getCenter();
+    var label = L.marker(center, {
+      icon: L.divIcon({
+        className: '',
+        html:
+          '<div class="quad-label">' +
+            '<div class="quad-label-name-lg">' + QUADRANT_LABELS[mainKey] + '</div>' +
+            '<div class="quad-label-count-lg">' + count + ' EVENTOS</div>' +
+            '<div class="quad-label-pct-lg">' + percentage.toFixed(0) + '% DEL TOTAL DE LA CIUDAD</div>' +
+          '</div>',
+        iconSize: [160, 68],
+        iconAnchor: [80, 34]
+      }),
+      interactive: false
+    });
+    quadrantLayerGroup.addLayer(label);
+  }
+
+  // NIVEL 2 — al hacer zoom: cada cuadrante principal subdividido en sus 4 subzonas.
+  function drawSubQuadrant(cityData, key, maxCount){
+    var mainKey = key.slice(0, 2);
+    var subNum = parseInt(key.slice(2), 10);
+    var rectBounds = subQuadrantRectBounds(cityData.zoneBounds, mainKey, subNum);
+    var count = cityData.counts[key];
+    var percentage = cityData.insideTotal > 0 ? (count / cityData.insideTotal * 100) : 0;
+    var intensity = maxCount > 0 ? (count / maxCount) : 0;
+    var fillOpacity = 0.10 + intensity * 0.65; // más eventos = mayor intensidad visual
+
+    var rect = L.rectangle(rectBounds, {
+      color: '#00e0ff',
+      weight: 1,
+      opacity: 0.35,
+      fillColor: '#00e0ff',
+      fillOpacity: fillOpacity,
+      interactive: false
+    });
+    quadrantLayerGroup.addLayer(rect);
+
+    var center = L.latLngBounds(rectBounds).getCenter();
+    var label = L.marker(center, {
+      icon: L.divIcon({
+        className: '',
+        html:
+          '<div class="quad-label">' +
+            '<div class="quad-label-name">' + QUADRANT_LABELS[mainKey] + ' ' + subNum + '</div>' +
+            '<div class="quad-label-count">' + count + ' EVENTOS</div>' +
+            '<div class="quad-label-pct">' + percentage.toFixed(1) + '% DEL TOTAL DE LA CIUDAD</div>' +
+          '</div>',
+        iconSize: [120, 56],
+        iconAnchor: [60, 28]
+      }),
+      interactive: false
+    });
+    quadrantLayerGroup.addLayer(label);
+  }
+
+  // Línea vertical + horizontal marcando los 4 cuadrantes principales,
+  // para conservar la lectura simple NOROESTE/NORESTE/SUROESTE/SURESTE
+  // en ambos niveles.
+  function drawMainCross(zoneBounds){
+    var vLine = L.polyline(
+      [[zoneBounds.south, zoneBounds.center.lng], [zoneBounds.north, zoneBounds.center.lng]],
+      { color: '#00e0ff', weight: 2, opacity: 0.65, interactive: false }
+    );
+    var hLine = L.polyline(
+      [[zoneBounds.center.lat, zoneBounds.west], [zoneBounds.center.lat, zoneBounds.east]],
+      { color: '#00e0ff', weight: 2, opacity: 0.65, interactive: false }
+    );
+    quadrantLayerGroup.addLayer(vLine);
+    quadrantLayerGroup.addLayer(hLine);
+  }
+
+  // Decide, según el zoom actual del mapa, si toca dibujar el nivel 1 (4 zonas)
+  // o el nivel 2 (16 subzonas), y solo redibuja si el nivel realmente cambió.
+  function drawQuadrantLayerForCurrentZoom(){
+    if (!quadrantCityData) return;
+
+    var threshold = quadrantBaseZoom + ZOOM_STEPS_FOR_SUBDIVISION;
+    var level = (map.getZoom() >= threshold) ? 16 : 4;
+
+    if (level === quadrantCurrentLevel && quadrantLayerGroup) return;
+
+    if (quadrantLayerGroup){ map.removeLayer(quadrantLayerGroup); }
+    quadrantLayerGroup = L.layerGroup();
+
+    if (level === 4){
+      var maxCount4 = Math.max(
+        sumSubcounts(quadrantCityData, 'NW'),
+        sumSubcounts(quadrantCityData, 'NE'),
+        sumSubcounts(quadrantCityData, 'SW'),
+        sumSubcounts(quadrantCityData, 'SE')
+      );
+      ['NW', 'NE', 'SW', 'SE'].forEach(function(m){
+        drawMainQuadrant(quadrantCityData, m, maxCount4);
+      });
+    } else {
+      var maxCount16 = 0;
+      SUBQUADRANT_KEYS.forEach(function(k){ maxCount16 = Math.max(maxCount16, quadrantCityData.counts[k]); });
+      SUBQUADRANT_KEYS.forEach(function(k){
+        drawSubQuadrant(quadrantCityData, k, maxCount16);
+      });
+    }
+
+    drawMainCross(quadrantCityData.zoneBounds);
+    quadrantLayerGroup.addTo(map);
+    quadrantCurrentLevel = level;
+  }
+
+  map.on('zoomend', function(){
+    if (currentView === 'quadrants' && currentCityFilter !== 'TODOS'){
+      drawQuadrantLayerForCurrentZoom();
+    }
+  });
+
+  function cityHasAnyData(cityKey){
+    return allEvents.some(function(e){ return e.cityNorm === cityKey; });
+  }
+
+  function showTodosOverlay(events){
+    var rows = Object.keys(CITY_ZONE_BOUNDS)
+      .filter(function(cityKey){ return cityHasAnyData(cityKey); })
+      .map(function(cityKey){
+        var count = events.filter(function(e){ return e.cityNorm === cityKey; }).length;
+        return { name: CITY_DISPLAY_NAMES[cityKey] || cityKey, count: count };
+      })
+      .sort(function(a, b){ return b.count - a.count; });
+
+    var html = '<div class="quadrant-overlay-card">' +
+      '<div class="quadrant-overlay-title">SELECCIONA UNA CIUDAD PARA VER SUS CUADRANTES</div>';
+
+    rows.forEach(function(r){
+      html += '<div class="quadrant-overlay-row"><span>' + r.name + '</span><span>' + r.count + ' EVENTOS</span></div>';
+    });
+
+    html += '</div>';
+    quadrantOverlayEl.innerHTML = html;
+    quadrantOverlayEl.classList.add('visible');
+  }
+
+  function hideTodosOverlay(){
+    quadrantOverlayEl.classList.remove('visible');
+  }
+
+  function showOutOfZoneLabel(count){
+    outOfZoneEl.textContent = 'FUERA DE ZONA: ' + count + ' EVENTOS';
+    outOfZoneEl.style.display = 'block';
+  }
+
+  function hideOutOfZoneLabel(){
+    outOfZoneEl.style.display = 'none';
+  }
+
+  function renderQuadrants(events){
+    quadrantCityData = null;
+    quadrantCurrentLevel = null;
+
+    // TODOS: no se dibujan cuadrantes superpuestos de varias ciudades — se pide elegir una.
+    if (currentCityFilter === 'TODOS'){
+      showTodosOverlay(events);
+      return;
+    }
+
+    var zoneBounds = CITY_ZONE_BOUNDS[currentCityFilter];
+    if (!zoneBounds) return; // ciudad sin zona urbana definida (no debería ocurrir)
+
+    var data = computeCityQuadrants(currentCityFilter, events);
+    if (!data) return;
+
+    quadrantCityData = data;
+    showOutOfZoneLabel(data.outCount);
+
+    // El mapa se ajusta a la zona urbana FIJA, nunca a la ubicación de los eventos.
+    // Ese zoom resultante se vuelve la referencia del NIVEL 1 (4 cuadrantes).
+    var boundsLatLng = L.latLngBounds([[zoneBounds.south, zoneBounds.west], [zoneBounds.north, zoneBounds.east]]);
+    quadrantBaseZoom = map.getBoundsZoom(boundsLatLng, false, [30, 30]);
+    map.fitBounds(boundsLatLng, { padding: [30, 30] });
+
+    // Por si el zoom no cambia (fitBounds no dispara "zoomend"), forzamos el primer dibujo.
+    drawQuadrantLayerForCurrentZoom();
+  }
+
+  function getFilteredEvents(){
+    return allEvents.filter(function(e){
+      var cityOk = (currentCityFilter === 'TODOS') || (e.cityNorm === currentCityFilter);
+      return cityOk && matchesPeriod(e);
+    });
+  }
+
+  function fitToEvents(events){
+    if (!events.length) return;
+    var bounds = L.latLngBounds(events.map(function(e){ return [e.lat, e.lng]; }));
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+  }
+
+  function updateCounterDisplay(count){
+    if (currentCityFilter === 'TODOS'){
+      counterLabelEl.textContent = 'EVENTOS REGISTRADOS:';
+      counterEl.textContent = count;
+    } else {
+      counterLabelEl.textContent = currentCityDisplay + ':';
+      counterEl.textContent = count + ' EVENTOS';
+    }
+  }
+
+  function renderCurrentView(){
+    var events = getFilteredEvents();
+    updateCounterDisplay(events.length);
+
+    clearLayers();
+    hideTodosOverlay();
+    hideOutOfZoneLabel();
+
+    if (currentView === 'points'){
+      renderPoints(events);
+      fitToEvents(events);
+    } else {
+      renderQuadrants(events); // ajusta el mapa por sí misma (a la zona fija o deja el overlay de TODOS)
+    }
+  }
+
+  function setActive(container, target){
+    Array.prototype.forEach.call(container.querySelectorAll('button'), function(btn){
+      btn.classList.toggle('active', btn === target);
+    });
+  }
+
+  document.getElementById('viewSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    currentView = btn.dataset.view;
+    renderCurrentView();
+  });
+
+  document.getElementById('citySelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    currentCityFilter = btn.dataset.city;
+    currentCityDisplay = btn.textContent.trim();
+    renderCurrentView();
+  });
+
+  document.getElementById('periodSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    currentPeriodFilter = btn.dataset.period;
+    renderCurrentView();
+  });
+
+  loadEvents();
+  setInterval(loadEvents, REFRESH_MS);
+
+})();
+</script>
+
+</body>
+</html>
