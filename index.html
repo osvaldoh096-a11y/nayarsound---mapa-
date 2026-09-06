@@ -282,6 +282,166 @@
   @media (max-width: 640px){
     .row-controls{ justify-content:flex-start; }
   }
+
+  /* ================= HERRAMIENTA: DJ MÁS CERCANO (independiente) ================= */
+  .dj-tool-toggle{
+    position:absolute;
+    top:14px;
+    right:16px;
+    z-index:1001;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--cyan);
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:11px;
+    letter-spacing:0.05em;
+    padding:9px 13px;
+    cursor:pointer;
+    box-shadow:0 0 12px rgba(0,224,255,0.15);
+  }
+  .dj-tool-toggle:hover{ background:#0f1c22; }
+
+  .dj-tool-panel{
+    position:absolute;
+    top:58px;
+    right:16px;
+    z-index:1001;
+    width:290px;
+    max-width:calc(100vw - 32px);
+    max-height:calc(100vh - 90px);
+    overflow-y:auto;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px;
+    display:none;
+    flex-direction:column;
+    gap:10px;
+    box-shadow:0 8px 28px rgba(0,0,0,0.55);
+  }
+  .dj-tool-panel.visible{ display:flex; }
+
+  .dj-tool-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:0.05em;
+    color:var(--cyan);
+  }
+  .dj-tool-close{
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-size:18px;
+    line-height:1;
+    cursor:pointer;
+    padding:0 2px;
+  }
+  .dj-tool-close:hover{ color:var(--text); }
+
+  .dj-tool-label{
+    font-size:10px;
+    letter-spacing:0.06em;
+    color:var(--muted);
+  }
+
+  .dj-tool-input{
+    width:100%;
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:5px;
+    color:var(--text);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:8px 9px;
+  }
+  .dj-tool-input:focus{ outline:none; border-color:var(--cyan); }
+
+  .dj-tool-search-btn{
+    width:100%;
+    background:rgba(0,224,255,0.12);
+    border:1px solid var(--cyan);
+    color:var(--cyan);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+    font-size:11px;
+    letter-spacing:0.05em;
+    padding:9px;
+    border-radius:5px;
+    cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .dj-tool-search-btn:hover{ background:rgba(0,224,255,0.22); }
+  .dj-tool-search-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .dj-tool-msg{
+    font-size:10.5px;
+    letter-spacing:0.02em;
+    color:var(--muted);
+    min-height:13px;
+  }
+  .dj-tool-msg.error{ color:#ff6b6b; }
+
+  .dj-results{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .dj-result-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:7px 9px;
+    font-size:11.5px;
+  }
+  .dj-result-rank{ color:var(--muted); width:14px; }
+  .dj-result-name{ flex:1; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dj-result-dist{ color:var(--text); white-space:nowrap; }
+  .dj-result-row.top{
+    border-color:#ff3b3b;
+    background:rgba(255,59,59,0.10);
+    box-shadow:0 0 12px rgba(255,59,59,0.25);
+  }
+  .dj-result-row.top .dj-result-name{ color:#ff6b6b; }
+
+  .dj-marker{
+    display:block;
+    width:11px;
+    height:11px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #ffb3b3, #ff3b3b 60%, #b30000 100%);
+    box-shadow:0 0 0 3px rgba(255,59,59,0.18), 0 0 8px rgba(255,59,59,0.55);
+  }
+  .dj-marker-top{
+    display:block;
+    width:17px;
+    height:17px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff2b3, #ff3b3b 55%, #b30000 100%);
+    box-shadow:0 0 0 5px rgba(255,59,59,0.3), 0 0 16px rgba(255,59,59,0.9);
+    border:2px solid #ffd23b;
+  }
+  .event-location-marker{
+    display:block;
+    width:17px;
+    height:17px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fffbe0, #ffd23b 60%, #cc9900 100%);
+    box-shadow:0 0 0 5px rgba(255,210,59,0.25), 0 0 14px rgba(255,210,59,0.85);
+    border:2px solid #fff;
+  }
+
+  @media (max-width: 640px){
+    .dj-tool-panel{ width:290px; }
+  }
 </style>
 </head>
 <body>
@@ -319,6 +479,21 @@
   <div id="quadrantOverlay" class="quadrant-overlay"></div>
   <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
   <div id="status">Cargando datos…</div>
+
+  <!-- ===== Herramienta independiente: DJ más cercano ===== -->
+  <button id="djToolToggle" class="dj-tool-toggle" type="button">DJ CERCANO</button>
+  <div id="djToolPanel" class="dj-tool-panel">
+    <div class="dj-tool-header">
+      <span>ASIGNACIÓN DE DJ</span>
+      <button id="djToolClose" class="dj-tool-close" type="button" aria-label="Cerrar">&times;</button>
+    </div>
+    <div id="djLoadStatus" class="dj-tool-msg">Cargando DJs…</div>
+    <label class="dj-tool-label" for="djLocationInput">UBICACIÓN DEL EVENTO</label>
+    <input id="djLocationInput" class="dj-tool-input" type="text" placeholder="Pega coordenadas o link de Google Maps" autocomplete="off">
+    <button id="djSearchBtn" class="dj-tool-search-btn" type="button">BUSCAR DJ MÁS CERCANO</button>
+    <div id="djSearchMsg" class="dj-tool-msg"></div>
+    <div id="djResults" class="dj-results"></div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -335,6 +510,18 @@
   var FECHA_COL_IDX = 2;  // E (FECHA) está 2 columnas después de C — solo se usa para filtrar, nunca se muestra
   var COORD_COL_IDX = 14; // Q está 14 columnas después de C
   var REFRESH_MS  = 5 * 60 * 1000;
+
+  // ---- Fuente de DJs para la herramienta "DJ más cercano" (100% dinámica desde Sheets) ----
+  // Pestaña esperada dentro del mismo spreadsheet, con encabezado en la fila 1 y datos desde
+  // la fila 2, columnas A-D en este orden exacto: NOMBRE | CIUDAD | COORDENADAS | ACTIVO.
+  // Agregar/quitar DJs o ciudades nuevas en esa pestaña no requiere tocar este código.
+  var DJS_SHEET_ID   = SHEET_ID;
+  var DJS_SHEET_NAME = 'DJS';
+  var DJS_RANGE      = 'A2:D5000';
+  var DJ_NAME_COL_IDX   = 0;
+  var DJ_CITY_COL_IDX   = 1;
+  var DJ_COORD_COL_IDX  = 2;
+  var DJ_ACTIVE_COL_IDX = 3;
 
   var statusEl  = document.getElementById('status');
   var counterEl = document.getElementById('counterValue');
@@ -364,6 +551,27 @@
     iconAnchor: [6, 6]
   });
 
+  var djDivIcon = L.divIcon({
+    className: '',
+    html: '<span class="dj-marker"></span>',
+    iconSize: [11, 11],
+    iconAnchor: [5, 5]
+  });
+
+  var djTopDivIcon = L.divIcon({
+    className: '',
+    html: '<span class="dj-marker-top"></span>',
+    iconSize: [17, 17],
+    iconAnchor: [8, 8]
+  });
+
+  var eventLocationDivIcon = L.divIcon({
+    className: '',
+    html: '<span class="event-location-marker"></span>',
+    iconSize: [17, 17],
+    iconAnchor: [8, 8]
+  });
+
   function createClusterIcon(cluster){
     var count = cluster.getChildCount();
     var size = count < 10 ? 34 : (count < 50 ? 44 : 56);
@@ -387,6 +595,10 @@
   var quadrantBaseZoom = null;   // zoom en el que la zona urbana completa cabe en pantalla (nivel 1)
   var quadrantCurrentLevel = null; // 4 o 16 — nivel actualmente dibujado, evita redibujos innecesarios
   var ZOOM_STEPS_FOR_SUBDIVISION = 2; // cuántos niveles de zoom hay que acercarse para pasar a las 16 subzonas
+
+  // ---- Estado de la herramienta independiente "DJ más cercano" ----
+  var allDjs = [];        // [{name, cityNorm, lat, lng}] — solo DJs ACTIVO/SI
+  var djLayerGroup = null; // capa propia, nunca tocada por clearLayers() de PUNTOS/CUADRANTES
 
   // Zona urbana FIJA por ciudad: centro + bounding box en km, totalmente independiente
   // de dónde estén los eventos. Esto evita que localidades lejanas (San Blas, Compostela,
@@ -486,6 +698,67 @@
     return { lat: lat, lng: lng };
   }
 
+  // ================= UTILIDADES: HERRAMIENTA "DJ MÁS CERCANO" =================
+
+  // Acepta coordenadas sueltas ("20.6736,-103.344") o cualquier link de Google Maps
+  // que contenga las coordenadas en su URL (@lat,lng / q=lat,lng / ll=lat,lng, etc.).
+  // Los links acortados (goo.gl/maps, maps.app.goo.gl) no exponen coordenadas en el
+  // texto de la URL, así que no pueden resolverse sin backend: en ese caso no hay match.
+  function extractCoordinatesFromInput(raw){
+    if (!raw) return null;
+    var text = String(raw).trim();
+    if (!text) return null;
+
+    var match = text.match(/(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)/);
+    if (!match) return null;
+
+    var lat = parseFloat(match[1]);
+    var lng = parseFloat(match[2]);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+
+    return { lat: lat, lng: lng };
+  }
+
+  function isActiveValue(raw){
+    var v = normalizeCity(raw);
+    return v === 'SI' || v === 'ACTIVO' || v === 'TRUE' || v === '1' || v === 'YES';
+  }
+
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // Distancia geográfica en km entre dos puntos (fórmula Haversine).
+  function haversineKm(lat1, lng1, lat2, lng2){
+    var R = 6371;
+    var toRad = function(d){ return d * Math.PI / 180; };
+    var dLat = toRad(lat2 - lat1);
+    var dLng = toRad(lng2 - lng1);
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // Reutiliza las zonas urbanas fijas ya definidas para PUNTOS/CUADRANTES (CITY_ZONE_BOUNDS).
+  // Si el evento cae claramente dentro de una de esas zonas, se prioriza esa ciudad;
+  // si no, o si es una ciudad nueva que aún no tiene zona definida, se devuelve null
+  // y la búsqueda se hace contra todos los DJs activos — sin tocar código.
+  function detectCityForPoint(lat, lng){
+    var keys = Object.keys(CITY_ZONE_BOUNDS);
+    for (var i = 0; i < keys.length; i++){
+      var b = CITY_ZONE_BOUNDS[keys[i]];
+      if (lat >= b.south && lat <= b.north && lng >= b.west && lng <= b.east){
+        return keys[i];
+      }
+    }
+    return null;
+  }
+
   function updateQueretaroVisibility(){
     var hasQueretaro = allEvents.some(function(e){ return e.cityNorm === 'QUERETARO'; });
     var btn = document.getElementById('queretaroBtn');
@@ -559,6 +832,88 @@
       cleanup();
       console.error('Error al cargar el script de Google Sheets');
       setStatus('No se pudo actualizar — reintentando…');
+    };
+
+    script.src = url;
+    document.body.appendChild(script);
+  }
+
+  // ================= CARGA DE DJs (independiente, misma técnica JSONP) =================
+  var djLoadStatusEl = document.getElementById('djLoadStatus');
+  function setDjLoadStatus(msg, isError){
+    if (!djLoadStatusEl) return;
+    djLoadStatusEl.textContent = msg;
+    djLoadStatusEl.classList.toggle('error', !!isError);
+  }
+
+  function loadDjs(){
+    var callbackName = '__gvizDjCallback_' + Date.now();
+    var url = 'https://docs.google.com/spreadsheets/d/' + DJS_SHEET_ID +
+              '/gviz/tq?sheet=' + encodeURIComponent(DJS_SHEET_NAME) +
+              '&range=' + DJS_RANGE + '&headers=0' +
+              '&tqx=out:json;responseHandler:' + callbackName;
+
+    var script = document.createElement('script');
+    var settled = false;
+
+    var timeoutId = setTimeout(function(){
+      if (settled) return;
+      settled = true;
+      cleanup();
+      console.error('Tiempo de espera agotado al cargar DJs desde Google Sheets');
+      setDjLoadStatus('No se pudo cargar la lista de DJs — reintentando…', true);
+    }, 10000);
+
+    function cleanup(){
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[callbackName] = function(json){
+      if (settled) return;
+      settled = true;
+      cleanup();
+
+      try {
+        var rows = (json.table && json.table.rows) ? json.table.rows : [];
+        var djs = [];
+
+        rows.forEach(function(row){
+          var cells = row.c || [];
+          var nameRaw   = cells[DJ_NAME_COL_IDX]   ? cells[DJ_NAME_COL_IDX].v   : null;
+          var cityRaw   = cells[DJ_CITY_COL_IDX]   ? cells[DJ_CITY_COL_IDX].v   : null;
+          var coordRaw  = cells[DJ_COORD_COL_IDX]  ? cells[DJ_COORD_COL_IDX].v  : null;
+          var activeRaw = cells[DJ_ACTIVE_COL_IDX] ? cells[DJ_ACTIVE_COL_IDX].v : null;
+
+          if (!nameRaw) return;
+          if (!isActiveValue(activeRaw)) return;
+
+          var coord = extractCoordinatesFromInput(coordRaw);
+          if (!coord) return;
+
+          djs.push({
+            name: String(nameRaw).trim(),
+            cityNorm: normalizeCity(cityRaw),
+            lat: coord.lat,
+            lng: coord.lng
+          });
+        });
+
+        allDjs = djs;
+        setDjLoadStatus(djs.length + ' DJ' + (djs.length === 1 ? '' : 's') + ' activo' + (djs.length === 1 ? '' : 's') + ' cargado' + (djs.length === 1 ? '' : 's') + '.');
+      } catch (err){
+        console.error('Error al procesar DJs desde Google Sheets:', err);
+        setDjLoadStatus('No se pudo cargar la lista de DJs — reintentando…', true);
+      }
+    };
+
+    script.onerror = function(){
+      if (settled) return;
+      settled = true;
+      cleanup();
+      console.error('Error al cargar el script de DJs desde Google Sheets');
+      setDjLoadStatus('No se pudo cargar la lista de DJs — reintentando…', true);
     };
 
     script.src = url;
@@ -941,8 +1296,134 @@
     renderCurrentView();
   });
 
+  // ================= HERRAMIENTA INDEPENDIENTE: DJ MÁS CERCANO =================
+  // No participa de clearLayers()/renderCurrentView(): tiene su propia capa (djLayerGroup)
+  // y no altera vistas, filtros, clustering, contador ni la lógica de FUERA DE ZONA.
+
+  var djToolToggle   = document.getElementById('djToolToggle');
+  var djToolPanel    = document.getElementById('djToolPanel');
+  var djToolClose    = document.getElementById('djToolClose');
+  var djLocationInput= document.getElementById('djLocationInput');
+  var djSearchBtn    = document.getElementById('djSearchBtn');
+  var djSearchMsgEl  = document.getElementById('djSearchMsg');
+  var djResultsEl    = document.getElementById('djResults');
+
+  function setDjSearchMsg(msg, isError){
+    djSearchMsgEl.textContent = msg || '';
+    djSearchMsgEl.classList.toggle('error', !!isError);
+  }
+
+  function renderDjResults(top3){
+    if (!top3.length){
+      djResultsEl.innerHTML = '';
+      return;
+    }
+    var html = '';
+    top3.forEach(function(dj, idx){
+      html += '<div class="dj-result-row' + (idx === 0 ? ' top' : '') + '">' +
+                '<span class="dj-result-rank">' + (idx + 1) + '.</span>' +
+                '<span class="dj-result-name">' + escapeHtml(dj.name) + '</span>' +
+                '<span class="dj-result-dist">' + dj.distanceKm.toFixed(1) + ' km</span>' +
+              '</div>';
+    });
+    djResultsEl.innerHTML = html;
+  }
+
+  function drawDjSearchOnMap(point, pool, top3){
+    if (djLayerGroup){ map.removeLayer(djLayerGroup); djLayerGroup = null; }
+    djLayerGroup = L.layerGroup();
+
+    L.marker([point.lat, point.lng], { icon: eventLocationDivIcon })
+      .bindPopup('UBICACIÓN DEL EVENTO')
+      .addTo(djLayerGroup);
+
+    var nearest = top3.length ? top3[0] : null;
+    pool.forEach(function(dj){
+      var isNearest = nearest && dj === nearest;
+      L.marker([dj.lat, dj.lng], { icon: isNearest ? djTopDivIcon : djDivIcon })
+        .bindPopup(escapeHtml(dj.name) + ' — ' + dj.distanceKm.toFixed(1) + ' km')
+        .addTo(djLayerGroup);
+    });
+
+    if (nearest){
+      L.polyline([[point.lat, point.lng], [nearest.lat, nearest.lng]], {
+        color: '#ff3b3b', weight: 2, opacity: 0.75, dashArray: '6,6', interactive: false
+      }).addTo(djLayerGroup);
+    }
+
+    djLayerGroup.addTo(map);
+
+    var fitPoints = [[point.lat, point.lng]];
+    top3.forEach(function(dj){ fitPoints.push([dj.lat, dj.lng]); });
+    if (fitPoints.length > 1){
+      map.fitBounds(L.latLngBounds(fitPoints), { padding: [60, 60], maxZoom: 14 });
+    } else {
+      map.setView([point.lat, point.lng], 13);
+    }
+  }
+
+  function handleDjSearch(){
+    setDjSearchMsg('');
+
+    var point = extractCoordinatesFromInput(djLocationInput.value);
+    if (!point){
+      djResultsEl.innerHTML = '';
+      setDjSearchMsg('No se pudieron extraer coordenadas válidas. Pega "lat,lng" o un link de Google Maps que las incluya.', true);
+      return;
+    }
+
+    if (!allDjs.length){
+      djResultsEl.innerHTML = '';
+      setDjSearchMsg('Aún no hay DJs activos cargados desde Google Sheets.', true);
+      return;
+    }
+
+    var cityKey = detectCityForPoint(point.lat, point.lng);
+    var pool = cityKey ? allDjs.filter(function(d){ return d.cityNorm === cityKey; }) : allDjs.slice();
+    var broadened = false;
+    if (cityKey && !pool.length){
+      pool = allDjs.slice();
+      broadened = true;
+    }
+
+    pool.forEach(function(dj){ dj.distanceKm = haversineKm(point.lat, point.lng, dj.lat, dj.lng); });
+    pool.sort(function(a, b){ return a.distanceKm - b.distanceKm; });
+
+    var top3 = pool.slice(0, 3);
+
+    if (!pool.length){
+      setDjSearchMsg('No hay DJs activos disponibles.', true);
+    } else if (cityKey && !broadened){
+      setDjSearchMsg('Ciudad detectada: ' + (CITY_DISPLAY_NAMES[cityKey] || cityKey) + '. Comparando solo contra sus DJs activos.');
+    } else if (cityKey && broadened){
+      setDjSearchMsg('Ciudad detectada (' + (CITY_DISPLAY_NAMES[cityKey] || cityKey) + ') sin DJs registrados — comparando contra todos los DJs activos.');
+    } else {
+      setDjSearchMsg('Ciudad no determinada — comparando contra todos los DJs activos.');
+    }
+
+    renderDjResults(top3);
+    drawDjSearchOnMap(point, pool, top3);
+  }
+
+  djToolToggle.addEventListener('click', function(){
+    djToolPanel.classList.toggle('visible');
+  });
+
+  djToolClose.addEventListener('click', function(){
+    djToolPanel.classList.remove('visible');
+  });
+
+  djSearchBtn.addEventListener('click', handleDjSearch);
+
+  djLocationInput.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter') handleDjSearch();
+  });
+
   loadEvents();
   setInterval(loadEvents, REFRESH_MS);
+
+  loadDjs();
+  setInterval(loadDjs, REFRESH_MS);
 
 })();
 </script>
