@@ -1355,16 +1355,63 @@
     }
   }
 
+  // Resuelve links cortos de Google Maps (maps.app.goo.gl, goo.gl/maps) que no traen
+  // coordenadas en el texto de la URL. No hay forma de seguir esa redirección desde el
+  // navegador por las restricciones de CORS de Google, así que se usa un proxy público
+  // (allorigins.win) que sigue la redirección y devuelve la URL final ya con las
+  // coordenadas. Es un "mejor esfuerzo": si el proxy falla, se le pide al usuario el
+  // link largo o las coordenadas directas.
+  function resolveShortMapsLink(url){
+    var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    return fetch(proxyUrl).then(function(res){
+      if (!res.ok) throw new Error('proxy_error');
+      return res.json();
+    }).then(function(data){
+      var finalUrl = (data && data.status && data.status.url) ? data.status.url : null;
+      if (!finalUrl) throw new Error('no_final_url');
+      return finalUrl;
+    });
+  }
+
   function handleDjSearch(){
     setDjSearchMsg('');
+    djResultsEl.innerHTML = '';
 
-    var point = extractCoordinatesFromInput(djLocationInput.value);
-    if (!point){
-      djResultsEl.innerHTML = '';
+    var raw = djLocationInput.value;
+    var point = extractCoordinatesFromInput(raw);
+
+    if (point){
+      runDjSearch(point);
+      return;
+    }
+
+    var trimmed = String(raw || '').trim();
+    if (!/^https?:\/\//i.test(trimmed)){
       setDjSearchMsg('No se pudieron extraer coordenadas válidas. Pega "lat,lng" o un link de Google Maps que las incluya.', true);
       return;
     }
 
+    // Parece un link pero no trae coordenadas visibles: puede ser un link corto — se intenta resolver.
+    setDjSearchMsg('Resolviendo enlace…');
+    djSearchBtn.disabled = true;
+    djSearchBtn.textContent = 'RESOLVIENDO ENLACE…';
+
+    resolveShortMapsLink(trimmed).then(function(finalUrl){
+      var resolvedPoint = extractCoordinatesFromInput(finalUrl);
+      if (!resolvedPoint){
+        setDjSearchMsg('El enlace no contiene coordenadas reconocibles. Prueba con el link largo de Google Maps o pega las coordenadas directamente.', true);
+        return;
+      }
+      runDjSearch(resolvedPoint);
+    }).catch(function(){
+      setDjSearchMsg('No se pudo resolver el enlace corto automáticamente. Abre el link en el navegador y pega el link largo, o pega las coordenadas directamente.', true);
+    }).then(function(){
+      djSearchBtn.disabled = false;
+      djSearchBtn.textContent = 'BUSCAR DJ MÁS CERCANO';
+    });
+  }
+
+  function runDjSearch(point){
     if (!allDjs.length){
       djResultsEl.innerHTML = '';
       setDjSearchMsg('Aún no hay DJs activos cargados desde Google Sheets.', true);
