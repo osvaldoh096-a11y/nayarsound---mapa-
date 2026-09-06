@@ -1376,6 +1376,14 @@
       var finalUrl = (data && data.status && data.status.url) ? data.status.url : null;
       if (!finalUrl) throw new Error('no_final_url');
       return finalUrl;
+    }).catch(function(){
+      // Respaldo: si el primer proxy falla (servicio caído/limitado), se intenta con
+      // un segundo servicio distinto (r.jina.ai) que devuelve el contenido de la página
+      // ya resuelta como texto plano, incluyendo la URL final entre sus primeras líneas.
+      return fetch('https://r.jina.ai/' + url).then(function(res){
+        if (!res.ok) throw new Error('proxy2_error');
+        return res.text();
+      });
     });
   }
 
