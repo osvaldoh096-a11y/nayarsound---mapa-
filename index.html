@@ -512,16 +512,16 @@
   var REFRESH_MS  = 5 * 60 * 1000;
 
   // ---- Fuente de DJs para la herramienta "DJ más cercano" (100% dinámica desde Sheets) ----
-  // Pestaña esperada dentro del mismo spreadsheet, con encabezado en la fila 1 y datos desde
-  // la fila 2, columnas A-D en este orden exacto: NOMBRE | CIUDAD | COORDENADAS | ACTIVO.
-  // Agregar/quitar DJs o ciudades nuevas en esa pestaña no requiere tocar este código.
+  // Pestaña "DATA" del mismo spreadsheet. Datos desde la fila 3, columnas P/Q/R:
+  // P = CIUDAD, Q = NOMBRE, R = COORDENADAS. No existe columna de estado: todo DJ
+  // cargado en esas columnas se considera activo. Agregar/quitar DJs o ciudades
+  // nuevas ahí no requiere tocar este código.
   var DJS_SHEET_ID   = SHEET_ID;
-  var DJS_SHEET_NAME = 'DJS';
-  var DJS_RANGE      = 'A2:D5000';
-  var DJ_NAME_COL_IDX   = 0;
-  var DJ_CITY_COL_IDX   = 1;
-  var DJ_COORD_COL_IDX  = 2;
-  var DJ_ACTIVE_COL_IDX = 3;
+  var DJS_SHEET_NAME = 'DATA';
+  var DJS_RANGE      = 'P3:R5000';
+  var DJ_CITY_COL_IDX  = 0; // P
+  var DJ_NAME_COL_IDX  = 1; // Q
+  var DJ_COORD_COL_IDX = 2; // R
 
   var statusEl  = document.getElementById('status');
   var counterEl = document.getElementById('counterValue');
@@ -720,11 +720,6 @@
     return { lat: lat, lng: lng };
   }
 
-  function isActiveValue(raw){
-    var v = normalizeCity(raw);
-    return v === 'SI' || v === 'ACTIVO' || v === 'TRUE' || v === '1' || v === 'YES';
-  }
-
   function escapeHtml(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -881,13 +876,11 @@
 
         rows.forEach(function(row){
           var cells = row.c || [];
-          var nameRaw   = cells[DJ_NAME_COL_IDX]   ? cells[DJ_NAME_COL_IDX].v   : null;
-          var cityRaw   = cells[DJ_CITY_COL_IDX]   ? cells[DJ_CITY_COL_IDX].v   : null;
-          var coordRaw  = cells[DJ_COORD_COL_IDX]  ? cells[DJ_COORD_COL_IDX].v  : null;
-          var activeRaw = cells[DJ_ACTIVE_COL_IDX] ? cells[DJ_ACTIVE_COL_IDX].v : null;
+          var nameRaw  = cells[DJ_NAME_COL_IDX]  ? cells[DJ_NAME_COL_IDX].v  : null;
+          var cityRaw  = cells[DJ_CITY_COL_IDX]  ? cells[DJ_CITY_COL_IDX].v  : null;
+          var coordRaw = cells[DJ_COORD_COL_IDX] ? cells[DJ_COORD_COL_IDX].v : null;
 
           if (!nameRaw) return;
-          if (!isActiveValue(activeRaw)) return;
 
           var coord = extractCoordinatesFromInput(coordRaw);
           if (!coord) return;
