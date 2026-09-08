@@ -832,6 +832,17 @@
   // medianoche y en México puede correr el día al anterior). Al final se verifica
   // que el día/mes realmente existan (rechaza cosas como "31 de febrero"): si JS
   // "recorrió" la fecha internamente, los componentes ya no coinciden con lo pedido.
+  // Acepta el mes completo o cualquier abreviación de al menos 3 letras que sea
+  // prefijo de su nombre completo (SEP, SEPT, SEPTIEM, SEPTIEMBRE...). Los 12
+  // meses en español no comparten prefijo de 3 letras, así que no hay ambigüedad.
+  function findMonthIndexByPrefix(text){
+    if (!text || text.length < 3) return -1;
+    for (var i = 0; i < MONTH_NAMES_ES.length; i++){
+      if (MONTH_NAMES_ES[i].indexOf(text) === 0) return i;
+    }
+    return -1;
+  }
+
   function parseNaturalSpanishDate(raw){
     if (!raw) return null;
 
@@ -844,7 +855,7 @@
     if (!match) return null;
 
     var day = parseInt(match[1], 10);
-    var monthIdx = MONTH_NAMES_ES.indexOf(match[2]);
+    var monthIdx = findMonthIndexByPrefix(match[2]);
     if (monthIdx === -1) return null;
 
     var year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
