@@ -406,6 +406,7 @@
     padding:2px 6px;
     border-radius:3px;
     white-space:nowrap;
+    flex-shrink:0;
   }
   .dj-availability-badge.busy{
     background:rgba(255,59,59,0.18);
@@ -417,22 +418,38 @@
     color:#4ade80;
     border:1px solid rgba(74,222,128,0.5);
   }
+  /* Cada resultado en 2 líneas: 1) rango + nombre (prioridad visual) + badge,
+     2) tiempo/distancia con tipografía secundaria. El nombre nunca usa ellipsis. */
   .dj-result-row{
     display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:8px;
+    flex-direction:column;
+    gap:3px;
     border:1px solid var(--line);
     border-radius:5px;
-    padding:7px 9px;
-    font-size:11.5px;
+    padding:8px 10px;
     cursor:pointer;
     transition:background 0.12s ease;
   }
   .dj-result-row:hover{ background:rgba(0,224,255,0.08); }
-  .dj-result-rank{ color:var(--muted); width:14px; }
-  .dj-result-name{ flex:1; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .dj-result-dist{ color:var(--text); white-space:nowrap; flex-shrink:0; }
+  .dj-result-line1{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .dj-result-rank{ color:var(--muted); flex-shrink:0; font-size:11.5px; }
+  .dj-result-name{
+    flex:1;
+    min-width:0;
+    font-weight:700;
+    font-size:13px;
+    color:var(--text);
+    overflow-wrap:break-word;
+  }
+  .dj-result-line2{
+    color:var(--muted);
+    font-size:10.5px;
+    padding-left:20px;
+  }
   .dj-result-row.top{
     border-color:#ff3b3b;
     background:rgba(255,59,59,0.10);
@@ -518,7 +535,7 @@
     </div>
     <div id="djLoadStatus" class="dj-tool-msg">Cargando DJs…</div>
     <label class="dj-tool-label" for="djDateInput">FECHA DEL EVENTO</label>
-    <input id="djDateInput" class="dj-tool-input" type="date">
+    <input id="djDateInput" class="dj-tool-input" type="text" placeholder="8 SEPTIEMBRE" autocomplete="off">
     <label class="dj-tool-label" for="djLocationInput">UBICACIÓN DEL EVENTO</label>
     <input id="djLocationInput" class="dj-tool-input" type="text" placeholder="Pega coordenadas o link de Google Maps" autocomplete="off">
     <button id="djSearchBtn" class="dj-tool-search-btn" type="button">BUSCAR DJ MÁS CERCANO</button>
@@ -794,23 +811,45 @@
 
   // ================= DISPONIBILIDAD DE DJ (OCUPADO/DISPONIBLE) =================
 
-  // El <input type="date"> entrega "YYYY-MM-DD". new Date(texto) lo interpreta como
-  // UTC medianoche, lo que en México (UTC negativo) puede correr el día al anterior.
-  // Se arma la fecha manualmente en LOCAL para evitar ese corrimiento.
-  function parseDateInputValue(value){
-    if (!value) return null;
-    var parts = String(value).split('-');
-    if (parts.length !== 3) return null;
-    var y = parseInt(parts[0], 10);
-    var m = parseInt(parts[1], 10);
-    var d = parseInt(parts[2], 10);
-    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
-    return new Date(y, m - 1, d);
+  var MONTH_NAMES_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO',
+    'AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+
+  // Interpreta fecha en texto natural en español: "8 SEPTIEMBRE", "8 de septiembre",
+  // "8 septiembre 2027", etc. Si no se escribe año, se asume el año actual (el del
+  // reloj del navegador en el momento de la búsqueda, no uno fijo en el código).
+  // Se arma la fecha con new Date(año, mes, día) — construcción 100% LOCAL, nunca
+  // se parsea un string de fecha con new Date(texto) (eso interpreta como UTC
+  // medianoche y en México puede correr el día al anterior). Al final se verifica
+  // que el día/mes realmente existan (rechaza cosas como "31 de febrero"): si JS
+  // "recorrió" la fecha internamente, los componentes ya no coinciden con lo pedido.
+  function parseNaturalSpanishDate(raw){
+    if (!raw) return null;
+
+    var text = normalizeCity(raw)      // mayúsculas + sin acentos + trim (reutilizado)
+      .replace(/\bDE\b/g, ' ')         // ignora la palabra "DE": "8 DE SEPTIEMBRE" -> "8  SEPTIEMBRE"
+      .replace(/\s+/g, ' ')            // colapsa espacios repetidos
+      .trim();
+
+    var match = text.match(/^(\d{1,2})\s+([A-Z]+)(?:\s+(\d{4}))?$/);
+    if (!match) return null;
+
+    var day = parseInt(match[1], 10);
+    var monthIdx = MONTH_NAMES_ES.indexOf(match[2]);
+    if (monthIdx === -1) return null;
+
+    var year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+
+    var date = new Date(year, monthIdx, day);
+    if (date.getFullYear() !== year || date.getMonth() !== monthIdx || date.getDate() !== day){
+      return null; // fecha inexistente (ej. 31 de febrero, 32 de septiembre)
+    }
+    return date;
   }
 
   // Compara solo año/mes/día en LOCAL (nunca UTC) — mismo criterio que ya usa
   // matchesPeriod() para los filtros de periodo, así que la fecha del evento
-  // (parseSheetDate) y la del selector (parseDateInputValue) son comparables tal cual.
+  // (parseSheetDate) y la del texto ingresado (parseNaturalSpanishDate) son
+  // comparables tal cual, por componentes de calendario.
   function isSameLocalDate(a, b){
     return !!a && !!b &&
       a.getFullYear() === b.getFullYear() &&
@@ -1484,7 +1523,7 @@
     var dist = (dj.distanceKm != null) ? dj.distanceKm.toFixed(1) + ' km' : '';
     if (dj.durationMin != null){
       var mins = Math.round(dj.durationMin) + ' min';
-      return dist ? (mins + ' (' + dist + ')') : mins;
+      return dist ? (mins + ' · ' + dist) : mins;
     }
     return dist || '—';
   }
@@ -1503,10 +1542,12 @@
       var badgeClass = dj.busy ? 'busy' : 'free';
       var badgeText  = dj.busy ? 'OCUPADO' : 'DISPONIBLE';
       html += '<div class="dj-result-row' + (isSelected ? ' top' : '') + '" data-dj-index="' + idx + '">' +
-                '<span class="dj-result-rank">' + (idx + 1) + '.</span>' +
-                '<span class="dj-result-name">' + escapeHtml(dj.name) + '</span>' +
-                '<span class="dj-availability-badge ' + badgeClass + '">' + badgeText + '</span>' +
-                '<span class="dj-result-dist">' + djResultLabel(dj) + '</span>' +
+                '<div class="dj-result-line1">' +
+                  '<span class="dj-result-rank">' + (idx + 1) + '.</span>' +
+                  '<span class="dj-result-name">' + escapeHtml(dj.name) + '</span>' +
+                  '<span class="dj-availability-badge ' + badgeClass + '">' + badgeText + '</span>' +
+                '</div>' +
+                '<div class="dj-result-line2">' + djResultLabel(dj) + '</div>' +
               '</div>';
     });
     djResultsEl.innerHTML = html;
@@ -1598,10 +1639,11 @@
     setDjSearchMsg('');
     djResultsEl.innerHTML = '';
 
-    // FECHA y UBICACIÓN son obligatorias: no se ejecuta la búsqueda si falta alguna.
-    var selectedDate = parseDateInputValue(djDateInput.value);
+    // FECHA y UBICACIÓN son obligatorias: no se ejecuta la búsqueda si falta alguna
+    // o si la fecha escrita no es interpretable/no existe en el calendario.
+    var selectedDate = parseNaturalSpanishDate(djDateInput.value);
     if (!selectedDate){
-      setDjSearchMsg('Selecciona la fecha del evento.', true);
+      setDjSearchMsg('Fecha no válida. Ejemplo: 8 SEPTIEMBRE o 8 SEPTIEMBRE 2027', true);
       return;
     }
 
