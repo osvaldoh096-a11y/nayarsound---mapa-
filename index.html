@@ -401,7 +401,10 @@
     border-radius:5px;
     padding:7px 9px;
     font-size:11.5px;
+    cursor:pointer;
+    transition:background 0.12s ease;
   }
+  .dj-result-row:hover{ background:rgba(0,224,255,0.08); }
   .dj-result-rank{ color:var(--muted); width:14px; }
   .dj-result-name{ flex:1; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .dj-result-dist{ color:var(--text); white-space:nowrap; }
@@ -1398,6 +1401,7 @@
   var djSearchBtn    = document.getElementById('djSearchBtn');
   var djSearchMsgEl  = document.getElementById('djSearchMsg');
   var djResultsEl    = document.getElementById('djResults');
+  var currentDjSearch = null; // { point, pool, top3 } — para poder re-trazar la ruta al elegir otro DJ de la lista
 
   function setDjSearchMsg(msg, isError){
     djSearchMsgEl.textContent = msg || '';
@@ -1413,14 +1417,18 @@
     return dist || '—';
   }
 
-  function renderDjResults(top3){
+  // selectedDj: cuál de los top3 se resalta/traza en el mapa. No cambia el ranking
+  // (el orden 1/2/3 sigue siendo por cercanía/ruta) — solo cuál está marcado como
+  // elegido. Por defecto es el más cercano (top3[0]).
+  function renderDjResults(top3, selectedDj){
     if (!top3.length){
       djResultsEl.innerHTML = '';
       return;
     }
     var html = '';
     top3.forEach(function(dj, idx){
-      html += '<div class="dj-result-row' + (idx === 0 ? ' top' : '') + '">' +
+      var isSelected = selectedDj ? (dj === selectedDj) : (idx === 0);
+      html += '<div class="dj-result-row' + (isSelected ? ' top' : '') + '" data-dj-index="' + idx + '">' +
                 '<span class="dj-result-rank">' + (idx + 1) + '.</span>' +
                 '<span class="dj-result-name">' + escapeHtml(dj.name) + '</span>' +
                 '<span class="dj-result-dist">' + djResultLabel(dj) + '</span>' +
@@ -1429,13 +1437,13 @@
     djResultsEl.innerHTML = html;
   }
 
-  function drawDjSearchOnMap(point, pool, top3, routeLatLngs){
+  function drawDjSearchOnMap(point, pool, top3, routeLatLngs, selectedDj){
     enterDjFocusMode();
 
     if (djLayerGroup){ map.removeLayer(djLayerGroup); djLayerGroup = null; }
     djLayerGroup = L.layerGroup();
 
-    var nearest = top3.length ? top3[0] : null;
+    var nearest = selectedDj || (top3.length ? top3[0] : null);
 
     if (nearest){
       if (routeLatLngs && routeLatLngs.length > 1){
@@ -1592,6 +1600,7 @@
         return da - db;
       });
       var top3 = routedDjs.slice(0, 3);
+      currentDjSearch = { point: point, pool: routingCandidates, top3: top3 };
       setDjSearchMsg(cityMsg + ' Ruta real por calle (OpenRouteService).');
       renderDjResults(top3);
 
@@ -1608,6 +1617,7 @@
     }).catch(function(){
       // Respaldo si OpenRouteService falla (cuota, red, etc.): línea recta, avisando.
       var top3 = routingCandidates.slice(0, 3);
+      currentDjSearch = { point: point, pool: routingCandidates, top3: top3 };
       setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real — mostrando línea recta aproximada.', true);
       renderDjResults(top3);
       drawDjSearchOnMap(point, routingCandidates, top3, null);
@@ -1617,9 +1627,36 @@
     });
   }
 
+  // Elegir otro DJ de la lista (sin cambiar el ranking): re-dibuja el mapa marcándolo
+  // como el DJ destacado y recalcula/traza su ruta real, reutilizando exactamente la
+  // misma lógica de renderDjResults/drawDjSearchOnMap/getDrivingRoute que ya existía.
+  function selectDjForRoute(dj){
+    if (!currentDjSearch) return;
+
+    renderDjResults(currentDjSearch.top3, dj);
+    drawDjSearchOnMap(currentDjSearch.point, currentDjSearch.pool, currentDjSearch.top3, null, dj);
+
+    getDrivingRoute(currentDjSearch.point, dj).then(function(routeLatLngs){
+      if (!currentDjSearch) return; // el panel pudo cerrarse mientras se esperaba la ruta
+      drawDjSearchOnMap(currentDjSearch.point, currentDjSearch.pool, currentDjSearch.top3, routeLatLngs, dj);
+    }).catch(function(){
+      // se queda con la línea recta ya dibujada como respaldo
+    });
+  }
+
+  djResultsEl.addEventListener('click', function(ev){
+    var row = ev.target.closest('.dj-result-row');
+    if (!row || !currentDjSearch) return;
+    var idx = parseInt(row.dataset.djIndex, 10);
+    var dj = currentDjSearch.top3[idx];
+    if (!dj) return;
+    selectDjForRoute(dj);
+  });
+
   function closeDjPanel(){
     djToolPanel.classList.remove('visible');
     exitDjFocusMode();
+    currentDjSearch = null;
     djResultsEl.innerHTML = '';
     setDjSearchMsg('');
   }
