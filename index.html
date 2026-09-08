@@ -1299,6 +1299,65 @@
   // No participa de clearLayers()/renderCurrentView(): tiene su propia capa (djLayerGroup)
   // y no altera vistas, filtros, clustering, contador ni la lógica de FUERA DE ZONA.
 
+  // Ruteo real por calle (OpenRouteService, gratis) en vez de línea recta.
+  // ORS_MAX_DESTINATIONS acota cuántos DJs se mandan a calcular ruta real por
+  // búsqueda (el preorden rápido por línea recta ya deja a los más cercanos primero),
+  // para no gastar la cuota gratuita en pools enormes multi-ciudad.
+  var ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijg1Yzg5ZWExNGU4ZDQzMjI5OGFiYjk4ZjkyNGYxNzI3IiwiaCI6Im11cm11cjY0In0=';
+  var ORS_MATRIX_URL     = 'https://api.openrouteservice.org/v2/matrix/driving-car';
+  var ORS_DIRECTIONS_URL = 'https://api.openrouteservice.org/v2/directions/driving-car';
+  var ORS_MAX_DESTINATIONS = 50;
+
+  // Distancia y tiempo reales por calle de un punto a varios DJs, en una sola llamada.
+  function getDrivingMatrix(point, djs){
+    var locations = [[point.lng, point.lat]].concat(djs.map(function(d){ return [d.lng, d.lat]; }));
+    var destinations = djs.map(function(_, i){ return i + 1; });
+
+    return fetch(ORS_MATRIX_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': ORS_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        locations: locations,
+        sources: [0],
+        destinations: destinations,
+        metrics: ['distance', 'duration']
+      })
+    }).then(function(res){
+      if (!res.ok) throw new Error('ors_matrix_error');
+      return res.json();
+    }).then(function(data){
+      var distances = data.distances && data.distances[0];
+      var durations = data.durations && data.durations[0];
+      if (!distances || !durations) throw new Error('ors_matrix_bad_response');
+      djs.forEach(function(dj, i){
+        dj.distanceKm  = distances[i] != null ? distances[i] / 1000 : null;
+        dj.durationMin = durations[i] != null ? durations[i] / 60 : null;
+      });
+      return djs;
+    });
+  }
+
+  // Geometría de la ruta real (por calle) entre dos puntos, para dibujarla en el mapa.
+  function getDrivingRoute(pointA, pointB){
+    var url = ORS_DIRECTIONS_URL +
+      '?api_key=' + encodeURIComponent(ORS_API_KEY) +
+      '&start=' + pointA.lng + ',' + pointA.lat +
+      '&end=' + pointB.lng + ',' + pointB.lat;
+
+    return fetch(url).then(function(res){
+      if (!res.ok) throw new Error('ors_directions_error');
+      return res.json();
+    }).then(function(geojson){
+      var coords = geojson && geojson.features && geojson.features[0] &&
+                   geojson.features[0].geometry && geojson.features[0].geometry.coordinates;
+      if (!coords || !coords.length) throw new Error('ors_directions_bad_response');
+      return coords.map(function(c){ return [c[1], c[0]]; }); // [lng,lat] -> [lat,lng] (Leaflet)
+    });
+  }
+
   var djToolToggle   = document.getElementById('djToolToggle');
   var djToolPanel    = document.getElementById('djToolPanel');
   var djToolClose    = document.getElementById('djToolClose');
@@ -1312,6 +1371,15 @@
     djSearchMsgEl.classList.toggle('error', !!isError);
   }
 
+  function djResultLabel(dj){
+    var dist = (dj.distanceKm != null) ? dj.distanceKm.toFixed(1) + ' km' : '';
+    if (dj.durationMin != null){
+      var mins = Math.round(dj.durationMin) + ' min';
+      return dist ? (mins + ' (' + dist + ')') : mins;
+    }
+    return dist || '—';
+  }
+
   function renderDjResults(top3){
     if (!top3.length){
       djResultsEl.innerHTML = '';
@@ -1322,13 +1390,13 @@
       html += '<div class="dj-result-row' + (idx === 0 ? ' top' : '') + '">' +
                 '<span class="dj-result-rank">' + (idx + 1) + '.</span>' +
                 '<span class="dj-result-name">' + escapeHtml(dj.name) + '</span>' +
-                '<span class="dj-result-dist">' + dj.distanceKm.toFixed(1) + ' km</span>' +
+                '<span class="dj-result-dist">' + djResultLabel(dj) + '</span>' +
               '</div>';
     });
     djResultsEl.innerHTML = html;
   }
 
-  function drawDjSearchOnMap(point, pool, top3){
+  function drawDjSearchOnMap(point, pool, top3, routeLatLngs){
     if (djLayerGroup){ map.removeLayer(djLayerGroup); djLayerGroup = null; }
     djLayerGroup = L.layerGroup();
 
@@ -1340,20 +1408,27 @@
     pool.forEach(function(dj){
       var isNearest = nearest && dj === nearest;
       L.marker([dj.lat, dj.lng], { icon: isNearest ? djTopDivIcon : djDivIcon })
-        .bindPopup(escapeHtml(dj.name) + ' — ' + dj.distanceKm.toFixed(1) + ' km')
+        .bindPopup(escapeHtml(dj.name) + ' — ' + djResultLabel(dj))
         .addTo(djLayerGroup);
     });
 
     if (nearest){
-      L.polyline([[point.lat, point.lng], [nearest.lat, nearest.lng]], {
-        color: '#ff3b3b', weight: 2, opacity: 0.75, dashArray: '6,6', interactive: false
-      }).addTo(djLayerGroup);
+      if (routeLatLngs && routeLatLngs.length > 1){
+        L.polyline(routeLatLngs, {
+          color: '#ff3b3b', weight: 3, opacity: 0.85, interactive: false
+        }).addTo(djLayerGroup);
+      } else {
+        L.polyline([[point.lat, point.lng], [nearest.lat, nearest.lng]], {
+          color: '#ff3b3b', weight: 2, opacity: 0.75, dashArray: '6,6', interactive: false
+        }).addTo(djLayerGroup);
+      }
     }
 
     djLayerGroup.addTo(map);
 
     var fitPoints = [[point.lat, point.lng]];
     top3.forEach(function(dj){ fitPoints.push([dj.lat, dj.lng]); });
+    if (routeLatLngs) fitPoints = fitPoints.concat(routeLatLngs);
     if (fitPoints.length > 1){
       map.fitBounds(L.latLngBounds(fitPoints), { padding: [60, 60], maxZoom: 14 });
     } else {
@@ -1412,7 +1487,7 @@
         setDjSearchMsg('El enlace no contiene coordenadas reconocibles. Prueba con el link largo de Google Maps o pega las coordenadas directamente.', true);
         return;
       }
-      runDjSearch(resolvedPoint);
+      return runDjSearch(resolvedPoint);
     }).catch(function(){
       setDjSearchMsg('No se pudo resolver el enlace corto automáticamente. Abre el link en el navegador y pega el link largo, o pega las coordenadas directamente.', true);
     }).then(function(){
@@ -1436,23 +1511,62 @@
       broadened = true;
     }
 
-    pool.forEach(function(dj){ dj.distanceKm = haversineKm(point.lat, point.lng, dj.lat, dj.lng); });
-    pool.sort(function(a, b){ return a.distanceKm - b.distanceKm; });
-
-    var top3 = pool.slice(0, 3);
-
     if (!pool.length){
+      djResultsEl.innerHTML = '';
       setDjSearchMsg('No hay DJs activos disponibles.', true);
-    } else if (cityKey && !broadened){
-      setDjSearchMsg('Ciudad detectada: ' + (CITY_DISPLAY_NAMES[cityKey] || cityKey) + '. Comparando solo contra sus DJs activos.');
-    } else if (cityKey && broadened){
-      setDjSearchMsg('Ciudad detectada (' + (CITY_DISPLAY_NAMES[cityKey] || cityKey) + ') sin DJs registrados — comparando contra todos los DJs activos.');
-    } else {
-      setDjSearchMsg('Ciudad no determinada — comparando contra todos los DJs activos.');
+      return;
     }
 
-    renderDjResults(top3);
-    drawDjSearchOnMap(point, pool, top3);
+    var cityMsg;
+    if (cityKey && !broadened){
+      cityMsg = 'Ciudad detectada: ' + (CITY_DISPLAY_NAMES[cityKey] || cityKey) + '.';
+    } else if (cityKey && broadened){
+      cityMsg = 'Ciudad detectada (' + (CITY_DISPLAY_NAMES[cityKey] || cityKey) + ') sin DJs registrados — comparando contra todos los activos.';
+    } else {
+      cityMsg = 'Ciudad no determinada — comparando contra todos los DJs activos.';
+    }
+
+    // Preorden rápido por línea recta: acota el pool a un tamaño razonable antes de
+    // gastar cuota en calcular rutas reales (esto no cambia el resultado final salvo
+    // en pools enormes multi-ciudad, donde igual los más lejanos no iban a ganar).
+    pool.forEach(function(dj){ dj.distanceKm = haversineKm(point.lat, point.lng, dj.lat, dj.lng); dj.durationMin = null; });
+    pool.sort(function(a, b){ return a.distanceKm - b.distanceKm; });
+    var routingCandidates = pool.slice(0, ORS_MAX_DESTINATIONS);
+
+    setDjSearchMsg(cityMsg + ' Calculando ruta real por calle…');
+    djSearchBtn.disabled = true;
+    djSearchBtn.textContent = 'CALCULANDO RUTA…';
+
+    return getDrivingMatrix(point, routingCandidates).then(function(routedDjs){
+      routedDjs.sort(function(a, b){
+        var da = (a.durationMin != null) ? a.durationMin : Infinity;
+        var db = (b.durationMin != null) ? b.durationMin : Infinity;
+        return da - db;
+      });
+      var top3 = routedDjs.slice(0, 3);
+      setDjSearchMsg(cityMsg + ' Ruta real por calle (OpenRouteService).');
+      renderDjResults(top3);
+
+      if (!top3.length){
+        drawDjSearchOnMap(point, routingCandidates, top3, null);
+        return;
+      }
+
+      return getDrivingRoute(point, top3[0]).then(function(routeLatLngs){
+        drawDjSearchOnMap(point, routingCandidates, top3, routeLatLngs);
+      }).catch(function(){
+        drawDjSearchOnMap(point, routingCandidates, top3, null);
+      });
+    }).catch(function(){
+      // Respaldo si OpenRouteService falla (cuota, red, etc.): línea recta, avisando.
+      var top3 = routingCandidates.slice(0, 3);
+      setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real — mostrando línea recta aproximada.', true);
+      renderDjResults(top3);
+      drawDjSearchOnMap(point, routingCandidates, top3, null);
+    }).then(function(){
+      djSearchBtn.disabled = false;
+      djSearchBtn.textContent = 'BUSCAR DJ MÁS CERCANO';
+    });
   }
 
   djToolToggle.addEventListener('click', function(){
