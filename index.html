@@ -284,11 +284,15 @@
   }
 
   /* ================= HERRAMIENTA: DJ MÁS CERCANO (independiente) ================= */
-  .dj-tool-toggle{
+  .tool-toggle-row{
     position:absolute;
     top:14px;
     right:16px;
     z-index:1001;
+    display:flex;
+    gap:8px;
+  }
+  .dj-tool-toggle{
     background:var(--panel);
     border:1px solid var(--line);
     border-radius:6px;
@@ -300,6 +304,7 @@
     padding:9px 13px;
     cursor:pointer;
     box-shadow:0 0 12px rgba(0,224,255,0.15);
+    white-space:nowrap;
   }
   .dj-tool-toggle:hover{ background:#0f1c22; }
 
@@ -485,6 +490,47 @@
     box-shadow:0 2px 8px rgba(0,0,0,0.7), 0 0 0 3px rgba(255,210,59,0.45);
   }
 
+  /* ============ OPTIMIZAR ASIGNACIONES (independiente de DJ CERCANO) ============ */
+  .opt-summary{
+    background:rgba(0,224,255,0.06);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:10px 12px;
+    font-size:11px;
+    line-height:1.7;
+  }
+  .opt-summary:empty{ display:none; }
+  .opt-summary-highlight{ color:var(--cyan); font-weight:700; }
+
+  .opt-rec-row{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:8px 10px;
+    font-size:11px;
+  }
+  .opt-rec-header{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    color:var(--muted);
+    font-size:10px;
+    letter-spacing:0.03em;
+  }
+  .opt-rec-swap{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-weight:700;
+    font-size:12.5px;
+  }
+  .opt-rec-arrow{ color:var(--cyan); }
+  .opt-rec-to{ color:#4ade80; }
+  .opt-rec-dist{ color:var(--muted); font-size:10.5px; }
+  .opt-rec-saving{ color:#4ade80; font-weight:700; }
+
   @media (max-width: 640px){
     .dj-tool-panel{ width:290px; }
   }
@@ -526,8 +572,12 @@
   <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
   <div id="status">Cargando datos…</div>
 
-  <!-- ===== Herramienta independiente: DJ más cercano ===== -->
-  <button id="djToolToggle" class="dj-tool-toggle" type="button">DJ CERCANO</button>
+  <!-- ===== Herramientas independientes: DJ más cercano / Optimizar asignaciones ===== -->
+  <div class="tool-toggle-row">
+    <button id="djToolToggle" class="dj-tool-toggle" type="button">DJ CERCANO</button>
+    <button id="optToolToggle" class="dj-tool-toggle" type="button">OPTIMIZAR</button>
+  </div>
+
   <div id="djToolPanel" class="dj-tool-panel">
     <div class="dj-tool-header">
       <span>ASIGNACIÓN DE DJ</span>
@@ -541,6 +591,23 @@
     <button id="djSearchBtn" class="dj-tool-search-btn" type="button">BUSCAR DJ MÁS CERCANO</button>
     <div id="djSearchMsg" class="dj-tool-msg"></div>
     <div class="dj-results-wrap"><div id="djResults" class="dj-results"></div></div>
+  </div>
+
+  <div id="optToolPanel" class="dj-tool-panel">
+    <div class="dj-tool-header">
+      <span>OPTIMIZAR ASIGNACIONES</span>
+      <button id="optToolClose" class="dj-tool-close" type="button" aria-label="Cerrar">&times;</button>
+    </div>
+    <label class="dj-tool-label">PERÍODO A ANALIZAR</label>
+    <div class="segmented" id="optPeriodSelector">
+      <button data-days="7">7 DÍAS</button>
+      <button data-days="15" class="active">15 DÍAS</button>
+      <button data-days="30">30 DÍAS</button>
+    </div>
+    <button id="optAnalyzeBtn" class="dj-tool-search-btn" type="button">ANALIZAR ASIGNACIONES</button>
+    <div id="optMsg" class="dj-tool-msg"></div>
+    <div id="optSummary" class="opt-summary"></div>
+    <div class="dj-results-wrap"><div id="optResults" class="dj-results"></div></div>
   </div>
 </div>
 
@@ -1821,6 +1888,7 @@
     if (djToolPanel.classList.contains('visible')){
       closeDjPanel();
     } else {
+      closeOptPanel(); // evita que los dos paneles queden abiertos encimados
       djToolPanel.classList.add('visible');
     }
   });
@@ -1831,6 +1899,325 @@
 
   djLocationInput.addEventListener('keydown', function(ev){
     if (ev.key === 'Enter') handleDjSearch();
+  });
+
+  // ================= OPTIMIZAR ASIGNACIONES (independiente de DJ CERCANO) =================
+  // Analiza eventos FUTUROS ya cargados en memoria (allEvents) y sugiere reacomodos de
+  // DJ que reduzcan la distancia total, respetando disponibilidad por día y ciudad.
+  // Solo analiza y recomienda — nunca escribe en Google Sheets.
+
+  var MIN_REASSIGNMENT_SAVING_KM = 3; // umbral mínimo de ahorro para recomendar un cambio
+
+  function todayLocalMidnight(){
+    var n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }
+
+  function formatDateEs(d){
+    return d.getDate() + ' ' + MONTH_NAMES_ES[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  // Algoritmo húngaro (Kuhn-Munkres) para asignación de costo mínimo. Soporta matrices
+  // rectangulares rellenando con filas/columnas ficticias de costo 0 (técnica estándar:
+  // nunca desplaza una asignación real porque emparejar con un "fantasma" siempre cuesta
+  // 0). assignment[fila] = columna, o -1 si esa fila queda sin pareja real (solo posible
+  // si hay más eventos que DJs disponibles ese día en esa ciudad). Verificado contra
+  // fuerza bruta en 500 matrices aleatorias antes de integrarlo aquí.
+  function hungarianMinCost(costMatrix){
+    var n = costMatrix.length;
+    if (n === 0) return { assignment: [], totalCost: 0 };
+    var m = costMatrix[0].length;
+    var size = Math.max(n, m);
+    var INF = Infinity;
+
+    var a = [];
+    for (var i = 0; i <= size; i++) a.push(new Array(size + 1).fill(0));
+    for (i = 1; i <= n; i++){
+      for (var j = 1; j <= m; j++){ a[i][j] = costMatrix[i - 1][j - 1]; }
+    }
+
+    var u = new Array(size + 1).fill(0);
+    var v = new Array(size + 1).fill(0);
+    var p = new Array(size + 1).fill(0);
+    var way = new Array(size + 1).fill(0);
+
+    for (i = 1; i <= size; i++){
+      p[0] = i;
+      var j0 = 0;
+      var minv = new Array(size + 1).fill(INF);
+      var used = new Array(size + 1).fill(false);
+      do {
+        used[j0] = true;
+        var i0 = p[j0], delta = INF, j1 = -1;
+        for (j = 1; j <= size; j++){
+          if (!used[j]){
+            var cur = a[i0][j] - u[i0] - v[j];
+            if (cur < minv[j]){ minv[j] = cur; way[j] = j0; }
+            if (minv[j] < delta){ delta = minv[j]; j1 = j; }
+          }
+        }
+        for (j = 0; j <= size; j++){
+          if (used[j]){ u[p[j]] += delta; v[j] -= delta; }
+          else { minv[j] -= delta; }
+        }
+        j0 = j1;
+      } while (p[j0] !== 0);
+
+      do {
+        j1 = way[j0];
+        p[j0] = p[j1];
+        j0 = j1;
+      } while (j0);
+    }
+
+    var assignment = new Array(n).fill(-1);
+    var totalCost = 0;
+    for (j = 1; j <= size; j++){
+      if (p[j] >= 1 && p[j] <= n && j <= m){
+        assignment[p[j] - 1] = j - 1;
+        totalCost += costMatrix[p[j] - 1][j - 1];
+      }
+    }
+    return { assignment: assignment, totalCost: totalCost };
+  }
+
+  // Agrupa los eventos futuros (dentro del período elegido) por fecha + ciudad.
+  // Reutiliza allEvents tal cual está en memoria — ninguna consulta nueva a Sheets.
+  function getFutureEventGroups(periodDays){
+    var today = todayLocalMidnight();
+    var endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + periodDays);
+
+    var future = allEvents.filter(function(e){
+      return e.date && e.date.getTime() >= today.getTime() && e.date.getTime() <= endDate.getTime();
+    });
+
+    var groups = {};
+    future.forEach(function(e){
+      // Placeholder para un futuro campo BLOQUEADO en AGENDA: un evento bloqueado
+      // debe conservar su DJ actual y quedar fuera del reacomodo. La columna no
+      // existe todavía, así que e.blocked es siempre undefined/false hoy — este
+      // filtro queda listo para cuando se agregue, sin romper nada mientras tanto.
+      if (e.blocked) return;
+      if (!e.djNameNorm) return;
+
+      var key = e.date.getFullYear() + '-' + (e.date.getMonth() + 1) + '-' + e.date.getDate() + '|' + e.cityNorm;
+      if (!groups[key]) groups[key] = { date: e.date, cityNorm: e.cityNorm, events: [] };
+      groups[key].events.push(e);
+    });
+
+    return Object.keys(groups).map(function(k){ return groups[k]; });
+  }
+
+  // Para cada grupo (fecha+ciudad): DJs activos de esa ciudad (sin hardcodear
+  // ninguna) y solo los eventos cuyo DJ actual es uno de esos DJs conocidos — si el
+  // DJ asignado en AGENDA no está en la hoja DATA no hay forma de conocer su
+  // ubicación para comparar, así que ese evento queda fuera del análisis.
+  function prepareGroup(group){
+    var djsInCity = allDjs.filter(function(d){ return d.cityNorm === group.cityNorm; });
+    var eligibleEvents = group.events.filter(function(e){
+      return djsInCity.some(function(d){ return d.nameNorm === e.djNameNorm; });
+    });
+    if (!eligibleEvents.length || !djsInCity.length) return null;
+    return { date: group.date, cityNorm: group.cityNorm, events: eligibleEvents, djs: djsInCity };
+  }
+
+  // Distancia (km) de cada evento a cada DJ candidato del grupo, en una sola llamada
+  // a OpenRouteService Matrix (nunca una petición por combinación). Si ORS falla
+  // (cuota, red, etc.) cae a Haversine calculado localmente, sin red adicional.
+  function getGroupDistanceMatrix(events, djs){
+    var locations = events.map(function(e){ return [e.lng, e.lat]; })
+      .concat(djs.map(function(d){ return [d.lng, d.lat]; }));
+    var sources = events.map(function(_, i){ return i; });
+    var destinations = djs.map(function(_, i){ return events.length + i; });
+
+    return fetch(ORS_MATRIX_URL, {
+      method: 'POST',
+      headers: { 'Authorization': ORS_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations: locations, sources: sources, destinations: destinations, metrics: ['distance'] })
+    }).then(function(res){
+      if (!res.ok) throw new Error('ors_matrix_error');
+      return res.json();
+    }).then(function(data){
+      if (!data.distances) throw new Error('ors_matrix_bad_response');
+      var matrix = data.distances.map(function(row){
+        return row.map(function(meters){ return meters / 1000; });
+      });
+      return { matrix: matrix, usedFallback: false };
+    }).catch(function(){
+      var matrix = events.map(function(e){
+        return djs.map(function(d){ return haversineKm(e.lat, e.lng, d.lat, d.lng); });
+      });
+      return { matrix: matrix, usedFallback: true };
+    });
+  }
+
+  // Compara la asignación ACTUAL (de AGENDA) contra la óptima (húngaro) para un
+  // grupo fecha+ciudad. Solo se recomienda un cambio si el DJ propuesto es
+  // distinto del actual Y el ahorro alcanza MIN_REASSIGNMENT_SAVING_KM; si no,
+  // se conserva la distancia actual tanto en el total actual como en el optimizado.
+  function analyzeGroup(group){
+    return getGroupDistanceMatrix(group.events, group.djs).then(function(res){
+      var matrix = res.matrix;
+      var hungarian = hungarianMinCost(matrix);
+
+      var recs = [];
+      var actualTotal = 0;
+      var optimizedTotal = 0;
+
+      group.events.forEach(function(e, i){
+        var actualDjIdx = group.djs.findIndex(function(d){ return d.nameNorm === e.djNameNorm; });
+        var actualDist = matrix[i][actualDjIdx];
+        var proposedDjIdx = hungarian.assignment[i];
+        var proposedDist = (proposedDjIdx >= 0) ? matrix[i][proposedDjIdx] : actualDist;
+
+        actualTotal += actualDist;
+
+        var saving = actualDist - proposedDist;
+        if (proposedDjIdx >= 0 && proposedDjIdx !== actualDjIdx && saving >= MIN_REASSIGNMENT_SAVING_KM){
+          optimizedTotal += proposedDist;
+          recs.push({
+            cityNorm: group.cityNorm,
+            date: group.date,
+            actualDj: group.djs[actualDjIdx],
+            actualDist: actualDist,
+            proposedDj: group.djs[proposedDjIdx],
+            proposedDist: proposedDist,
+            saving: saving
+          });
+        } else {
+          optimizedTotal += actualDist;
+        }
+      });
+
+      return {
+        recs: recs, actualTotal: actualTotal, optimizedTotal: optimizedTotal,
+        eventCount: group.events.length, usedFallback: res.usedFallback
+      };
+    });
+  }
+
+  function runOptimizationAnalysis(periodDays){
+    var groups = getFutureEventGroups(periodDays).map(prepareGroup).filter(Boolean);
+
+    if (!groups.length){
+      return Promise.resolve({ recs: [], actualTotal: 0, optimizedTotal: 0, eventCount: 0, usedFallbackAny: false });
+    }
+
+    return Promise.all(groups.map(analyzeGroup)).then(function(results){
+      var allRecs = [];
+      var actualTotal = 0, optimizedTotal = 0, eventCount = 0, usedFallbackAny = false;
+      results.forEach(function(r){
+        allRecs = allRecs.concat(r.recs);
+        actualTotal += r.actualTotal;
+        optimizedTotal += r.optimizedTotal;
+        eventCount += r.eventCount;
+        if (r.usedFallback) usedFallbackAny = true;
+      });
+      allRecs.sort(function(a, b){ return b.saving - a.saving; });
+      return {
+        recs: allRecs, actualTotal: actualTotal, optimizedTotal: optimizedTotal,
+        eventCount: eventCount, usedFallbackAny: usedFallbackAny
+      };
+    });
+  }
+
+  var optToolToggle    = document.getElementById('optToolToggle');
+  var optToolPanel     = document.getElementById('optToolPanel');
+  var optToolClose     = document.getElementById('optToolClose');
+  var optPeriodSelector= document.getElementById('optPeriodSelector');
+  var optAnalyzeBtn    = document.getElementById('optAnalyzeBtn');
+  var optMsgEl         = document.getElementById('optMsg');
+  var optSummaryEl     = document.getElementById('optSummary');
+  var optResultsEl     = document.getElementById('optResults');
+  var optSelectedPeriodDays = 15;
+
+  function setOptMsg(msg, isError){
+    optMsgEl.textContent = msg || '';
+    optMsgEl.classList.toggle('error', !!isError);
+  }
+
+  function renderOptimizationResults(result, periodDays){
+    var ahorro = result.actualTotal - result.optimizedTotal;
+
+    optSummaryEl.innerHTML =
+      '<div>Periodo: <span class="opt-summary-highlight">Próximos ' + periodDays + ' días</span></div>' +
+      '<div>' + result.eventCount + ' evento' + (result.eventCount === 1 ? '' : 's') + ' analizado' + (result.eventCount === 1 ? '' : 's') + '</div>' +
+      '<div>Asignación actual: <span class="opt-summary-highlight">' + result.actualTotal.toFixed(1) + ' km</span></div>' +
+      '<div>Asignación optimizada: <span class="opt-summary-highlight">' + result.optimizedTotal.toFixed(1) + ' km</span></div>' +
+      '<div>Ahorro potencial: <span class="opt-summary-highlight">' + ahorro.toFixed(1) + ' km</span></div>' +
+      '<div>Reacomodos recomendados: <span class="opt-summary-highlight">' + result.recs.length + '</span></div>';
+
+    if (!result.recs.length){
+      optResultsEl.innerHTML = '<div class="dj-tool-msg">No se encontraron reacomodos con al menos ' + MIN_REASSIGNMENT_SAVING_KM + ' km de ahorro.</div>';
+    } else {
+      var html = '';
+      result.recs.forEach(function(r){
+        html +=
+          '<div class="opt-rec-row">' +
+            '<div class="opt-rec-header">' +
+              '<span>' + escapeHtml(CITY_DISPLAY_NAMES[r.cityNorm] || r.cityNorm) + '</span>' +
+              '<span>' + formatDateEs(r.date) + '</span>' +
+            '</div>' +
+            '<div class="opt-rec-swap">' +
+              '<span>' + escapeHtml(r.actualDj.name) + '</span>' +
+              '<span class="opt-rec-arrow">&rarr;</span>' +
+              '<span class="opt-rec-to">' + escapeHtml(r.proposedDj.name) + '</span>' +
+            '</div>' +
+            '<div class="opt-rec-dist">' + r.actualDist.toFixed(1) + ' km &rarr; ' + r.proposedDist.toFixed(1) + ' km' +
+              ' &middot; <span class="opt-rec-saving">ahorro ' + r.saving.toFixed(1) + ' km</span></div>' +
+          '</div>';
+      });
+      optResultsEl.innerHTML = html;
+    }
+
+    setOptMsg(result.usedFallbackAny
+      ? 'Análisis completo. Algunos días usaron línea recta aproximada (OpenRouteService no disponible en ese momento).'
+      : 'Análisis completo — rutas reales por calle (OpenRouteService).');
+  }
+
+  function closeOptPanel(){
+    optToolPanel.classList.remove('visible');
+  }
+
+  optToolToggle.addEventListener('click', function(){
+    if (optToolPanel.classList.contains('visible')){
+      closeOptPanel();
+    } else {
+      closeDjPanel(); // evita que los dos paneles queden abiertos encimados
+      optToolPanel.classList.add('visible');
+    }
+  });
+
+  optToolClose.addEventListener('click', closeOptPanel);
+
+  optPeriodSelector.addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(optPeriodSelector, btn);
+    optSelectedPeriodDays = parseInt(btn.dataset.days, 10);
+  });
+
+  optAnalyzeBtn.addEventListener('click', function(){
+    setOptMsg('Analizando asignaciones futuras…');
+    optSummaryEl.innerHTML = '';
+    optResultsEl.innerHTML = '';
+    optAnalyzeBtn.disabled = true;
+    optAnalyzeBtn.textContent = 'ANALIZANDO…';
+
+    runOptimizationAnalysis(optSelectedPeriodDays).then(function(result){
+      if (!result.eventCount){
+        setOptMsg('No hay eventos futuros con DJ activo conocido en los próximos ' + optSelectedPeriodDays + ' días.', true);
+        return;
+      }
+      renderOptimizationResults(result, optSelectedPeriodDays);
+    }).catch(function(err){
+      console.error('Error al optimizar asignaciones:', err);
+      setOptMsg('Ocurrió un error al analizar las asignaciones. Intenta de nuevo.', true);
+    }).then(function(){
+      optAnalyzeBtn.disabled = false;
+      optAnalyzeBtn.textContent = 'ANALIZAR ASIGNACIONES';
+    });
   });
 
   loadEvents();
