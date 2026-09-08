@@ -620,11 +620,12 @@
   // ================= CONFIGURACIÓN =================
   var SHEET_ID    = '1FKaobilQ1HNHXntMxnFgoPld5In4dwSNsQgt-78yk4o';
   var SHEET_NAME  = 'AGENDA';
-  var DATA_RANGE  = 'C13:Q5000'; // columna C (CIUDAD) ... columna Q (COORDENADAS)
+  var DATA_RANGE  = 'C13:R5000'; // columna C (CIUDAD) ... columna R (BLOQUEADO)
   var CITY_COL_IDX  = 0;  // C es la primera columna del rango
   var DJ_ASSIGNED_COL_IDX = 1; // D (DJ) — DJ asignado al evento, usado por OCUPADO/DISPONIBLE
   var FECHA_COL_IDX = 2;  // E (FECHA) está 2 columnas después de C — solo se usa para filtrar, nunca se muestra
   var COORD_COL_IDX = 14; // Q está 14 columnas después de C
+  var BLOQUEADO_COL_IDX = 15; // R — evento bloqueado (conserva su DJ actual, fuera de OPTIMIZAR ASIGNACIONES)
   var REFRESH_MS  = 5 * 60 * 1000;
 
   // ---- Fuente de DJs para la herramienta "DJ más cercano" (100% dinámica desde Sheets) ----
@@ -1002,9 +1003,10 @@
 
         rows.forEach(function(row){
           var cells = row.c || [];
-          var cityRaw  = cells[CITY_COL_IDX]  ? cells[CITY_COL_IDX].v  : null;
-          var djRaw    = cells[DJ_ASSIGNED_COL_IDX] ? cells[DJ_ASSIGNED_COL_IDX].v : null;
-          var coordRaw = cells[COORD_COL_IDX] ? cells[COORD_COL_IDX].v : null;
+          var cityRaw     = cells[CITY_COL_IDX]  ? cells[CITY_COL_IDX].v  : null;
+          var djRaw       = cells[DJ_ASSIGNED_COL_IDX] ? cells[DJ_ASSIGNED_COL_IDX].v : null;
+          var coordRaw    = cells[COORD_COL_IDX] ? cells[COORD_COL_IDX].v : null;
+          var bloqueadoRaw = cells[BLOQUEADO_COL_IDX] ? cells[BLOQUEADO_COL_IDX].v : null;
           var eventDate = parseSheetDate(cells[FECHA_COL_IDX]);
           var coord = parseCoordinate(coordRaw);
           if (!coord) return;
@@ -1014,7 +1016,8 @@
             lng: coord.lng,
             cityNorm: normalizeCity(cityRaw),
             date: eventDate,
-            djNameNorm: normalizeCity(djRaw) // usado por OCUPADO/DISPONIBLE en DJ CERCANO
+            djNameNorm: normalizeCity(djRaw), // usado por OCUPADO/DISPONIBLE en DJ CERCANO
+            blocked: normalizeCity(bloqueadoRaw) === 'SI' // usado por OPTIMIZAR ASIGNACIONES
           });
         });
 
@@ -1994,10 +1997,10 @@
 
     var groups = {};
     future.forEach(function(e){
-      // Placeholder para un futuro campo BLOQUEADO en AGENDA: un evento bloqueado
-      // debe conservar su DJ actual y quedar fuera del reacomodo. La columna no
-      // existe todavía, así que e.blocked es siempre undefined/false hoy — este
-      // filtro queda listo para cuando se agregue, sin romper nada mientras tanto.
+      // Columna BLOQUEADO (R) en AGENDA: un evento bloqueado conserva su DJ
+      // actual y queda completamente fuera del reacomodo (ni siquiera se
+      // cuenta en los totales de distancia, igual que cualquier evento no
+      // elegible).
       if (e.blocked) return;
       if (!e.djNameNorm) return;
 
