@@ -414,29 +414,30 @@
 
   .dj-marker{
     display:block;
-    width:11px;
-    height:11px;
+    width:18px;
+    height:18px;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #ffb3b3, #ff3b3b 60%, #b30000 100%);
-    box-shadow:0 0 0 3px rgba(255,59,59,0.18), 0 0 8px rgba(255,59,59,0.55);
+    background:radial-gradient(circle at 35% 30%, #ff8a8a, #ff3b3b 55%, #b30000 100%);
+    border:2.5px solid #ffffff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,59,59,0.35);
   }
   .dj-marker-top{
     display:block;
-    width:17px;
-    height:17px;
+    width:26px;
+    height:26px;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #fff2b3, #ff3b3b 55%, #b30000 100%);
-    box-shadow:0 0 0 5px rgba(255,59,59,0.3), 0 0 16px rgba(255,59,59,0.9);
-    border:2px solid #ffd23b;
+    background:radial-gradient(circle at 35% 30%, #ff8a8a, #ff3b3b 55%, #8f0000 100%);
+    border:3px solid #ffffff;
+    box-shadow:0 2px 6px rgba(0,0,0,0.7), 0 0 0 3px rgba(255,59,59,0.5);
   }
   .event-location-marker{
     display:block;
-    width:17px;
-    height:17px;
+    width:28px;
+    height:28px;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #fffbe0, #ffd23b 60%, #cc9900 100%);
-    box-shadow:0 0 0 5px rgba(255,210,59,0.25), 0 0 14px rgba(255,210,59,0.85);
-    border:2px solid #fff;
+    background:radial-gradient(circle at 35% 30%, #fffbe0, #ffd23b 55%, #cc9900 100%);
+    border:3px solid #0a1216;
+    box-shadow:0 2px 8px rgba(0,0,0,0.7), 0 0 0 3px rgba(255,210,59,0.45);
   }
 
   @media (max-width: 640px){
@@ -554,22 +555,22 @@
   var djDivIcon = L.divIcon({
     className: '',
     html: '<span class="dj-marker"></span>',
-    iconSize: [11, 11],
-    iconAnchor: [5, 5]
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
   });
 
   var djTopDivIcon = L.divIcon({
     className: '',
     html: '<span class="dj-marker-top"></span>',
-    iconSize: [17, 17],
-    iconAnchor: [8, 8]
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
   });
 
   var eventLocationDivIcon = L.divIcon({
     className: '',
     html: '<span class="event-location-marker"></span>',
-    iconSize: [17, 17],
-    iconAnchor: [8, 8]
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
   });
 
   function createClusterIcon(cluster){
@@ -1196,6 +1197,36 @@
     outOfZoneEl.style.display = 'none';
   }
 
+  // ---- Modo enfoque de DJ CERCANO: oculta temporalmente eventos/clusters/cuadrantes ----
+  // sin destruirlos (solo se desprenden del mapa con removeLayer; los mismos objetos
+  // se vuelven a adjuntar al salir, o se recrean con la lógica normal si el usuario
+  // cambia de vista/filtro mientras el modo está activo).
+  var djModeActive = false;
+
+  function applyDjFocusVisibility(){
+    if (!djModeActive) return;
+    if (clusterGroup && map.hasLayer(clusterGroup)) map.removeLayer(clusterGroup);
+    if (quadrantLayerGroup && map.hasLayer(quadrantLayerGroup)) map.removeLayer(quadrantLayerGroup);
+    hideTodosOverlay();
+    hideOutOfZoneLabel();
+  }
+
+  function enterDjFocusMode(){
+    if (djModeActive) return;
+    djModeActive = true;
+    applyDjFocusVisibility();
+  }
+
+  function exitDjFocusMode(){
+    if (!djModeActive) return;
+    djModeActive = false;
+    if (djLayerGroup){ map.removeLayer(djLayerGroup); djLayerGroup = null; }
+    // renderCurrentView() refleja el filtro de ciudad/periodo y la vista actuales
+    // (aunque hayan cambiado durante la búsqueda de DJ), restaurando el mapa normal
+    // sin necesidad de recordar un estado previo por separado.
+    renderCurrentView();
+  }
+
   function renderQuadrants(events){
     quadrantCityData = null;
     quadrantCurrentLevel = null;
@@ -1262,6 +1293,8 @@
     } else {
       renderQuadrants(events); // ajusta el mapa por sí misma (a la zona fija o deja el overlay de TODOS)
     }
+
+    applyDjFocusVisibility();
   }
 
   function setActive(container, target){
@@ -1397,32 +1430,47 @@
   }
 
   function drawDjSearchOnMap(point, pool, top3, routeLatLngs){
+    enterDjFocusMode();
+
     if (djLayerGroup){ map.removeLayer(djLayerGroup); djLayerGroup = null; }
     djLayerGroup = L.layerGroup();
 
-    L.marker([point.lat, point.lng], { icon: eventLocationDivIcon })
-      .bindPopup('UBICACIÓN DEL EVENTO')
-      .addTo(djLayerGroup);
-
     var nearest = top3.length ? top3[0] : null;
+
+    if (nearest){
+      if (routeLatLngs && routeLatLngs.length > 1){
+        // Outline discreto oscuro debajo para que el cian resalte sobre el mapa claro.
+        L.polyline(routeLatLngs, {
+          color: '#04141a', weight: 6, opacity: 0.35, interactive: false
+        }).addTo(djLayerGroup);
+        L.polyline(routeLatLngs, {
+          color: '#00e0ff', weight: 3, opacity: 0.95, interactive: false
+        }).addTo(djLayerGroup);
+      } else {
+        L.polyline([[point.lat, point.lng], [nearest.lat, nearest.lng]], {
+          color: '#00e0ff', weight: 2, opacity: 0.8, dashArray: '6,6', interactive: false
+        }).addTo(djLayerGroup);
+      }
+    }
+
+    // Resto de DJs primero (prioridad visual media), destacados después (alta/máxima)
+    // para que queden por encima en el mismo pane de marcadores.
     pool.forEach(function(dj){
-      var isNearest = nearest && dj === nearest;
-      L.marker([dj.lat, dj.lng], { icon: isNearest ? djTopDivIcon : djDivIcon })
+      if (dj === nearest) return;
+      L.marker([dj.lat, dj.lng], { icon: djDivIcon })
         .bindPopup(escapeHtml(dj.name) + ' — ' + djResultLabel(dj))
         .addTo(djLayerGroup);
     });
 
     if (nearest){
-      if (routeLatLngs && routeLatLngs.length > 1){
-        L.polyline(routeLatLngs, {
-          color: '#ff3b3b', weight: 3, opacity: 0.85, interactive: false
-        }).addTo(djLayerGroup);
-      } else {
-        L.polyline([[point.lat, point.lng], [nearest.lat, nearest.lng]], {
-          color: '#ff3b3b', weight: 2, opacity: 0.75, dashArray: '6,6', interactive: false
-        }).addTo(djLayerGroup);
-      }
+      L.marker([nearest.lat, nearest.lng], { icon: djTopDivIcon, zIndexOffset: 900 })
+        .bindPopup(escapeHtml(nearest.name) + ' — ' + djResultLabel(nearest))
+        .addTo(djLayerGroup);
     }
+
+    L.marker([point.lat, point.lng], { icon: eventLocationDivIcon, zIndexOffset: 1000 })
+      .bindPopup('UBICACIÓN DEL EVENTO')
+      .addTo(djLayerGroup);
 
     djLayerGroup.addTo(map);
 
@@ -1569,13 +1617,22 @@
     });
   }
 
+  function closeDjPanel(){
+    djToolPanel.classList.remove('visible');
+    exitDjFocusMode();
+    djResultsEl.innerHTML = '';
+    setDjSearchMsg('');
+  }
+
   djToolToggle.addEventListener('click', function(){
-    djToolPanel.classList.toggle('visible');
+    if (djToolPanel.classList.contains('visible')){
+      closeDjPanel();
+    } else {
+      djToolPanel.classList.add('visible');
+    }
   });
 
-  djToolClose.addEventListener('click', function(){
-    djToolPanel.classList.remove('visible');
-  });
+  djToolClose.addEventListener('click', closeDjPanel);
 
   djSearchBtn.addEventListener('click', handleDjSearch);
 
