@@ -1852,14 +1852,11 @@
         drawDjSearchOnMap(point, routingCandidates, rankedDjs, null);
       });
     }).catch(function(){
-      // Respaldo si OpenRouteService falla (cuota, red, etc.): línea recta, avisando.
-      // También sin límite — se mantiene el mismo criterio de mostrar todos.
-      var rankedDjs = routingCandidates;
-      rankedDjs.forEach(function(dj){ dj.busy = isDjBusyOnDate(dj.nameNorm, selectedDate); });
-      currentDjSearch = { point: point, pool: routingCandidates, rankedDjs: rankedDjs };
-      setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real — mostrando línea recta aproximada.', true);
-      renderDjResults(rankedDjs);
-      drawDjSearchOnMap(point, routingCandidates, rankedDjs, null);
+      // Sin respaldo de línea recta: si OpenRouteService falla, no se muestra
+      // ranking aproximado. Se corta aquí y se avisa con claridad.
+      currentDjSearch = null;
+      djResultsEl.innerHTML = '';
+      setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real por calle en este momento (OpenRouteService no disponible). Intenta de nuevo en unos segundos.', true);
     }).then(function(){
       djSearchBtn.disabled = false;
       djSearchBtn.textContent = 'BUSCAR DJ MÁS CERCANO';
