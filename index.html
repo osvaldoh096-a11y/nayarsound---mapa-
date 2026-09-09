@@ -1995,15 +1995,11 @@
       return e.date && e.date.getTime() >= today.getTime() && e.date.getTime() <= endDate.getTime();
     });
 
+    // Se incluyen también los eventos bloqueados y sin DJ conocido en esta etapa:
+    // prepareGroup() necesita verlos para saber qué DJs quedan comprometidos ese
+    // día (ver comentario ahí). Se descartan recién al preparar cada grupo.
     var groups = {};
     future.forEach(function(e){
-      // Columna BLOQUEADO (R) en AGENDA: un evento bloqueado conserva su DJ
-      // actual y queda completamente fuera del reacomodo (ni siquiera se
-      // cuenta en los totales de distancia, igual que cualquier evento no
-      // elegible).
-      if (e.blocked) return;
-      if (!e.djNameNorm) return;
-
       var key = e.date.getFullYear() + '-' + (e.date.getMonth() + 1) + '-' + e.date.getDate() + '|' + e.cityNorm;
       if (!groups[key]) groups[key] = { date: e.date, cityNorm: e.cityNorm, events: [] };
       groups[key].events.push(e);
@@ -2016,13 +2012,27 @@
   // ninguna) y solo los eventos cuyo DJ actual es uno de esos DJs conocidos — si el
   // DJ asignado en AGENDA no está en la hoja DATA no hay forma de conocer su
   // ubicación para comparar, así que ese evento queda fuera del análisis.
+  //
+  // Un evento BLOQUEADO (columna R) conserva su DJ actual y no entra al reacomodo,
+  // pero ese DJ sigue comprometido ese día: se retira del pool de candidatos
+  // disponibles para los demás eventos del mismo día/ciudad, para no recomendarlo
+  // en dos lados a la vez.
   function prepareGroup(group){
     var djsInCity = allDjs.filter(function(d){ return d.cityNorm === group.cityNorm; });
-    var eligibleEvents = group.events.filter(function(e){
-      return djsInCity.some(function(d){ return d.nameNorm === e.djNameNorm; });
+
+    var lockedDjNames = {};
+    group.events.forEach(function(e){
+      if (e.blocked && e.djNameNorm) lockedDjNames[e.djNameNorm] = true;
     });
-    if (!eligibleEvents.length || !djsInCity.length) return null;
-    return { date: group.date, cityNorm: group.cityNorm, events: eligibleEvents, djs: djsInCity };
+    var availableDjs = djsInCity.filter(function(d){ return !lockedDjNames[d.nameNorm]; });
+
+    var eligibleEvents = group.events.filter(function(e){
+      if (e.blocked) return false;
+      return availableDjs.some(function(d){ return d.nameNorm === e.djNameNorm; });
+    });
+
+    if (!eligibleEvents.length || !availableDjs.length) return null;
+    return { date: group.date, cityNorm: group.cityNorm, events: eligibleEvents, djs: availableDjs };
   }
 
   // Distancia (km) de cada evento a cada DJ candidato del grupo, en una sola llamada
