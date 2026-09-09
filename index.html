@@ -980,7 +980,8 @@
     var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
               '/gviz/tq?sheet=' + encodeURIComponent(SHEET_NAME) +
               '&range=' + DATA_RANGE + '&headers=0' +
-              '&tqx=out:json;responseHandler:' + callbackName;
+              '&tqx=out:json;responseHandler:' + callbackName +
+              '&_=' + Date.now(); // evita cualquier caché intermedia (Google/navegador)
 
     var script = document.createElement('script');
     var settled = false;
@@ -1067,7 +1068,8 @@
     var url = 'https://docs.google.com/spreadsheets/d/' + DJS_SHEET_ID +
               '/gviz/tq?sheet=' + encodeURIComponent(DJS_SHEET_NAME) +
               '&range=' + DJS_RANGE + '&headers=0' +
-              '&tqx=out:json;responseHandler:' + callbackName;
+              '&tqx=out:json;responseHandler:' + callbackName +
+              '&_=' + Date.now(); // evita cualquier caché intermedia (Google/navegador)
 
     var script = document.createElement('script');
     var settled = false;
