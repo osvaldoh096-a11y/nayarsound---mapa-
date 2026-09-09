@@ -968,7 +968,14 @@
   }
 
   // ================= CARGA DE DATOS (JSONP, evita el bloqueo CORS de Sheets) =================
+  // Devuelve una Promise que resuelve cuando allEvents queda actualizado (o cuando
+  // falla la carga, para no dejar colgado a quien esté esperando datos frescos —
+  // en ese caso simplemente queda lo último que ya se había cargado). El uso normal
+  // vía setInterval ignora este valor de retorno sin problema; OPTIMIZAR ASIGNACIONES
+  // sí lo usa para forzar datos al día antes de cada análisis, en vez de esperar a
+  // que le toque el refresco automático de REFRESH_MS.
   function loadEvents(){
+    return new Promise(function(resolveLoad){
     var callbackName = '__gvizCallback_' + Date.now();
     var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
               '/gviz/tq?sheet=' + encodeURIComponent(SHEET_NAME) +
@@ -984,6 +991,7 @@
       cleanup();
       console.error('Tiempo de espera agotado al cargar Google Sheets');
       setStatus('No se pudo actualizar — reintentando…');
+      resolveLoad();
     }, 10000);
 
     function cleanup(){
@@ -1029,6 +1037,7 @@
         console.error('Error al procesar datos de Google Sheets:', err);
         setStatus('No se pudo actualizar — reintentando…');
       }
+      resolveLoad();
     };
 
     script.onerror = function(){
@@ -1037,10 +1046,12 @@
       cleanup();
       console.error('Error al cargar el script de Google Sheets');
       setStatus('No se pudo actualizar — reintentando…');
+      resolveLoad();
     };
 
     script.src = url;
     document.body.appendChild(script);
+    });
   }
 
   // ================= CARGA DE DJs (independiente, misma técnica JSONP) =================
@@ -2212,13 +2223,19 @@
   });
 
   optAnalyzeBtn.addEventListener('click', function(){
-    setOptMsg('Analizando asignaciones futuras…');
+    setOptMsg('Actualizando datos de Google Sheets…');
     optSummaryEl.innerHTML = '';
     optResultsEl.innerHTML = '';
     optAnalyzeBtn.disabled = true;
     optAnalyzeBtn.textContent = 'ANALIZANDO…';
 
-    runOptimizationAnalysis(optSelectedPeriodDays).then(function(result){
+    // Siempre jala datos frescos de AGENDA antes de analizar — si no, un cambio
+    // recién hecho en Sheets (ej. quitar un BLOQUEADO) no se reflejaría hasta el
+    // siguiente refresco automático (cada REFRESH_MS) o un F5 a la página.
+    loadEvents().then(function(){
+      setOptMsg('Analizando asignaciones futuras…');
+      return runOptimizationAnalysis(optSelectedPeriodDays);
+    }).then(function(result){
       if (!result.eventCount){
         setOptMsg('No hay eventos futuros con DJ activo conocido en los próximos ' + optSelectedPeriodDays + ' días.', true);
         return;
