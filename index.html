@@ -1576,12 +1576,20 @@
         metrics: ['distance', 'duration']
       })
     }).then(function(res){
-      if (!res.ok) throw new Error('ors_matrix_error');
+      if (!res.ok){
+        return res.text().then(function(body){
+          console.error('OpenRouteService Matrix respondió ' + res.status + ': ' + body);
+          throw new Error('ors_matrix_error');
+        });
+      }
       return res.json();
     }).then(function(data){
       var distances = data.distances && data.distances[0];
       var durations = data.durations && data.durations[0];
-      if (!distances || !durations) throw new Error('ors_matrix_bad_response');
+      if (!distances || !durations){
+        console.error('OpenRouteService Matrix: respuesta sin distances/durations', data);
+        throw new Error('ors_matrix_bad_response');
+      }
       djs.forEach(function(dj, i){
         dj.distanceKm  = distances[i] != null ? distances[i] / 1000 : null;
         dj.durationMin = durations[i] != null ? durations[i] / 60 : null;
@@ -1851,9 +1859,10 @@
       }).catch(function(){
         drawDjSearchOnMap(point, routingCandidates, rankedDjs, null);
       });
-    }).catch(function(){
+    }).catch(function(err){
       // Sin respaldo de línea recta: si OpenRouteService falla, no se muestra
       // ranking aproximado. Se corta aquí y se avisa con claridad.
+      console.error('Fallo al calcular la matriz de rutas (DJ CERCANO):', err);
       currentDjSearch = null;
       djResultsEl.innerHTML = '';
       setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real por calle en este momento (OpenRouteService no disponible). Intenta de nuevo en unos segundos.', true);
