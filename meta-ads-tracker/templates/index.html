@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Competidores{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <h1>Competidores</h1>
+    <a class="btn btn-primary" href="{{ url_for('new_competitor') }}">+ Nuevo competidor</a>
+  </div>
+
+  {% if competitors %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Ciudad</th>
+        <th>Categoría</th>
+        <th>Página de Facebook</th>
+        <th>Ads Library</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in competitors %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ c.city or "—" }}</td>
+        <td>{{ c.category or "—" }}</td>
+        <td>
+          {% if c.facebook_page %}
+            <a href="{{ c.facebook_page }}" target="_blank" rel="noopener">Ver página</a>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if c.ads_library_url %}
+            <a class="btn btn-small btn-accent" href="{{ c.ads_library_url }}" target="_blank" rel="noopener">Abrir Ads Library</a>
+          {% else %}—{% endif %}
+        </td>
+        <td class="actions">
+          <a class="btn btn-small" href="{{ url_for('edit_competitor', competitor_id=c.id) }}">Editar</a>
+          <form method="post" action="{{ url_for('delete_competitor', competitor_id=c.id) }}"
+                onsubmit="return confirm('¿Eliminar {{ c.name|e }}?');">
+            <button type="submit" class="btn btn-small btn-danger">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Todavía no hay competidores. Crea el primero.</p>
+  {% endif %}
+{% endblock %}
