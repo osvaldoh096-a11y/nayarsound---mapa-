@@ -531,6 +531,61 @@
   .opt-rec-dist{ color:var(--muted); font-size:10.5px; }
   .opt-rec-saving{ color:#4ade80; font-weight:700; }
 
+  /* ============ CONVERTIR UBICACIÓN (Apple Maps -> Google Maps) ============ */
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    z-index:2000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+  }
+  .modal-overlay.visible{ display:flex; }
+  .modal-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+    width:340px;
+    max-width:100%;
+    max-height:calc(100vh - 32px);
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.65);
+  }
+  .modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:0.05em;
+    color:var(--cyan);
+  }
+  .convert-result{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    border-top:1px solid var(--line);
+    padding-top:10px;
+  }
+  .convert-result-actions{
+    display:flex;
+    gap:8px;
+  }
+  .dj-tool-search-btn.secondary{
+    flex:1;
+    background:rgba(0,224,255,0.06);
+    font-size:10px;
+    padding:9px 6px;
+  }
+  .dj-tool-search-btn.secondary:hover{ background:rgba(0,224,255,0.16); }
+
   @media (max-width: 640px){
     .dj-tool-panel{ width:290px; }
   }
@@ -572,10 +627,11 @@
   <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
   <div id="status">Cargando datos…</div>
 
-  <!-- ===== Herramientas independientes: DJ más cercano / Optimizar asignaciones ===== -->
+  <!-- ===== Herramientas independientes: DJ más cercano / Optimizar asignaciones / Convertir ubicación ===== -->
   <div class="tool-toggle-row">
     <button id="djToolToggle" class="dj-tool-toggle" type="button">DJ CERCANO</button>
     <button id="optToolToggle" class="dj-tool-toggle" type="button">OPTIMIZAR</button>
+    <button id="convertToolToggle" class="dj-tool-toggle" type="button">CONVERTIR UBICACIÓN</button>
   </div>
 
   <div id="djToolPanel" class="dj-tool-panel">
@@ -608,6 +664,28 @@
     <div id="optMsg" class="dj-tool-msg"></div>
     <div id="optSummary" class="opt-summary"></div>
     <div class="dj-results-wrap"><div id="optResults" class="dj-results"></div></div>
+  </div>
+
+  <div id="convertModalOverlay" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>CONVERTIR UBICACIÓN</span>
+        <button id="convertModalClose" class="dj-tool-close" type="button" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="dj-tool-msg">De Apple Maps a Google Maps, usando las coordenadas reales del link.</div>
+      <label class="dj-tool-label" for="convertInput">ENLACE DE APPLE MAPS</label>
+      <input id="convertInput" class="dj-tool-input" type="text" placeholder="Pega el link de Apple Maps" autocomplete="off">
+      <button id="convertBtn" class="dj-tool-search-btn" type="button">CONVERTIR</button>
+      <div id="convertMsg" class="dj-tool-msg"></div>
+      <div id="convertResult" class="convert-result" style="display:none;">
+        <label class="dj-tool-label" for="convertOutput">ENLACE DE GOOGLE MAPS</label>
+        <input id="convertOutput" class="dj-tool-input" type="text" readonly>
+        <div class="convert-result-actions">
+          <button id="convertCopyBtn" class="dj-tool-search-btn secondary" type="button">COPIAR LINK</button>
+          <button id="convertOpenBtn" class="dj-tool-search-btn secondary" type="button">ABRIR EN GOOGLE MAPS</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2258,6 +2336,135 @@
       optAnalyzeBtn.disabled = false;
       optAnalyzeBtn.textContent = 'ANALIZAR ASIGNACIONES';
     });
+  });
+
+  // ================= CONVERTIR UBICACIÓN: Apple Maps -> Google Maps =================
+  // Reutiliza extractCoordinatesFromInput (genérica, no depende de que sea link de
+  // Google) y resolveShortMapsLink (el mismo Cloudflare Worker que ya sigue
+  // redirecciones para links cortos, tampoco específico de Google) — cero backend
+  // nuevo. Solo analiza/convierte: no toca Sheets ni ninguna otra herramienta.
+
+  // Coordenadas de la última conversión exitosa, listas para conectarse más
+  // adelante con DJ CERCANO (o cualquier otra herramienta) sin volver a parsear nada.
+  var lastConvertedLocation = null;
+
+  function generateGoogleMapsLink(point){
+    return 'https://www.google.com/maps/search/?api=1&query=' + point.lat + ',' + point.lng;
+  }
+
+  var convertToolToggle  = document.getElementById('convertToolToggle');
+  var convertModalOverlay= document.getElementById('convertModalOverlay');
+  var convertModalClose  = document.getElementById('convertModalClose');
+  var convertInput       = document.getElementById('convertInput');
+  var convertBtn         = document.getElementById('convertBtn');
+  var convertMsgEl       = document.getElementById('convertMsg');
+  var convertResultEl    = document.getElementById('convertResult');
+  var convertOutput      = document.getElementById('convertOutput');
+  var convertCopyBtn     = document.getElementById('convertCopyBtn');
+  var convertOpenBtn     = document.getElementById('convertOpenBtn');
+
+  function setConvertMsg(msg, isError){
+    convertMsgEl.textContent = msg || '';
+    convertMsgEl.classList.toggle('error', !!isError);
+  }
+
+  function openConvertModal(){
+    closeDjPanel();
+    closeOptPanel();
+    convertModalOverlay.classList.add('visible');
+  }
+
+  function closeConvertModal(){
+    convertModalOverlay.classList.remove('visible');
+  }
+
+  function finishConvert(point){
+    lastConvertedLocation = point;
+    convertOutput.value = generateGoogleMapsLink(point);
+    convertResultEl.style.display = 'flex';
+    setConvertMsg('Coordenadas: ' + point.lat.toFixed(6) + ', ' + point.lng.toFixed(6));
+  }
+
+  function fallbackCopyToClipboard(text){
+    convertOutput.removeAttribute('readonly');
+    convertOutput.select();
+    try {
+      document.execCommand('copy');
+      setConvertMsg('Link copiado al portapapeles.');
+    } catch (e){
+      setConvertMsg('No se pudo copiar automáticamente — selecciona el texto y cópialo manualmente.', true);
+    }
+    convertOutput.setAttribute('readonly', 'readonly');
+  }
+
+  function handleConvert(){
+    setConvertMsg('');
+    convertResultEl.style.display = 'none';
+
+    var raw = convertInput.value;
+    var point = extractCoordinatesFromInput(raw);
+
+    if (point){
+      finishConvert(point);
+      return;
+    }
+
+    var trimmed = String(raw || '').trim();
+    if (!/^https?:\/\//i.test(trimmed)){
+      setConvertMsg('No se pudieron extraer coordenadas. Pega un link de Apple Maps o las coordenadas directamente.', true);
+      return;
+    }
+
+    // Parece un link pero no trae coordenadas visibles: puede ser un link corto de
+    // Apple Maps (ej. maps.apple/p/...) — se intenta resolver con el mismo Worker
+    // que ya usa DJ CERCANO para links cortos de Google (sigue redirecciones,
+    // no es específico de ningún mapa en particular).
+    setConvertMsg('Resolviendo enlace…');
+    convertBtn.disabled = true;
+    convertBtn.textContent = 'RESOLVIENDO…';
+
+    resolveShortMapsLink(trimmed).then(function(finalUrl){
+      var resolvedPoint = extractCoordinatesFromInput(finalUrl);
+      if (!resolvedPoint){
+        setConvertMsg('El enlace no contiene coordenadas reconocibles. Prueba con el link largo de Apple Maps o pega las coordenadas directamente.', true);
+        return;
+      }
+      finishConvert(resolvedPoint);
+    }).catch(function(err){
+      console.error('Fallo al resolver enlace de Apple Maps:', err);
+      setConvertMsg('No se pudo resolver el enlace corto automáticamente. Esto puede pasar si el enlace redirige mediante JavaScript en vez de una redirección HTTP directa — una limitación del navegador, no del código. Abre el link en Apple Maps, comparte de nuevo el link largo, o pega las coordenadas directamente.', true);
+    }).then(function(){
+      convertBtn.disabled = false;
+      convertBtn.textContent = 'CONVERTIR';
+    });
+  }
+
+  convertToolToggle.addEventListener('click', openConvertModal);
+  convertModalClose.addEventListener('click', closeConvertModal);
+  convertModalOverlay.addEventListener('click', function(ev){
+    if (ev.target === convertModalOverlay) closeConvertModal();
+  });
+  convertBtn.addEventListener('click', handleConvert);
+  convertInput.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter') handleConvert();
+  });
+
+  convertCopyBtn.addEventListener('click', function(){
+    var text = convertOutput.value;
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        setConvertMsg('Link copiado al portapapeles.');
+      }).catch(function(){
+        fallbackCopyToClipboard(text);
+      });
+    } else {
+      fallbackCopyToClipboard(text);
+    }
+  });
+
+  convertOpenBtn.addEventListener('click', function(){
+    if (convertOutput.value) window.open(convertOutput.value, '_blank', 'noopener');
   });
 
   loadEvents();
