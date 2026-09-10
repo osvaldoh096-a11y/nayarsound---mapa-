@@ -44,6 +44,32 @@ meta-ads-tracker/
   data.db           Base de datos SQLite (se crea al ejecutar, no versionada)
 ```
 
+## Prueba de viabilidad: Playwright sobre Meta Ads Library
+
+`scripts/probe_ads_library.py` es una prueba MÍNIMA, aislada de la app, para
+validar qué datos se pueden extraer de la Ads Library de un competidor ya
+registrado ANTES de diseñar el modelo de datos de anuncios. No guarda nada en
+la base de datos ni implementa historial.
+
+```
+pip install -r requirements.txt
+playwright install chromium
+python scripts/probe_ads_library.py [id_competidor]
+```
+
+Sin argumento usa el primer competidor con `ads_library_url` guardada. Imprime
+un JSON con los anuncios detectados (`library_id`, `status`, fecha de inicio,
+texto, links y URLs de creativos) o, si algo falla, una lista `limitations`
+explicando exactamente qué no se pudo obtener y por qué.
+
+**Nota:** esta prueba no se pudo ejecutar contra facebook.com desde este
+entorno en la nube porque la política de red del sandbox bloquea toda salida
+HTTP saliente (incluso a `example.com`, con 403 del proxy de la organización).
+No es un bloqueo de Meta ni requiere login — es una restricción del entorno de
+desarrollo remoto. Debe correrse en tu máquina Windows, donde sí hay salida a
+internet normal, y reportar el JSON resultante para diseñar el modelo de datos
+sobre resultados reales.
+
 ## Pensado para crecer
 
 `db.py` centraliza el esquema de la base de datos para poder agregar tablas
