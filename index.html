@@ -2372,11 +2372,12 @@
   // nombre por su cuenta ni mover el pin.
   function generateGoogleMapsLink(point, name){
     if (name){
-      // Formato "q=lat,lng(Etiqueta)": deja un pin exacto en esas coordenadas con
-      // el nombre como etiqueta visible, sin que Google Maps busque el texto por
-      // su cuenta (a diferencia de /place/<nombre>/@lat,lng, que en algunos casos
-      // reinterpreta el nombre como búsqueda y puede mostrar algo distinto).
-      return 'https://www.google.com/maps?q=' + point.lat + ',' + point.lng + '(' + encodeURIComponent(name) + ')';
+      // Formato oficial de Google para "Search Action" con nombre + coordenadas
+      // como pista: query=Nombre,lat,lng. Google prioriza el lugar más cercano a
+      // esas coordenadas que coincida con el nombre; si no encuentra coincidencia
+      // exacta, el buscador igual muestra el texto completo (incluyendo el nombre)
+      // en la caja de búsqueda y el pin queda junto a las coordenadas indicadas.
+      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ',' + point.lat + ',' + point.lng);
     }
     return 'https://www.google.com/maps/search/?api=1&query=' + point.lat + ',' + point.lng;
   }
