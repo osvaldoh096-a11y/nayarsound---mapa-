@@ -2372,7 +2372,11 @@
   // nombre por su cuenta ni mover el pin.
   function generateGoogleMapsLink(point, name){
     if (name){
-      return 'https://www.google.com/maps/place/' + encodeURIComponent(name) + '/@' + point.lat + ',' + point.lng + ',17z';
+      // Formato "q=lat,lng(Etiqueta)": deja un pin exacto en esas coordenadas con
+      // el nombre como etiqueta visible, sin que Google Maps busque el texto por
+      // su cuenta (a diferencia de /place/<nombre>/@lat,lng, que en algunos casos
+      // reinterpreta el nombre como búsqueda y puede mostrar algo distinto).
+      return 'https://www.google.com/maps?q=' + point.lat + ',' + point.lng + '(' + encodeURIComponent(name) + ')';
     }
     return 'https://www.google.com/maps/search/?api=1&query=' + point.lat + ',' + point.lng;
   }
