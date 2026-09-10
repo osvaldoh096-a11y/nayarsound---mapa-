@@ -574,6 +574,14 @@
     border-top:1px solid var(--line);
     padding-top:10px;
   }
+  .convert-field{ display:flex; flex-direction:column; gap:2px; }
+  .convert-value{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--text);
+    overflow-wrap:break-word;
+  }
   .convert-result-actions{
     display:flex;
     gap:8px;
@@ -678,7 +686,15 @@
       <button id="convertBtn" class="dj-tool-search-btn" type="button">CONVERTIR</button>
       <div id="convertMsg" class="dj-tool-msg"></div>
       <div id="convertResult" class="convert-result" style="display:none;">
-        <label class="dj-tool-label" for="convertOutput">ENLACE DE GOOGLE MAPS</label>
+        <div id="convertNameField" class="convert-field" style="display:none;">
+          <span class="dj-tool-label">NOMBRE</span>
+          <div id="convertNameValue" class="convert-value"></div>
+        </div>
+        <div class="convert-field">
+          <span class="dj-tool-label">COORDENADAS</span>
+          <div id="convertCoordsValue" class="convert-value"></div>
+        </div>
+        <label class="dj-tool-label" for="convertOutput">GOOGLE MAPS</label>
         <input id="convertOutput" class="dj-tool-input" type="text" readonly>
         <div class="convert-result-actions">
           <button id="convertCopyBtn" class="dj-tool-search-btn secondary" type="button">COPIAR LINK</button>
@@ -2348,8 +2364,42 @@
   // adelante con DJ CERCANO (o cualquier otra herramienta) sin volver a parsear nada.
   var lastConvertedLocation = null;
 
-  function generateGoogleMapsLink(point){
+  // Coordenadas = fuente de verdad de la ubicación exacta; el nombre (si existe)
+  // solo se agrega como etiqueta visible. Formato "/place/<nombre>/@lat,lng,17z":
+  // es el mismo que genera el propio Google Maps al compartir un lugar (ya lo
+  // vimos tal cual en links reales de AGENDA), así que Maps lo interpreta como
+  // "centra y marca aquí, mostrando este texto como etiqueta" sin re-buscar el
+  // nombre por su cuenta ni mover el pin.
+  function generateGoogleMapsLink(point, name){
+    if (name){
+      return 'https://www.google.com/maps/place/' + encodeURIComponent(name) + '/@' + point.lat + ',' + point.lng + ',17z';
+    }
     return 'https://www.google.com/maps/search/?api=1&query=' + point.lat + ',' + point.lng;
+  }
+
+  // Busca un nombre de lugar en los parámetros habituales de un link de mapas,
+  // en orden de prioridad (q/name/query = suele ser el nombre real del lugar;
+  // address = respaldo, es más una dirección que un nombre). URLSearchParams ya
+  // decodifica %XX y "+" como espacio automáticamente — no hace falta
+  // decodeURIComponent manual aparte.
+  function extractPlaceNameFromMapsUrl(rawUrl){
+    var url;
+    try {
+      url = new URL(rawUrl);
+    } catch (e){
+      return null; // no es una URL absoluta parseable
+    }
+
+    var looksLikeCoords = /^-?\d{1,3}(?:\.\d+)?[\s,]+-?\d{1,3}(?:\.\d+)?$/;
+    var candidateParams = ['q', 'name', 'query', 'address'];
+
+    for (var i = 0; i < candidateParams.length; i++){
+      var raw = url.searchParams.get(candidateParams[i]);
+      if (!raw) continue;
+      var val = raw.trim();
+      if (val && !looksLikeCoords.test(val)) return val;
+    }
+    return null;
   }
 
   var convertToolToggle  = document.getElementById('convertToolToggle');
@@ -2359,6 +2409,9 @@
   var convertBtn         = document.getElementById('convertBtn');
   var convertMsgEl       = document.getElementById('convertMsg');
   var convertResultEl    = document.getElementById('convertResult');
+  var convertNameFieldEl = document.getElementById('convertNameField');
+  var convertNameValueEl = document.getElementById('convertNameValue');
+  var convertCoordsValueEl = document.getElementById('convertCoordsValue');
   var convertOutput      = document.getElementById('convertOutput');
   var convertCopyBtn     = document.getElementById('convertCopyBtn');
   var convertOpenBtn     = document.getElementById('convertOpenBtn');
@@ -2378,11 +2431,20 @@
     convertModalOverlay.classList.remove('visible');
   }
 
-  function finishConvert(point){
-    lastConvertedLocation = point;
-    convertOutput.value = generateGoogleMapsLink(point);
+  function finishConvert(point, name){
+    lastConvertedLocation = { lat: point.lat, lng: point.lng, name: name || null };
+
+    if (name){
+      convertNameValueEl.textContent = name;
+      convertNameFieldEl.style.display = '';
+    } else {
+      convertNameFieldEl.style.display = 'none';
+    }
+    convertCoordsValueEl.textContent = point.lat.toFixed(6) + ', ' + point.lng.toFixed(6);
+    convertOutput.value = generateGoogleMapsLink(point, name);
+
     convertResultEl.style.display = 'flex';
-    setConvertMsg('Coordenadas: ' + point.lat.toFixed(6) + ', ' + point.lng.toFixed(6));
+    setConvertMsg(name ? 'Nombre y coordenadas detectados.' : 'Solo se detectaron coordenadas — el enlace no traía un nombre reconocible.');
   }
 
   function fallbackCopyToClipboard(text){
@@ -2403,14 +2465,15 @@
 
     var raw = convertInput.value;
     var point = extractCoordinatesFromInput(raw);
+    var trimmed = String(raw || '').trim();
+    var looksLikeUrl = /^https?:\/\//i.test(trimmed);
 
     if (point){
-      finishConvert(point);
+      finishConvert(point, looksLikeUrl ? extractPlaceNameFromMapsUrl(trimmed) : null);
       return;
     }
 
-    var trimmed = String(raw || '').trim();
-    if (!/^https?:\/\//i.test(trimmed)){
+    if (!looksLikeUrl){
       setConvertMsg('No se pudieron extraer coordenadas. Pega un link de Apple Maps o las coordenadas directamente.', true);
       return;
     }
@@ -2429,7 +2492,7 @@
         setConvertMsg('El enlace no contiene coordenadas reconocibles. Prueba con el link largo de Apple Maps o pega las coordenadas directamente.', true);
         return;
       }
-      finishConvert(resolvedPoint);
+      finishConvert(resolvedPoint, extractPlaceNameFromMapsUrl(finalUrl));
     }).catch(function(err){
       console.error('Fallo al resolver enlace de Apple Maps:', err);
       setConvertMsg('No se pudo resolver el enlace corto automáticamente. Esto puede pasar si el enlace redirige mediante JavaScript en vez de una redirección HTTP directa — una limitación del navegador, no del código. Abre el link en Apple Maps, comparte de nuevo el link largo, o pega las coordenadas directamente.', true);
