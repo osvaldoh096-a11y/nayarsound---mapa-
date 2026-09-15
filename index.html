@@ -2580,21 +2580,19 @@
   // adelante con DJ CERCANO (o cualquier otra herramienta) sin volver a parsear nada.
   var lastConvertedLocation = null;
 
-  // Coordenadas = fuente de verdad de la ubicación exacta; el nombre (si existe)
-  // solo se agrega como etiqueta visible. Formato "/place/<nombre>/@lat,lng,17z":
-  // es el mismo que genera el propio Google Maps al compartir un lugar (ya lo
-  // vimos tal cual en links reales de AGENDA), así que Maps lo interpreta como
-  // "centra y marca aquí, mostrando este texto como etiqueta" sin re-buscar el
-  // nombre por su cuenta ni mover el pin.
-  function generateGoogleMapsLink(point, name){
-    if (name){
-      // Formato oficial de Google para "Search Action" con nombre + coordenadas
-      // como pista: query=Nombre,lat,lng. Google prioriza el lugar más cercano a
-      // esas coordenadas que coincida con el nombre; si no encuentra coincidencia
-      // exacta, el buscador igual muestra el texto completo (incluyendo el nombre)
-      // en la caja de búsqueda y el pin queda junto a las coordenadas indicadas.
-      return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ',' + point.lat + ',' + point.lng);
-    }
+  // Coordenadas = fuente de verdad de la ubicación exacta. Se probaron tres formatos
+  // de URL para que Google Maps también mostrara el nombre del lugar como etiqueta
+  // (/place/<nombre>/@lat,lng,17z, luego q=lat,lng(nombre), luego query=nombre,lat,lng)
+  // y ninguno resultó confiable: Google a veces ignora el nombre y solo muestra las
+  // coordenadas, y a veces lo trata como una búsqueda de texto que puede reubicar el
+  // pin — justo lo que el usuario pidió evitar ("no reemplaces las coordenadas ni
+  // hagas una búsqueda que pueda cambiar el punto exacto"). No existe un formato
+  // público y gratuito de Google Maps que garantice ambas cosas a la vez sin un
+  // Place ID real. Por eso el link SIEMPRE apunta solo a las coordenadas exactas
+  // (100% confiable en todas las pruebas); el nombre se conserva como campo NOMBRE
+  // en el resultado y se copia junto con el link (ver convertCopyBtn) para que
+  // viaje con él al compartirlo, sin arriesgar la posición del pin.
+  function generateGoogleMapsLink(point){
     return 'https://www.google.com/maps/search/?api=1&query=' + point.lat + ',' + point.lng;
   }
 
@@ -2664,22 +2662,29 @@
       convertNameFieldEl.style.display = 'none';
     }
     convertCoordsValueEl.textContent = point.lat.toFixed(6) + ', ' + point.lng.toFixed(6);
-    convertOutput.value = generateGoogleMapsLink(point, name);
+    convertOutput.value = generateGoogleMapsLink(point);
+    convertCopyBtn.textContent = name ? 'COPIAR NOMBRE + LINK' : 'COPIAR LINK';
 
     convertResultEl.style.display = 'flex';
     setConvertMsg(name ? 'Nombre y coordenadas detectados.' : 'Solo se detectaron coordenadas — el enlace no traía un nombre reconocible.');
   }
 
-  function fallbackCopyToClipboard(text){
-    convertOutput.removeAttribute('readonly');
-    convertOutput.select();
+  function fallbackCopyToClipboard(text, successMsg){
+    // Textarea temporal fuera de pantalla: copia el texto exacto pedido (que puede
+    // incluir el nombre + el link) sin alterar el valor visible de convertOutput.
+    var temp = document.createElement('textarea');
+    temp.value = text;
+    temp.style.position = 'fixed';
+    temp.style.left = '-9999px';
+    document.body.appendChild(temp);
+    temp.select();
     try {
       document.execCommand('copy');
-      setConvertMsg('Link copiado al portapapeles.');
+      setConvertMsg(successMsg || 'Link copiado al portapapeles.');
     } catch (e){
       setConvertMsg('No se pudo copiar automáticamente — selecciona el texto y cópialo manualmente.', true);
     }
-    convertOutput.setAttribute('readonly', 'readonly');
+    document.body.removeChild(temp);
   }
 
   function handleConvert(){
@@ -2736,16 +2741,21 @@
   });
 
   convertCopyBtn.addEventListener('click', function(){
-    var text = convertOutput.value;
-    if (!text) return;
+    var link = convertOutput.value;
+    if (!link) return;
+    // El nombre viaja como texto junto al link (no dentro de la URL, que solo
+    // lleva coordenadas) para que quien lo reciba vea de qué lugar se trata.
+    var name = lastConvertedLocation && lastConvertedLocation.name;
+    var text = name ? (name + ' — ' + link) : link;
+    var successMsg = 'Link copiado al portapapeles' + (name ? ' junto con el nombre.' : '.');
     if (navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(function(){
-        setConvertMsg('Link copiado al portapapeles.');
+        setConvertMsg(successMsg);
       }).catch(function(){
-        fallbackCopyToClipboard(text);
+        fallbackCopyToClipboard(text, successMsg);
       });
     } else {
-      fallbackCopyToClipboard(text);
+      fallbackCopyToClipboard(text, successMsg);
     }
   });
 
