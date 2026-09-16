@@ -284,7 +284,7 @@
   .djs-table tbody tr:hover{ background:rgba(0,224,255,0.05); }
   .djs-table td:first-child{ color:var(--text); font-weight:700; }
   .djs-table th:not(:first-child), .djs-table td:not(:first-child){ text-align:right; }
-  .djs-table td:nth-child(2), .djs-table td:nth-child(3){ color:var(--cyan); font-family:'Space Grotesk', sans-serif; font-weight:700; }
+  .djs-table td:not(:first-child){ color:var(--cyan); font-family:'Space Grotesk', sans-serif; font-weight:700; }
 
   @media (max-width: 640px){
     #djsPage{ padding:14px; }
@@ -883,12 +883,24 @@
         <div class="djs-kpi-label">TOTAL HORAS EXTRA</div>
         <div class="djs-kpi-value" id="djsKpiHours">—</div>
       </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL GENERADO</div>
+        <div class="djs-kpi-value" id="djsKpiGenerado">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL PAGADO</div>
+        <div class="djs-kpi-value" id="djsKpiPagado">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL GANANCIA</div>
+        <div class="djs-kpi-value" id="djsKpiGanancia">—</div>
+      </div>
     </div>
     <div id="djsStatusMsg" class="djs-status-msg">Cargando datos…</div>
     <div class="djs-table-wrap">
       <table class="djs-table">
         <thead>
-          <tr><th>DJ</th><th>EVENTOS</th><th>HORAS EXTRA</th></tr>
+          <tr><th>DJ</th><th>EVENTOS</th><th>HORAS EXTRA</th><th>GENERADO</th><th>PAGADO</th><th>GANANCIA</th></tr>
         </thead>
         <tbody id="djsTableBody"></tbody>
       </table>
@@ -982,6 +994,26 @@
   // fuera del rango C13:R5000 que ya usa loadEvents() para el mapa.
   var AGENDA_STATS_RANGE = 'C12:S5000';
 
+  // ---- Hoja externa de ventas/pagos (otro spreadsheet), para GENERADO/PAGADO/GANANCIA ----
+  // Misma técnica de conexión (gviz JSONP público, sin backend ni login) contra un
+  // archivo de Sheets distinto. Se lee con headers=0 y se escanea la fila de
+  // encabezados en JS (findVentasHeaderRowIndex) en vez de asumir un número de fila
+  // fijo, porque esta hoja tiene varias filas de resumen/roster arriba de la tabla
+  // real y ese número puede variar. Las columnas SÍ están fijas por letra (no por
+  // nombre de encabezado): el encabezado "DJ" se repite dos veces en esta hoja
+  // (columna D = nombre del DJ, columna L = monto pagado al DJ), así que buscar por
+  // nombre de encabezado sería ambiguo — el usuario confirmó cada letra directamente.
+  var VENTAS_SHEET_ID   = '1wMaqW1iCiL8Lv4u-6Txd_m662xSmjzqzcXB_NzYK0qg';
+  var VENTAS_SHEET_NAME = 'AGENDA Y VENTAS';
+  var VENTAS_RANGE = 'A1:P5000';
+  var VENTAS_DJ_COL_IDX        = 3;  // D — nombre del DJ
+  var VENTAS_CIUDAD_COL_IDX    = 2;  // C
+  var VENTAS_FECHA_COL_IDX     = 4;  // E
+  var VENTAS_GENERADO_COL_IDX  = 8;  // I — "AL EVENTO" (total generado por el evento)
+  var VENTAS_PAGADO_COL_IDX    = 11; // L — "DJ" (repetido): monto pagado al DJ
+  var VENTAS_GANANCIA_COL_IDX  = 13; // N — "GANANCIA 2" (ganancia neta de Osvaldo)
+  var VENTAS_REALIZADO_COL_IDX = 15; // P — REALIZADO (solo se cuentan filas "SI")
+
   // ---- Fuente de DJs para la herramienta "DJ más cercano" (100% dinámica desde Sheets) ----
   // Pestaña "DATA" del mismo spreadsheet. Datos desde la fila 3, columnas P/Q/R:
   // P = CIUDAD, Q = NOMBRE, R = COORDENADAS. No existe columna de estado: todo DJ
@@ -1001,6 +1033,9 @@
   var djsKpiCountEl = document.getElementById('djsKpiCount');
   var djsKpiEventsEl = document.getElementById('djsKpiEvents');
   var djsKpiHoursEl = document.getElementById('djsKpiHours');
+  var djsKpiGeneradoEl = document.getElementById('djsKpiGenerado');
+  var djsKpiPagadoEl = document.getElementById('djsKpiPagado');
+  var djsKpiGananciaEl = document.getElementById('djsKpiGanancia');
   var djsStatusMsgEl = document.getElementById('djsStatusMsg');
   var djsTableBodyEl = document.getElementById('djsTableBody');
   var quadrantOverlayEl = document.getElementById('quadrantOverlay');
@@ -1082,6 +1117,8 @@
   var currentPage = 'mapa'; // 'mapa' | 'djs'
   var djAgendaRows = [];    // [{cityNorm, djKey, djName, date, realizado, horasExtra}]
   var djAgendaStatsError = null; // mensaje si no se pudieron leer REALIZADO/HORAS EXTRA por nombre de encabezado
+  var djVentasRows = [];    // [{cityNorm, djKey, djName, date, generado, pagado, ganancia}] — solo filas REALIZADO=SI
+  var djVentasStatsError = null; // mensaje si no se pudo leer la hoja externa de ventas/pagos
   var djsCityFilter = 'GLOBAL';
   var djsPeriodFilter = 'CURRENT_MONTH';
 
@@ -1206,6 +1243,37 @@
     if (raw == null || raw === '') return 0;
     var n = (typeof raw === 'number') ? raw : parseFloat(String(raw).replace(',', '.'));
     return isNaN(n) ? 0 : n;
+  }
+
+  // Convierte una celda de dinero (columnas GENERADO/PAGADO/GANANCIA de la hoja de
+  // ventas) a número: gviz normalmente ya entrega el número crudo en cell.v aunque
+  // la celda se vea formateada como "$1,100.00"; por si acaso también limpia
+  // símbolo de moneda y comas si llegara como texto. Vacío/no numérico = 0.
+  function parseMoneyCell(cell){
+    if (!cell || cell.v == null || cell.v === '') return 0;
+    var raw = cell.v;
+    if (typeof raw === 'number') return raw;
+    var n = parseFloat(String(raw).replace(/[^0-9.\-]/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+
+  function formatMoney(n){
+    var rounded = Math.round((n || 0) * 100) / 100;
+    return '$' + rounded.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  // Escanea filas crudas (headers=0) buscando la fila real de encabezados de la
+  // hoja de ventas/pagos: no se puede asumir un número de fila fijo porque arriba
+  // hay varias filas de resumen/roster. Se identifica por las dos columnas ancla
+  // confirmadas por el usuario (D="DJ", P="REALIZADO") apareciendo juntas.
+  function findVentasHeaderRowIndex(rows){
+    for (var i = 0; i < rows.length; i++){
+      var cells = (rows[i] && rows[i].c) || [];
+      var djLabel = normalizeCity(cells[VENTAS_DJ_COL_IDX] ? cells[VENTAS_DJ_COL_IDX].v : null);
+      var realizadoLabel = normalizeCity(cells[VENTAS_REALIZADO_COL_IDX] ? cells[VENTAS_REALIZADO_COL_IDX].v : null);
+      if (djLabel === 'DJ' && realizadoLabel === 'REALIZADO') return i;
+    }
+    return -1;
   }
 
   // Igual que normalizeCity pero además colapsa espacios internos repetidos, para
@@ -1603,31 +1671,144 @@
     });
   }
 
-  function computeDjsStats(){
-    var filtered = djAgendaRows.filter(function(r){
-      var cityOk = (djsCityFilter === 'GLOBAL') || (r.cityNorm === djsCityFilter);
-      return cityOk && matchesDjsPeriod(r.date, djsPeriodFilter);
-    });
+  // ================= CARGA DE VENTAS/PAGOS (otra hoja, misma técnica JSONP) =================
+  function loadDjVentasStats(){
+    return new Promise(function(resolveLoad){
+      var callbackName = '__gvizVentasCallback_' + Date.now();
+      var url = 'https://docs.google.com/spreadsheets/d/' + VENTAS_SHEET_ID +
+                '/gviz/tq?sheet=' + encodeURIComponent(VENTAS_SHEET_NAME) +
+                '&range=' + VENTAS_RANGE + '&headers=0' +
+                '&tqx=out:json;responseHandler:' + callbackName +
+                '&_=' + Date.now();
 
+      var script = document.createElement('script');
+      var settled = false;
+
+      var timeoutId = setTimeout(function(){
+        if (settled) return;
+        settled = true;
+        cleanup();
+        console.error('Tiempo de espera agotado al cargar la hoja de ventas/pagos');
+        djVentasStatsError = 'No se pudo cargar la hoja de ventas/pagos — reintentando…';
+        resolveLoad();
+      }, 10000);
+
+      function cleanup(){
+        clearTimeout(timeoutId);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[callbackName] = function(json){
+        if (settled) return;
+        settled = true;
+        cleanup();
+
+        try {
+          var rows = (json.table && json.table.rows) ? json.table.rows : [];
+          var headerIdx = findVentasHeaderRowIndex(rows);
+
+          if (headerIdx === -1){
+            djVentasRows = [];
+            djVentasStatsError = 'No se encontró la fila de encabezados (DJ / REALIZADO) en la hoja de ventas/pagos.';
+          } else {
+            var parsed = [];
+            rows.slice(headerIdx + 1).forEach(function(row){
+              var cells = row.c || [];
+              var djRaw = cells[VENTAS_DJ_COL_IDX] ? cells[VENTAS_DJ_COL_IDX].v : null;
+              if (!djRaw) return;
+              var djKey = normalizeDjKey(djRaw);
+              if (!djKey) return;
+
+              var realizado = normalizeCity(cells[VENTAS_REALIZADO_COL_IDX] ? cells[VENTAS_REALIZADO_COL_IDX].v : null) === 'SI';
+              if (!realizado) return; // solo se cuentan eventos realizados, pedido explícito
+
+              parsed.push({
+                djKey: djKey,
+                djName: String(djRaw).trim(),
+                cityNorm: normalizeCity(cells[VENTAS_CIUDAD_COL_IDX] ? cells[VENTAS_CIUDAD_COL_IDX].v : null),
+                date: parseSheetDate(cells[VENTAS_FECHA_COL_IDX]),
+                generado: parseMoneyCell(cells[VENTAS_GENERADO_COL_IDX]),
+                pagado: parseMoneyCell(cells[VENTAS_PAGADO_COL_IDX]),
+                ganancia: parseMoneyCell(cells[VENTAS_GANANCIA_COL_IDX])
+              });
+            });
+            djVentasRows = parsed;
+            djVentasStatsError = null;
+          }
+        } catch (err){
+          console.error('Error al procesar la hoja de ventas/pagos:', err);
+          djVentasRows = [];
+          djVentasStatsError = 'No se pudo procesar la hoja de ventas/pagos.';
+        }
+        resolveLoad();
+      };
+
+      script.onerror = function(){
+        if (settled) return;
+        settled = true;
+        cleanup();
+        console.error('Error al cargar la hoja de ventas/pagos');
+        djVentasStatsError = 'No se pudo cargar la hoja de ventas/pagos — revisa que esté compartida como "Cualquiera con el enlace puede ver".';
+        resolveLoad();
+      };
+
+      script.src = url;
+      document.body.appendChild(script);
+    });
+  }
+
+  function computeDjsStats(){
     var byDj = {};
     var order = [];
-    filtered.forEach(function(r){
-      if (!byDj[r.djKey]){
-        byDj[r.djKey] = { name: r.djName, totalEvents: 0, totalHorasExtra: 0 };
-        order.push(r.djKey);
+    function ensureEntry(key, name){
+      if (!byDj[key]){
+        byDj[key] = { name: name, totalEvents: 0, totalHorasExtra: 0, totalGenerado: 0, totalPagado: 0, totalGanancia: 0 };
+        order.push(key);
       }
-      var entry = byDj[r.djKey];
+      return byDj[key];
+    }
+
+    djAgendaRows.filter(function(r){
+      var cityOk = (djsCityFilter === 'GLOBAL') || (r.cityNorm === djsCityFilter);
+      return cityOk && matchesDjsPeriod(r.date, djsPeriodFilter);
+    }).forEach(function(r){
+      var entry = ensureEntry(r.djKey, r.djName);
       if (r.realizado) entry.totalEvents += 1;
       entry.totalHorasExtra += r.horasExtra;
+    });
+
+    djVentasRows.filter(function(r){
+      var cityOk = (djsCityFilter === 'GLOBAL') || (r.cityNorm === djsCityFilter);
+      return cityOk && matchesDjsPeriod(r.date, djsPeriodFilter);
+    }).forEach(function(r){
+      var entry = ensureEntry(r.djKey, r.djName);
+      entry.totalGenerado += r.generado;
+      entry.totalPagado += r.pagado;
+      entry.totalGanancia += r.ganancia;
     });
 
     var list = order.map(function(k){ return byDj[k]; });
     list.sort(function(a, b){ return b.totalEvents - a.totalEvents; });
 
-    var totalEvents = list.reduce(function(sum, d){ return sum + d.totalEvents; }, 0);
-    var totalHoras = list.reduce(function(sum, d){ return sum + d.totalHorasExtra; }, 0);
+    var totals = list.reduce(function(acc, d){
+      acc.events += d.totalEvents;
+      acc.horas += d.totalHorasExtra;
+      acc.generado += d.totalGenerado;
+      acc.pagado += d.totalPagado;
+      acc.ganancia += d.totalGanancia;
+      return acc;
+    }, { events: 0, horas: 0, generado: 0, pagado: 0, ganancia: 0 });
 
-    return { list: list, totalDjs: list.length, totalEvents: totalEvents, totalHorasExtra: totalHoras };
+    return {
+      list: list,
+      totalDjs: list.length,
+      totalEvents: totals.events,
+      totalHorasExtra: totals.horas,
+      totalGenerado: totals.generado,
+      totalPagado: totals.pagado,
+      totalGanancia: totals.ganancia
+    };
   }
 
   function formatHoras(n){
@@ -1635,12 +1816,12 @@
   }
 
   function renderDjsPage(){
+    var kpiEls = [djsKpiCountEl, djsKpiEventsEl, djsKpiHoursEl, djsKpiGeneradoEl, djsKpiPagadoEl, djsKpiGananciaEl];
+
     if (djAgendaStatsError){
       djsStatusMsgEl.textContent = djAgendaStatsError;
       djsStatusMsgEl.classList.add('error');
-      djsKpiCountEl.textContent = '—';
-      djsKpiEventsEl.textContent = '—';
-      djsKpiHoursEl.textContent = '—';
+      kpiEls.forEach(function(el){ el.textContent = '—'; });
       djsTableBodyEl.innerHTML = '';
       return;
     }
@@ -1649,18 +1830,31 @@
     djsKpiCountEl.textContent = stats.totalDjs;
     djsKpiEventsEl.textContent = stats.totalEvents;
     djsKpiHoursEl.textContent = formatHoras(stats.totalHorasExtra);
+    djsKpiGeneradoEl.textContent = formatMoney(stats.totalGenerado);
+    djsKpiPagadoEl.textContent = formatMoney(stats.totalPagado);
+    djsKpiGananciaEl.textContent = formatMoney(stats.totalGanancia);
+
+    // La hoja de ventas/pagos es una fuente independiente: si falla, no bloquea los
+    // datos de AGENDA (eventos/horas extra) que sí cargaron bien — solo se avisa.
+    djsStatusMsgEl.classList.toggle('error', !!djVentasStatsError);
 
     if (!stats.list.length){
-      djsStatusMsgEl.classList.remove('error');
-      djsStatusMsgEl.textContent = 'No hay datos para este filtro.';
+      djsStatusMsgEl.textContent = djVentasStatsError || 'No hay datos para este filtro.';
       djsTableBodyEl.innerHTML = '';
       return;
     }
 
-    djsStatusMsgEl.classList.remove('error');
-    djsStatusMsgEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX');
+    djsStatusMsgEl.textContent = djVentasStatsError
+      ? (djVentasStatsError + ' (Eventos y horas extra sí están al día.)')
+      : ('Actualizado ' + new Date().toLocaleTimeString('es-MX'));
+
     djsTableBodyEl.innerHTML = stats.list.map(function(d){
-      return '<tr><td>' + escapeHtml(d.name) + '</td><td>' + d.totalEvents + '</td><td>' + formatHoras(d.totalHorasExtra) + '</td></tr>';
+      return '<tr><td>' + escapeHtml(d.name) + '</td>' +
+        '<td>' + d.totalEvents + '</td>' +
+        '<td>' + formatHoras(d.totalHorasExtra) + '</td>' +
+        '<td>' + formatMoney(d.totalGenerado) + '</td>' +
+        '<td>' + formatMoney(d.totalPagado) + '</td>' +
+        '<td>' + formatMoney(d.totalGanancia) + '</td></tr>';
     }).join('');
   }
 
@@ -3233,6 +3427,15 @@
   });
   setInterval(function(){
     loadDjAgendaStats().then(function(){
+      if (currentPage === 'djs') renderDjsPage();
+    });
+  }, REFRESH_MS);
+
+  loadDjVentasStats().then(function(){
+    if (currentPage === 'djs') renderDjsPage();
+  });
+  setInterval(function(){
+    loadDjVentasStats().then(function(){
       if (currentPage === 'djs') renderDjsPage();
     });
   }, REFRESH_MS);
