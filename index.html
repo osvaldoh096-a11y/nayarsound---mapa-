@@ -1012,7 +1012,9 @@
   var VENTAS_GENERADO_COL_IDX  = 8;  // I — "AL EVENTO" (total generado por el evento)
   var VENTAS_PAGADO_COL_IDX    = 11; // L — "DJ" (repetido): monto pagado al DJ
   var VENTAS_GANANCIA_COL_IDX  = 13; // N — "GANANCIA 2" (ganancia neta de Osvaldo)
-  var VENTAS_REALIZADO_COL_IDX = 15; // P — REALIZADO (solo se cuentan filas "SI")
+  var VENTAS_REALIZADO_COL_IDX = 15; // P — REALIZADO, usada solo para ubicar la fila de encabezados
+                                      // (findVentasHeaderRowIndex); los montos ya NO se filtran por
+                                      // esta columna — se piden datos generales, con todo lo capturado.
 
   // ---- Fuente de DJs para la herramienta "DJ más cercano" (100% dinámica desde Sheets) ----
   // Pestaña "DATA" del mismo spreadsheet. Datos desde la fila 3, columnas P/Q/R:
@@ -1720,9 +1722,9 @@
               var djKey = normalizeDjKey(djRaw);
               if (!djKey) return;
 
-              var realizado = normalizeCity(cells[VENTAS_REALIZADO_COL_IDX] ? cells[VENTAS_REALIZADO_COL_IDX].v : null) === 'SI';
-              if (!realizado) return; // solo se cuentan eventos realizados, pedido explícito
-
+              // Sin filtro por REALIZADO: se piden montos generales (esta hoja no
+              // mantiene esa columna tan al día como AGENDA — filtrar por ella
+              // dejaba fuera casi todos los eventos con dinero ya capturado).
               parsed.push({
                 djKey: djKey,
                 djName: String(djRaw).trim(),
