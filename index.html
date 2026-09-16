@@ -119,6 +119,24 @@
     color:var(--cyan);
   }
 
+  #mapView{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    min-height:0;
+  }
+
+  #djsView{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    padding:20px;
+    overflow-y:auto;
+    min-height:0;
+  }
+
   #map{
     flex:1;
     width:100%;
@@ -279,8 +297,99 @@
   .quadrant-overlay-row span:first-child{ color:var(--muted); }
   .quadrant-overlay-row span:last-child{ color:var(--text); font-weight:700; }
 
+  .djs-kpis{
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .djs-kpi{
+    flex:1;
+    min-width:160px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 18px;
+  }
+  .djs-kpi-label{
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .djs-kpi-value{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:24px;
+    color:var(--cyan);
+    text-shadow:0 0 14px rgba(0,224,255,0.35);
+  }
+
+  .djs-table-wrap{
+    flex:1;
+    overflow:auto;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--panel);
+  }
+  .djs-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+  }
+  .djs-table thead th{
+    position:sticky;
+    top:0;
+    background:var(--panel);
+    text-align:left;
+    padding:10px 14px;
+    color:var(--muted);
+    font-size:11px;
+    letter-spacing:0.06em;
+    border-bottom:1px solid var(--line);
+  }
+  .djs-table th:nth-child(2),
+  .djs-table th:nth-child(3){ text-align:right; }
+  .djs-table td{
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .djs-table tbody tr:last-child td{ border-bottom:none; }
+  .djs-table tbody tr:hover{ background:rgba(0,224,255,0.05); }
+  .djs-table td:first-child{ color:var(--text); font-weight:500; }
+  .djs-table td:nth-child(2),
+  .djs-table td:nth-child(3){
+    color:var(--cyan);
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    text-align:right;
+  }
+
+  .djs-status{
+    font-size:10px;
+    letter-spacing:0.05em;
+    color:var(--muted);
+  }
+
   @media (max-width: 640px){
     .row-controls{ justify-content:flex-start; }
+
+    .djs-table thead{ display:none; }
+    .djs-table, .djs-table tbody, .djs-table tr, .djs-table td{ display:block; width:100%; }
+    .djs-table tr{ border-bottom:1px solid var(--line); padding:8px 14px; }
+    .djs-table td{
+      border:none;
+      padding:4px 0;
+      display:flex;
+      justify-content:space-between;
+      text-align:left;
+    }
+    .djs-table td::before{
+      content: attr(data-label);
+      color:var(--muted);
+      font-weight:400;
+      font-size:11px;
+    }
+    .djs-table td:first-child{ font-size:13px; font-weight:700; }
   }
 </style>
 </head>
@@ -290,12 +399,16 @@
   <header>
     <div class="row-top">
       <div class="brand">NAYAR<span>SOUND</span></div>
-      <div class="counter">
+      <div class="segmented" id="pageSelector">
+        <button data-page="mapa" class="active">MAPA</button>
+        <button data-page="djs">DJS</button>
+      </div>
+      <div class="counter" id="mapCounter">
         <span class="counter-label" id="counterLabel">EVENTOS REGISTRADOS:</span>
         <span class="counter-value" id="counterValue">—</span>
       </div>
     </div>
-    <div class="row-controls">
+    <div class="row-controls" id="mapControls">
       <div class="segmented" id="viewSelector">
         <button data-view="points" class="active">PUNTOS</button>
         <button data-view="quadrants">CUADRANTES</button>
@@ -314,11 +427,52 @@
         <button data-period="90D">ÚLTIMOS 90 DÍAS</button>
       </div>
     </div>
+    <div class="row-controls" id="djsControls" style="display:none;">
+      <div class="segmented" id="djsCitySelector">
+        <button data-city="GLOBAL" class="active">GLOBAL</button>
+      </div>
+      <div class="segmented" id="djsPeriodSelector">
+        <button data-period="CURRENT">MES ACTUAL</button>
+        <button data-period="PREVIOUS">MES ANTERIOR</button>
+        <button data-period="ALL" class="active">TODOS</button>
+      </div>
+    </div>
   </header>
-  <div id="map"></div>
-  <div id="quadrantOverlay" class="quadrant-overlay"></div>
-  <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
-  <div id="status">Cargando datos…</div>
+  <div id="mapView">
+    <div id="map"></div>
+    <div id="quadrantOverlay" class="quadrant-overlay"></div>
+    <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
+    <div id="status">Cargando datos…</div>
+  </div>
+  <div id="djsView" style="display:none;">
+    <div class="djs-kpis" id="djsKpis">
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL DJs</div>
+        <div class="djs-kpi-value" id="djsKpiTotalDjs">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL EVENTOS</div>
+        <div class="djs-kpi-value" id="djsKpiTotalEventos">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL HORAS EXTRA</div>
+        <div class="djs-kpi-value" id="djsKpiTotalHoras">—</div>
+      </div>
+    </div>
+    <div class="djs-table-wrap">
+      <table class="djs-table" id="djsTable">
+        <thead>
+          <tr>
+            <th>DJ</th>
+            <th>EVENTOS REALIZADOS</th>
+            <th>HORAS EXTRA</th>
+          </tr>
+        </thead>
+        <tbody id="djsTableBody"></tbody>
+      </table>
+    </div>
+    <div id="djsStatus" class="djs-status">Cargando datos…</div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -941,8 +1095,329 @@
     renderCurrentView();
   });
 
+  // ================= DJs: misma hoja AGENDA, leída por nombre de encabezado =================
+  // Fila 12 = encabezados, datos desde la fila 13 (igual que el rango que usa el mapa),
+  // pero abarcando todas las columnas para localizar DJ / Horas Extra / Realizado
+  // sin depender de letras fijas.
+  var DJS_RANGE = 'A12:ZZ5000';
+
+  var djGroups = null;               // { claveNormalizada: { name, rows:[{cityNorm,date,realizado,horasExtra}] } }
+  var djCities = [];                 // ciudades detectadas en los datos de DJs
+  var currentDjCityFilter = 'GLOBAL';
+  var currentDjPeriodFilter = 'ALL';
+  var djsStatusEl = document.getElementById('djsStatus');
+  function setDjsStatus(msg){ if (djsStatusEl) djsStatusEl.textContent = msg; }
+
+  function normalizeHeader(s){
+    return String(s || '')
+      .toUpperCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function findColumnIndex(cols, matchers){
+    for (var m = 0; m < matchers.length; m++){
+      for (var i = 0; i < cols.length; i++){
+        var label = normalizeHeader(cols[i] && cols[i].label);
+        if (matchers[m](label)) return i;
+      }
+    }
+    return -1;
+  }
+
+  var DJ_NAME_MATCHERS = [
+    function(h){ return h === 'DJ'; },
+    function(h){ return h === 'NOMBRE DEL DJ' || h === 'NOMBRE DJ'; },
+    function(h){ return h === 'DJ ASIGNADO'; },
+    function(h){ return /\bDJ\b/.test(h); }
+  ];
+  var REALIZADO_MATCHERS = [
+    function(h){ return h === 'REALIZADO' || h === 'REALIZADA'; },
+    function(h){ return h === 'EVENTO REALIZADO'; },
+    function(h){ return h.indexOf('REALIZ') !== -1; },
+    function(h){ return h === 'STATUS' || h === 'ESTATUS' || h === 'ESTADO'; }
+  ];
+  var HORAS_EXTRA_MATCHERS = [
+    function(h){ return h === 'HORAS EXTRA' || h === 'HORAS EXTRAS'; },
+    function(h){ return h.indexOf('HORAS EXTRA') !== -1; }
+  ];
+  var DJ_CITY_MATCHERS = [
+    function(h){ return h === 'CIUDAD'; },
+    function(h){ return h.indexOf('CIUDAD') !== -1; }
+  ];
+  var DJ_FECHA_MATCHERS = [
+    function(h){ return h === 'FECHA'; },
+    function(h){ return h.indexOf('FECHA') !== -1; }
+  ];
+
+  function isRealizado(cell){
+    if (!cell || cell.v == null) return false;
+    if (typeof cell.v === 'boolean') return cell.v === true;
+    var s = normalizeHeader(cell.v);
+    if (!s) return false;
+    var truthy = ['SI', 'TRUE', 'X', 'REALIZADO', 'REALIZADA', 'COMPLETADO', 'CONFIRMADO', 'HECHO', '1'];
+    return truthy.indexOf(s) !== -1;
+  }
+
+  function parseHorasExtra(cell){
+    if (!cell || cell.v == null) return 0;
+    if (typeof cell.v === 'number') return cell.v;
+    var s = String(cell.v).trim();
+    if (!s) return 0;
+    s = s.replace(/[^0-9.,-]/g, '');
+    if (!s) return 0;
+    if (s.indexOf(',') !== -1 && s.indexOf('.') !== -1){
+      s = s.replace(/,/g, ''); // coma como separador de miles
+    } else {
+      s = s.replace(',', '.'); // coma como separador decimal
+    }
+    var n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(ch){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch];
+    });
+  }
+
+  function loadDjsData(){
+    var callbackName = '__gvizDjsCallback_' + Date.now();
+    var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+              '/gviz/tq?sheet=' + encodeURIComponent(SHEET_NAME) +
+              '&range=' + DJS_RANGE + '&headers=1' +
+              '&tqx=out:json;responseHandler:' + callbackName;
+
+    var script = document.createElement('script');
+    var settled = false;
+
+    var timeoutId = setTimeout(function(){
+      if (settled) return;
+      settled = true;
+      cleanup();
+      console.error('Tiempo de espera agotado al cargar datos de DJs');
+      setDjsStatus('No se pudo actualizar — reintentando…');
+    }, 10000);
+
+    function cleanup(){
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[callbackName] = function(json){
+      if (settled) return;
+      settled = true;
+      cleanup();
+
+      try {
+        var cols = (json.table && json.table.cols) ? json.table.cols : [];
+        var rows = (json.table && json.table.rows) ? json.table.rows : [];
+
+        var idx = {
+          dj: findColumnIndex(cols, DJ_NAME_MATCHERS),
+          realizado: findColumnIndex(cols, REALIZADO_MATCHERS),
+          horasExtra: findColumnIndex(cols, HORAS_EXTRA_MATCHERS),
+          city: findColumnIndex(cols, DJ_CITY_MATCHERS),
+          fecha: findColumnIndex(cols, DJ_FECHA_MATCHERS)
+        };
+
+        if (idx.dj === -1){
+          console.error('No se encontró la columna "DJ" en la hoja AGENDA', cols);
+          setDjsStatus('No se encontró la columna "DJ" en la hoja.');
+          djGroups = {};
+          djCities = [];
+          renderDjsView();
+          return;
+        }
+
+        var groups = {};
+        var citySet = {};
+
+        rows.forEach(function(row){
+          var cells = row.c || [];
+          var djCell = cells[idx.dj];
+          var djRaw = djCell ? djCell.v : null;
+          if (djRaw == null || String(djRaw).trim() === '') return;
+
+          var key = normalizeHeader(djRaw);
+          if (!groups[key]){
+            groups[key] = { name: String(djRaw).trim().replace(/\s+/g, ' '), rows: [] };
+          }
+
+          var cityNorm = idx.city !== -1 ? normalizeCity(cells[idx.city] ? cells[idx.city].v : null) : '';
+          if (cityNorm) citySet[cityNorm] = true;
+
+          groups[key].rows.push({
+            cityNorm: cityNorm,
+            date: idx.fecha !== -1 ? parseSheetDate(cells[idx.fecha]) : null,
+            realizado: idx.realizado !== -1 ? isRealizado(cells[idx.realizado]) : false,
+            horasExtra: idx.horasExtra !== -1 ? parseHorasExtra(cells[idx.horasExtra]) : 0
+          });
+        });
+
+        djGroups = groups;
+        djCities = Object.keys(citySet).sort();
+        buildDjsCitySelector();
+        setDjsStatus('Actualizado ' + new Date().toLocaleTimeString('es-MX'));
+        renderDjsView();
+      } catch (err){
+        console.error('Error al procesar datos de DJs:', err);
+        setDjsStatus('No se pudo actualizar — reintentando…');
+      }
+    };
+
+    script.onerror = function(){
+      if (settled) return;
+      settled = true;
+      cleanup();
+      console.error('Error al cargar el script de datos de DJs');
+      setDjsStatus('No se pudo actualizar — reintentando…');
+    };
+
+    script.src = url;
+    document.body.appendChild(script);
+  }
+
+  function buildDjsCitySelector(){
+    var container = document.getElementById('djsCitySelector');
+    if (!container) return;
+
+    if (currentDjCityFilter !== 'GLOBAL' && djCities.indexOf(currentDjCityFilter) === -1){
+      currentDjCityFilter = 'GLOBAL';
+    }
+
+    var html = '<button data-city="GLOBAL"' + (currentDjCityFilter === 'GLOBAL' ? ' class="active"' : '') + '>GLOBAL</button>';
+    djCities.forEach(function(cityNorm){
+      var label = CITY_DISPLAY_NAMES[cityNorm] || cityNorm;
+      var isActive = (currentDjCityFilter === cityNorm);
+      html += '<button data-city="' + escapeHtml(cityNorm) + '"' + (isActive ? ' class="active"' : '') + '>' + escapeHtml(label) + '</button>';
+    });
+    container.innerHTML = html;
+  }
+
+  function getDjPeriodBounds(){
+    var now = new Date();
+    var curYear = now.getFullYear(), curMonth = now.getMonth();
+    var prev = new Date(curYear, curMonth - 1, 1);
+    return {
+      current:  { year: curYear, month: curMonth },
+      previous: { year: prev.getFullYear(), month: prev.getMonth() }
+    };
+  }
+
+  function djPeriodMatches(date, bounds){
+    if (currentDjPeriodFilter === 'ALL') return true;
+    if (!date) return false;
+    if (currentDjPeriodFilter === 'CURRENT') return date.getFullYear() === bounds.current.year && date.getMonth() === bounds.current.month;
+    if (currentDjPeriodFilter === 'PREVIOUS') return date.getFullYear() === bounds.previous.year && date.getMonth() === bounds.previous.month;
+    return true;
+  }
+
+  function computeDjStats(){
+    if (!djGroups) return [];
+    var bounds = getDjPeriodBounds();
+    var stats = [];
+
+    Object.keys(djGroups).forEach(function(key){
+      var g = djGroups[key];
+      var eventos = 0;
+      var horasExtra = 0;
+
+      g.rows.forEach(function(r){
+        var cityOk = (currentDjCityFilter === 'GLOBAL') || (r.cityNorm === currentDjCityFilter);
+        if (!cityOk) return;
+        if (!djPeriodMatches(r.date, bounds)) return;
+        if (r.realizado) eventos++;
+        horasExtra += r.horasExtra;
+      });
+
+      if (eventos > 0 || horasExtra > 0){
+        stats.push({ name: g.name, eventos: eventos, horasExtra: horasExtra });
+      }
+    });
+
+    stats.sort(function(a, b){ return b.eventos - a.eventos; });
+    return stats;
+  }
+
+  function formatHoras(n){
+    var rounded = Math.round(n * 10) / 10;
+    return (rounded % 1 === 0) ? String(rounded) : String(rounded.toFixed(1));
+  }
+
+  function renderDjsView(){
+    var stats = computeDjStats();
+
+    var totalDjs = stats.length;
+    var totalEventos = stats.reduce(function(sum, s){ return sum + s.eventos; }, 0);
+    var totalHoras = stats.reduce(function(sum, s){ return sum + s.horasExtra; }, 0);
+
+    document.getElementById('djsKpiTotalDjs').textContent = totalDjs;
+    document.getElementById('djsKpiTotalEventos').textContent = totalEventos;
+    document.getElementById('djsKpiTotalHoras').textContent = formatHoras(totalHoras);
+
+    var tbody = document.getElementById('djsTableBody');
+    if (!stats.length){
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);">Sin datos para este filtro</td></tr>';
+      return;
+    }
+
+    var html = '';
+    stats.forEach(function(s){
+      html += '<tr>' +
+        '<td data-label="DJ">' + escapeHtml(s.name) + '</td>' +
+        '<td data-label="EVENTOS">' + s.eventos + '</td>' +
+        '<td data-label="HORAS EXTRA">' + formatHoras(s.horasExtra) + '</td>' +
+      '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  document.getElementById('pageSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    var isDjs = (btn.dataset.page === 'djs');
+
+    document.getElementById('mapView').style.display = isDjs ? 'none' : '';
+    document.getElementById('mapControls').style.display = isDjs ? 'none' : '';
+    document.getElementById('mapCounter').style.display = isDjs ? 'none' : '';
+    document.getElementById('djsView').style.display = isDjs ? '' : 'none';
+    document.getElementById('djsControls').style.display = isDjs ? '' : 'none';
+
+    if (isDjs){
+      if (djGroups === null){
+        setDjsStatus('Cargando datos…');
+        loadDjsData();
+      } else {
+        renderDjsView();
+      }
+    } else {
+      setTimeout(function(){ map.invalidateSize(); }, 0);
+    }
+  });
+
+  document.getElementById('djsCitySelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    currentDjCityFilter = btn.dataset.city;
+    renderDjsView();
+  });
+
+  document.getElementById('djsPeriodSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    currentDjPeriodFilter = btn.dataset.period;
+    renderDjsView();
+  });
+
   loadEvents();
   setInterval(loadEvents, REFRESH_MS);
+  setInterval(function(){ if (djGroups !== null) loadDjsData(); }, REFRESH_MS);
 
 })();
 </script>
