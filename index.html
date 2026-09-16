@@ -194,10 +194,100 @@
     color:var(--cyan);
   }
 
+  #mapPage{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    min-height:0;
+    width:100%;
+  }
+
   #map{
     flex:1;
     width:100%;
     background:var(--bg);
+  }
+
+  /* ================= PÁGINA DJS (estadísticas desde AGENDA) ================= */
+  #djsPage{
+    flex:1;
+    display:none;
+    flex-direction:column;
+    min-height:0;
+    overflow-y:auto;
+    padding:20px;
+    gap:16px;
+  }
+
+  .djs-kpis{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  .djs-kpi{
+    flex:1;
+    min-width:160px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+  }
+  .djs-kpi-label{
+    font-size:10px;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .djs-kpi-value{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:26px;
+    color:var(--cyan);
+    text-shadow:0 0 14px rgba(0,224,255,0.3);
+  }
+
+  .djs-status-msg{
+    font-size:11px;
+    letter-spacing:0.04em;
+    color:var(--muted);
+  }
+  .djs-status-msg.error{ color:#ff6b6b; }
+
+  .djs-table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--panel);
+  }
+  .djs-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+  }
+  .djs-table th{
+    text-align:left;
+    font-size:10px;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    font-weight:700;
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .djs-table td{
+    padding:9px 14px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .djs-table tbody tr:last-child td{ border-bottom:none; }
+  .djs-table tbody tr:hover{ background:rgba(0,224,255,0.05); }
+  .djs-table td:first-child{ color:var(--text); font-weight:700; }
+  .djs-table th:not(:first-child), .djs-table td:not(:first-child){ text-align:right; }
+  .djs-table td:nth-child(2), .djs-table td:nth-child(3){ color:var(--cyan); font-family:'Space Grotesk', sans-serif; font-weight:700; }
+
+  @media (max-width: 640px){
+    #djsPage{ padding:14px; }
   }
 
   .leaflet-control-attribution{
@@ -701,14 +791,18 @@
     <div class="toolbar">
       <div class="toolbar-group toolbar-left">
         <div class="brand">NAYAR<span>SOUND</span></div>
-        <div class="segmented" id="viewSelector">
+        <div class="segmented" id="pageSelector">
+          <button data-page="mapa" class="active">MAPA</button>
+          <button data-page="djs">DJS</button>
+        </div>
+        <div class="segmented page-ctrl-mapa" id="viewSelector">
           <button data-view="points" class="active">PUNTOS</button>
           <button data-view="quadrants">CUADRANTES</button>
         </div>
       </div>
 
       <div class="toolbar-group toolbar-center">
-        <div class="dropdown" id="cityDropdown">
+        <div class="dropdown page-ctrl-mapa" id="cityDropdown">
           <button class="dropdown-toggle" id="cityDropdownToggle" type="button" aria-haspopup="true" aria-expanded="false">
             <span>CIUDAD:</span>
             <span class="dropdown-toggle-value" id="cityDropdownValue">TODAS</span>
@@ -718,7 +812,7 @@
             <button data-city="TODOS" class="active">TODAS</button>
           </div>
         </div>
-        <div class="dropdown" id="periodDropdown">
+        <div class="dropdown page-ctrl-mapa" id="periodDropdown">
           <button class="dropdown-toggle" id="periodDropdownToggle" type="button" aria-haspopup="true" aria-expanded="false">
             <span>PERIODO:</span>
             <span class="dropdown-toggle-value" id="periodDropdownValue">GLOBAL</span>
@@ -731,14 +825,36 @@
             <button data-period="90D">ÚLTIMOS 90 DÍAS</button>
           </div>
         </div>
+        <div class="dropdown page-ctrl-djs" id="djsCityDropdown" style="display:none;">
+          <button class="dropdown-toggle" id="djsCityDropdownToggle" type="button" aria-haspopup="true" aria-expanded="false">
+            <span>CIUDAD:</span>
+            <span class="dropdown-toggle-value" id="djsCityDropdownValue">GLOBAL</span>
+            <span class="dropdown-caret">&#9662;</span>
+          </button>
+          <div class="dropdown-menu" id="djsCitySelector">
+            <button data-city="GLOBAL" class="active">GLOBAL</button>
+          </div>
+        </div>
+        <div class="dropdown page-ctrl-djs" id="djsPeriodDropdown" style="display:none;">
+          <button class="dropdown-toggle" id="djsPeriodDropdownToggle" type="button" aria-haspopup="true" aria-expanded="false">
+            <span>PERIODO:</span>
+            <span class="dropdown-toggle-value" id="djsPeriodDropdownValue">MES ACTUAL</span>
+            <span class="dropdown-caret">&#9662;</span>
+          </button>
+          <div class="dropdown-menu" id="djsPeriodSelector">
+            <button data-period="CURRENT_MONTH" class="active">MES ACTUAL</button>
+            <button data-period="PREVIOUS_MONTH">MES ANTERIOR</button>
+            <button data-period="ALL">TODOS</button>
+          </div>
+        </div>
       </div>
 
       <div class="toolbar-group toolbar-right">
-        <div class="counter">
+        <div class="counter page-ctrl-mapa">
           <span class="counter-label" id="counterLabel">EVENTOS REGISTRADOS:</span>
           <span class="counter-value" id="counterValue">—</span>
         </div>
-        <div class="tool-buttons">
+        <div class="tool-buttons page-ctrl-mapa">
           <button id="djToolToggle" class="dj-tool-toggle" type="button">DJ CERCANO</button>
           <button id="optToolToggle" class="dj-tool-toggle" type="button">OPTIMIZAR</button>
           <button id="convertToolToggle" class="dj-tool-toggle" type="button">CONVERTIR UBICACIÓN</button>
@@ -746,10 +862,38 @@
       </div>
     </div>
   </header>
-  <div id="map"></div>
-  <div id="quadrantOverlay" class="quadrant-overlay"></div>
-  <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
-  <div id="status">Cargando datos…</div>
+  <div id="mapPage">
+    <div id="map"></div>
+    <div id="quadrantOverlay" class="quadrant-overlay"></div>
+    <div id="outOfZoneLabel" class="out-of-zone-label" style="display:none;"></div>
+    <div id="status">Cargando datos…</div>
+  </div>
+
+  <div id="djsPage">
+    <div class="djs-kpis">
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL DE DJS</div>
+        <div class="djs-kpi-value" id="djsKpiCount">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL DE EVENTOS</div>
+        <div class="djs-kpi-value" id="djsKpiEvents">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL HORAS EXTRA</div>
+        <div class="djs-kpi-value" id="djsKpiHours">—</div>
+      </div>
+    </div>
+    <div id="djsStatusMsg" class="djs-status-msg">Cargando datos…</div>
+    <div class="djs-table-wrap">
+      <table class="djs-table">
+        <thead>
+          <tr><th>DJ</th><th>EVENTOS</th><th>HORAS EXTRA</th></tr>
+        </thead>
+        <tbody id="djsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
 
   <div id="djToolPanel" class="dj-tool-panel">
     <div class="dj-tool-header">
@@ -831,6 +975,13 @@
   var BLOQUEADO_COL_IDX = 15; // R — evento bloqueado (conserva su DJ actual, fuera de OPTIMIZAR ASIGNACIONES)
   var REFRESH_MS  = 5 * 60 * 1000;
 
+  // ---- Rango para la página DJS (estadísticas de eventos/horas extra por DJ) ----
+  // Empieza en la fila 12 (encabezados) para poder leer las columnas por su nombre
+  // real (REALIZADO, Horas Extra) con headers=1 en vez de asumir letras fijas, y se
+  // extiende hasta S porque "Horas Extra" queda una columna después de BLOQUEADO,
+  // fuera del rango C13:R5000 que ya usa loadEvents() para el mapa.
+  var AGENDA_STATS_RANGE = 'C12:S5000';
+
   // ---- Fuente de DJs para la herramienta "DJ más cercano" (100% dinámica desde Sheets) ----
   // Pestaña "DATA" del mismo spreadsheet. Datos desde la fila 3, columnas P/Q/R:
   // P = CIUDAD, Q = NOMBRE, R = COORDENADAS. No existe columna de estado: todo DJ
@@ -846,6 +997,12 @@
   var statusEl  = document.getElementById('status');
   var counterEl = document.getElementById('counterValue');
   var counterLabelEl = document.getElementById('counterLabel');
+
+  var djsKpiCountEl = document.getElementById('djsKpiCount');
+  var djsKpiEventsEl = document.getElementById('djsKpiEvents');
+  var djsKpiHoursEl = document.getElementById('djsKpiHours');
+  var djsStatusMsgEl = document.getElementById('djsStatusMsg');
+  var djsTableBodyEl = document.getElementById('djsTableBody');
   var quadrantOverlayEl = document.getElementById('quadrantOverlay');
   var outOfZoneEl = document.getElementById('outOfZoneLabel');
   function setStatus(msg){ statusEl.textContent = msg; }
@@ -920,6 +1077,13 @@
   // ---- Estado de la herramienta independiente "DJ más cercano" ----
   var allDjs = [];        // [{name, cityNorm, lat, lng}] — solo DJs ACTIVO/SI
   var djLayerGroup = null; // capa propia, nunca tocada por clearLayers() de PUNTOS/CUADRANTES
+
+  // ---- Estado de la página independiente "DJS" (estadísticas desde AGENDA) ----
+  var currentPage = 'mapa'; // 'mapa' | 'djs'
+  var djAgendaRows = [];    // [{cityNorm, djKey, djName, date, realizado, horasExtra}]
+  var djAgendaStatsError = null; // mensaje si no se pudieron leer REALIZADO/HORAS EXTRA por nombre de encabezado
+  var djsCityFilter = 'GLOBAL';
+  var djsPeriodFilter = 'CURRENT_MONTH';
 
   // Zona urbana FIJA por ciudad: centro + bounding box en km, totalmente independiente
   // de dónde estén los eventos. Esto evita que localidades lejanas (San Blas, Compostela,
@@ -1017,6 +1181,53 @@
     if (lng < -180 || lng > 180) return null;
 
     return { lat: lat, lng: lng };
+  }
+
+  // ================= UTILIDADES: PÁGINA DJS (estadísticas desde AGENDA) =================
+
+  // Encuentra la columna cuyo encabezado (fila de "cols" que entrega gviz con
+  // headers=1) coincide con alguno de los nombres candidatos — normalizado
+  // (mayúsculas, sin acentos, sin espacios de más) para no depender de letras fijas
+  // ni de mayúsculas/acentos exactos en la hoja. Devuelve -1 si no encuentra nada.
+  function findHeaderOffset(cols, candidates){
+    for (var i = 0; i < cols.length; i++){
+      var label = normalizeCity(cols[i] && cols[i].label);
+      for (var j = 0; j < candidates.length; j++){
+        if (label === normalizeCity(candidates[j])) return i;
+      }
+    }
+    return -1;
+  }
+
+  // Convierte el valor crudo de la columna "Horas Extra" a número: ya puede venir
+  // como número (gviz detecta el tipo de columna) o como texto con coma decimal;
+  // vacío/no numérico cuenta como 0, nunca como NaN.
+  function parseHorasExtra(raw){
+    if (raw == null || raw === '') return 0;
+    var n = (typeof raw === 'number') ? raw : parseFloat(String(raw).replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  }
+
+  // Igual que normalizeCity pero además colapsa espacios internos repetidos, para
+  // que "DJ  Ares" y "DJ Ares" agrupen como el mismo DJ (no solo espacios al borde).
+  function normalizeDjKey(raw){
+    return normalizeCity(raw).replace(/\s+/g, ' ');
+  }
+
+  function matchesDjsPeriod(date, period){
+    if (period === 'ALL') return true;
+    if (!date) return false;
+    var now = new Date();
+    if (period === 'CURRENT_MONTH'){
+      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    }
+    if (period === 'PREVIOUS_MONTH'){
+      var prevMonth = now.getMonth() - 1;
+      var prevYear = now.getFullYear();
+      if (prevMonth < 0){ prevMonth = 11; prevYear -= 1; }
+      return date.getFullYear() === prevYear && date.getMonth() === prevMonth;
+    }
+    return true;
   }
 
   // ================= UTILIDADES: HERRAMIENTA "DJ MÁS CERCANO" =================
@@ -1163,7 +1374,10 @@
   // ya cargados (nunca hardcodea nombres nuevos): siempre incluye las ciudades con
   // zona operativa definida (CITY_ZONE_BOUNDS) y agrega cualquier otra ciudad que
   // ya tenga eventos o DJs cargados, aunque todavía no tenga zona/cuadrantes propios.
-  function updateCityDropdownOptions(){
+  // Lista de ciudades conocidas (zonas operativas definidas + cualquier ciudad nueva
+  // detectada en AGENDA/DATA), compartida por el dropdown de CIUDAD del mapa y por
+  // el de la página DJS — una sola fuente de verdad, nunca hardcodeada por ciudad.
+  function getKnownCityKeys(){
     var seen = {};
     var cityKeys = [];
     Object.keys(CITY_ZONE_BOUNDS).forEach(function(k){ seen[k] = true; cityKeys.push(k); });
@@ -1176,6 +1390,11 @@
     cityKeys.sort(function(a, b){
       return (CITY_DISPLAY_NAMES[a] || a).localeCompare(CITY_DISPLAY_NAMES[b] || b);
     });
+    return cityKeys;
+  }
+
+  function updateCityDropdownOptions(){
+    var cityKeys = getKnownCityKeys();
 
     if (cityKeys.indexOf(currentCityFilter) === -1 && currentCityFilter !== 'TODOS'){
       currentCityFilter = 'TODOS';
@@ -1190,6 +1409,7 @@
     });
     menu.innerHTML = html;
     updateCityDropdownLabel();
+    updateDjsCityDropdownOptions();
   }
 
   function updateCityDropdownLabel(){
@@ -1283,6 +1503,183 @@
     script.src = url;
     document.body.appendChild(script);
     });
+  }
+
+  // ================= CARGA DE ESTADÍSTICAS DE DJS (página DJS, misma técnica JSONP) =================
+  // Misma hoja AGENDA y misma conexión (gviz JSONP) que loadEvents(), pero con su
+  // propia consulta: incluye la fila de encabezados (headers=1) para poder ubicar
+  // REALIZADO y Horas Extra por su nombre en vez de por letra fija, y llega hasta la
+  // columna S porque Horas Extra queda fuera del rango C13:R5000 que usa el mapa.
+  function loadDjAgendaStats(){
+    return new Promise(function(resolveLoad){
+      var callbackName = '__gvizDjStatsCallback_' + Date.now();
+      var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+                '/gviz/tq?sheet=' + encodeURIComponent(SHEET_NAME) +
+                '&range=' + AGENDA_STATS_RANGE + '&headers=1' +
+                '&tqx=out:json;responseHandler:' + callbackName +
+                '&_=' + Date.now();
+
+      var script = document.createElement('script');
+      var settled = false;
+
+      var timeoutId = setTimeout(function(){
+        if (settled) return;
+        settled = true;
+        cleanup();
+        console.error('Tiempo de espera agotado al cargar AGENDA (página DJS)');
+        resolveLoad();
+      }, 10000);
+
+      function cleanup(){
+        clearTimeout(timeoutId);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[callbackName] = function(json){
+        if (settled) return;
+        settled = true;
+        cleanup();
+
+        try {
+          var cols = (json.table && json.table.cols) ? json.table.cols : [];
+          var rows = (json.table && json.table.rows) ? json.table.rows : [];
+
+          var cityOff      = findHeaderOffset(cols, ['CIUDAD']);
+          var djOff        = findHeaderOffset(cols, ['DJ', 'DJ ASIGNADO', 'NOMBRE DJ', 'NOMBRE DEL DJ']);
+          var fechaOff     = findHeaderOffset(cols, ['FECHA']);
+          var realizadoOff = findHeaderOffset(cols, ['REALIZADO']);
+          var horasOff     = findHeaderOffset(cols, ['HORAS EXTRA']);
+
+          // Respaldo a las posiciones ya conocidas y probadas del mapa si por algún
+          // motivo el encabezado no calza exacto (nunca debería pasar en la práctica).
+          if (cityOff === -1) cityOff = CITY_COL_IDX;
+          if (djOff === -1) djOff = DJ_ASSIGNED_COL_IDX;
+          if (fechaOff === -1) fechaOff = FECHA_COL_IDX;
+
+          if (realizadoOff === -1 || horasOff === -1){
+            djAgendaRows = [];
+            djAgendaStatsError = 'No se encontraron en AGENDA las columnas "REALIZADO" y/o "Horas Extra" — revisa que esos encabezados existan tal cual en la hoja.';
+          } else {
+            var parsed = [];
+            rows.forEach(function(row){
+              var cells = row.c || [];
+              var djRaw = cells[djOff] ? cells[djOff].v : null;
+              if (!djRaw) return;
+              var djKey = normalizeDjKey(djRaw);
+              if (!djKey) return;
+
+              parsed.push({
+                cityNorm: normalizeCity(cells[cityOff] ? cells[cityOff].v : null),
+                djKey: djKey,
+                djName: String(djRaw).trim(),
+                date: parseSheetDate(cells[fechaOff]),
+                realizado: normalizeCity(cells[realizadoOff] ? cells[realizadoOff].v : null) === 'SI',
+                horasExtra: parseHorasExtra(cells[horasOff] ? cells[horasOff].v : null)
+              });
+            });
+            djAgendaRows = parsed;
+            djAgendaStatsError = null;
+          }
+        } catch (err){
+          console.error('Error al procesar estadísticas de DJs desde AGENDA:', err);
+          djAgendaRows = [];
+          djAgendaStatsError = 'No se pudo procesar AGENDA para el reporte de DJs.';
+        }
+        resolveLoad();
+      };
+
+      script.onerror = function(){
+        if (settled) return;
+        settled = true;
+        cleanup();
+        console.error('Error al cargar AGENDA (página DJS)');
+        djAgendaStatsError = 'No se pudo cargar AGENDA para el reporte de DJs — reintentando…';
+        resolveLoad();
+      };
+
+      script.src = url;
+      document.body.appendChild(script);
+    });
+  }
+
+  function computeDjsStats(){
+    var filtered = djAgendaRows.filter(function(r){
+      var cityOk = (djsCityFilter === 'GLOBAL') || (r.cityNorm === djsCityFilter);
+      return cityOk && matchesDjsPeriod(r.date, djsPeriodFilter);
+    });
+
+    var byDj = {};
+    var order = [];
+    filtered.forEach(function(r){
+      if (!byDj[r.djKey]){
+        byDj[r.djKey] = { name: r.djName, totalEvents: 0, totalHorasExtra: 0 };
+        order.push(r.djKey);
+      }
+      var entry = byDj[r.djKey];
+      if (r.realizado) entry.totalEvents += 1;
+      entry.totalHorasExtra += r.horasExtra;
+    });
+
+    var list = order.map(function(k){ return byDj[k]; });
+    list.sort(function(a, b){ return b.totalEvents - a.totalEvents; });
+
+    var totalEvents = list.reduce(function(sum, d){ return sum + d.totalEvents; }, 0);
+    var totalHoras = list.reduce(function(sum, d){ return sum + d.totalHorasExtra; }, 0);
+
+    return { list: list, totalDjs: list.length, totalEvents: totalEvents, totalHorasExtra: totalHoras };
+  }
+
+  function formatHoras(n){
+    return (Math.round(n * 100) / 100).toString();
+  }
+
+  function renderDjsPage(){
+    if (djAgendaStatsError){
+      djsStatusMsgEl.textContent = djAgendaStatsError;
+      djsStatusMsgEl.classList.add('error');
+      djsKpiCountEl.textContent = '—';
+      djsKpiEventsEl.textContent = '—';
+      djsKpiHoursEl.textContent = '—';
+      djsTableBodyEl.innerHTML = '';
+      return;
+    }
+
+    var stats = computeDjsStats();
+    djsKpiCountEl.textContent = stats.totalDjs;
+    djsKpiEventsEl.textContent = stats.totalEvents;
+    djsKpiHoursEl.textContent = formatHoras(stats.totalHorasExtra);
+
+    if (!stats.list.length){
+      djsStatusMsgEl.classList.remove('error');
+      djsStatusMsgEl.textContent = 'No hay datos para este filtro.';
+      djsTableBodyEl.innerHTML = '';
+      return;
+    }
+
+    djsStatusMsgEl.classList.remove('error');
+    djsStatusMsgEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX');
+    djsTableBodyEl.innerHTML = stats.list.map(function(d){
+      return '<tr><td>' + escapeHtml(d.name) + '</td><td>' + d.totalEvents + '</td><td>' + formatHoras(d.totalHorasExtra) + '</td></tr>';
+    }).join('');
+  }
+
+  function updateDjsCityDropdownOptions(){
+    var cityKeys = getKnownCityKeys();
+    if (cityKeys.indexOf(djsCityFilter) === -1 && djsCityFilter !== 'GLOBAL'){
+      djsCityFilter = 'GLOBAL';
+    }
+
+    var menu = document.getElementById('djsCitySelector');
+    var html = '<button data-city="GLOBAL" class="' + (djsCityFilter === 'GLOBAL' ? 'active' : '') + '">GLOBAL</button>';
+    cityKeys.forEach(function(key){
+      var label = CITY_DISPLAY_NAMES[key] || key;
+      html += '<button data-city="' + escapeHtml(key) + '" class="' + (djsCityFilter === key ? 'active' : '') + '">' + escapeHtml(label) + '</button>';
+    });
+    menu.innerHTML = html;
+
+    var valueEl = document.getElementById('djsCityDropdownValue');
+    if (valueEl) valueEl.textContent = (djsCityFilter === 'GLOBAL') ? 'GLOBAL' : (CITY_DISPLAY_NAMES[djsCityFilter] || djsCityFilter);
   }
 
   // ================= CARGA DE DJs (independiente, misma técnica JSONP) =================
@@ -1849,6 +2246,66 @@
     document.getElementById('periodDropdownValue').textContent = btn.textContent.trim();
     closeAllDropdowns();
     renderCurrentView();
+  });
+
+  // ================= PÁGINA DJS: dropdowns propios (CIUDAD con GLOBAL / PERIODO mensual) =================
+  initDropdown('djsCityDropdown', 'djsCityDropdownToggle');
+  initDropdown('djsPeriodDropdown', 'djsPeriodDropdownToggle');
+
+  document.getElementById('djsCitySelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    djsCityFilter = btn.dataset.city;
+    document.getElementById('djsCityDropdownValue').textContent = btn.textContent.trim();
+    closeAllDropdowns();
+    renderDjsPage();
+  });
+
+  document.getElementById('djsPeriodSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    djsPeriodFilter = btn.dataset.period;
+    document.getElementById('djsPeriodDropdownValue').textContent = btn.textContent.trim();
+    closeAllDropdowns();
+    renderDjsPage();
+  });
+
+  // ================= NAVEGACIÓN ENTRE PÁGINAS: MAPA / DJS =================
+  // Cambia qué controles del header y qué contenido principal se muestran; no toca
+  // la lógica del mapa (filtros, clustering, cuadrantes) ni la de la página DJS.
+  var mapPageEl = document.getElementById('mapPage');
+  var djsPageEl = document.getElementById('djsPage');
+
+  function setActivePage(page){
+    currentPage = page;
+    closeAllDropdowns();
+
+    Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-mapa'), function(el){
+      el.style.display = (page === 'mapa') ? '' : 'none';
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-djs'), function(el){
+      el.style.display = (page === 'djs') ? '' : 'none';
+    });
+
+    mapPageEl.style.display = (page === 'mapa') ? 'flex' : 'none';
+    djsPageEl.style.display = (page === 'djs') ? 'flex' : 'none';
+
+    if (page === 'mapa'){
+      // El mapa quedó oculto (display:none) mientras se veía DJS: Leaflet necesita
+      // recalcular su tamaño al volver a mostrarse, si no el mapa queda mal recortado.
+      setTimeout(function(){ map.invalidateSize(); }, 0);
+    } else {
+      renderDjsPage();
+    }
+  }
+
+  document.getElementById('pageSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    setActivePage(btn.dataset.page);
   });
 
   // ================= HERRAMIENTA INDEPENDIENTE: DJ MÁS CERCANO =================
@@ -2768,6 +3225,17 @@
 
   loadDjs();
   setInterval(loadDjs, REFRESH_MS);
+
+  // Se carga en segundo plano desde el inicio (no solo al entrar a la página DJS)
+  // para que ya haya datos listos la primera vez que alguien cambia a esa vista.
+  loadDjAgendaStats().then(function(){
+    if (currentPage === 'djs') renderDjsPage();
+  });
+  setInterval(function(){
+    loadDjAgendaStats().then(function(){
+      if (currentPage === 'djs') renderDjsPage();
+    });
+  }, REFRESH_MS);
 
 })();
 </script>
