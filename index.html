@@ -863,6 +863,11 @@
     color:#4ade80;
     border:1px solid rgba(74,222,128,0.5);
   }
+  .dj-availability-badge.second{
+    background:rgba(255,176,32,0.16);
+    color:#ffb020;
+    border:1px solid rgba(255,176,32,0.5);
+  }
   /* Cada resultado en 2 líneas: 1) rango + nombre (prioridad visual) + badge,
      2) tiempo/distancia con tipografía secundaria. El nombre nunca usa ellipsis. */
   .dj-result-row{
@@ -2167,6 +2172,16 @@
       var existingEnd = e.horaFinMin + TRASLADO_BUFFER_MIN;
       var newEnd = newEndMin + TRASLADO_BUFFER_MIN;
       return newStartMin < existingEnd && e.horaInicioMin < newEnd;
+    });
+  }
+
+  // Si el DJ ya tiene cualquier otro evento ese mismo día, sin importar si choca de
+  // horario con el nuevo — solo para avisar "sería su segundo evento del día", nunca
+  // para decidir si está disponible (eso lo decide isDjBusyAtTime).
+  function djHasOtherEventOnDate(djNameNorm, selectedDate, excludeEvent){
+    return allEvents.some(function(e){
+      if (e === excludeEvent) return false;
+      return e.djNameNorm && e.djNameNorm === djNameNorm && isSameLocalDate(e.date, selectedDate);
     });
   }
 
@@ -4034,8 +4049,8 @@
     var html = '';
     rankedDjs.forEach(function(dj, idx){
       var isSelected = selectedDj ? (dj === selectedDj) : (idx === 0);
-      var badgeClass = dj.busy ? 'busy' : 'free';
-      var badgeText  = dj.busy ? 'OCUPADO' : 'DISPONIBLE';
+      var badgeClass = dj.busy ? 'busy' : (dj.secondEvent ? 'second' : 'free');
+      var badgeText  = dj.busy ? 'OCUPADO' : (dj.secondEvent ? 'DISPONIBLE · 2DO EVENTO' : 'DISPONIBLE');
       html += '<div class="dj-result-row' + (isSelected ? ' top' : '') + '" data-dj-index="' + idx + '">' +
                 '<div class="dj-result-line1">' +
                   '<span class="dj-result-rank">' + (idx + 1) + '.</span>' +
@@ -4075,7 +4090,7 @@
     // Resto de DJs primero (prioridad visual media), destacados después (alta/máxima)
     // para que queden por encima en el mismo pane de marcadores.
     function djPopupText(dj){
-      var status = dj.busy ? 'OCUPADO' : 'DISPONIBLE';
+      var status = dj.busy ? 'OCUPADO' : (dj.secondEvent ? 'DISPONIBLE (2do evento)' : 'DISPONIBLE');
       return escapeHtml(dj.name) + ' — ' + status + ' — ' + djResultLabel(dj);
     }
 
@@ -4238,7 +4253,10 @@
       });
       // OCUPADO/DISPONIBLE es solo información — no afecta el orden, que sigue siendo
       // por cercanía/ruta real ya calculada arriba.
-      routedDjs.forEach(function(dj){ dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin); });
+      routedDjs.forEach(function(dj){
+        dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin);
+        dj.secondEvent = !dj.busy && djHasOtherEventOnDate(dj.nameNorm, selectedDate);
+      });
 
       var rankedDjs = routedDjs; // sin límite: se muestran TODOS los DJs activos de la ciudad
       currentDjSearch = { point: point, pool: routingCandidates, rankedDjs: rankedDjs };
@@ -4259,7 +4277,10 @@
       // Respaldo si OpenRouteService falla (cuota, red, etc.): línea recta, avisando.
       console.error('Fallo al calcular la matriz de rutas (DJ CERCANO):', err);
       var rankedDjs = routingCandidates;
-      rankedDjs.forEach(function(dj){ dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin); });
+      rankedDjs.forEach(function(dj){
+        dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin);
+        dj.secondEvent = !dj.busy && djHasOtherEventOnDate(dj.nameNorm, selectedDate);
+      });
       currentDjSearch = { point: point, pool: routingCandidates, rankedDjs: rankedDjs };
       setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real — mostrando línea recta aproximada.', true);
       renderDjResults(rankedDjs);
