@@ -900,6 +900,11 @@
     font-size:10.5px;
     padding-left:20px;
   }
+  .dj-result-line3{
+    color:#ffb020;
+    font-size:10.5px;
+    padding-left:20px;
+  }
   .dj-result-row.top{
     border-color:#ff3b3b;
     background:rgba(255,59,59,0.10);
@@ -2183,6 +2188,52 @@
       if (e === excludeEvent) return false;
       return e.djNameNorm && e.djNameNorm === djNameNorm && isSameLocalDate(e.date, selectedDate);
     });
+  }
+
+  // Para un DJ marcado "segundo evento" (ya se sabe que NO choca — eso lo decide
+  // isDjBusyAtTime), ubica el evento real más cercano en el tiempo al nuevo: el
+  // anterior si termina antes de que empiece el nuevo, o el siguiente si empieza
+  // después de que termine. Solo se llama cuando ya no hay choque, así que todo
+  // evento candidato tiene horario conocido (si no lo tuviera, isDjBusyAtTime ya
+  // habría marcado OCUPADO). Devuelve null si por algún motivo no hay ninguno
+  // (no debería pasar si secondEvent es true, pero nunca se inventa un horario).
+  function findAdjacentEventGap(djNameNorm, selectedDate, newStartMin, newEndMin, excludeEvent){
+    var before = null, after = null;
+    allEvents.forEach(function(e){
+      if (e === excludeEvent) return;
+      if (!e.djNameNorm || e.djNameNorm !== djNameNorm) return;
+      if (!isSameLocalDate(e.date, selectedDate)) return;
+      if (e.horaInicioMin == null || e.horaFinMin == null) return;
+
+      if (e.horaFinMin <= newStartMin){
+        if (!before || e.horaFinMin > before.horaFinMin) before = e;
+      } else if (e.horaInicioMin >= newEndMin){
+        if (!after || e.horaInicioMin < after.horaInicioMin) after = e;
+      }
+    });
+
+    if (before) return { type: 'before', horaMin: before.horaFinMin, gapMin: newStartMin - before.horaFinMin };
+    if (after) return { type: 'after', horaMin: after.horaInicioMin, gapMin: after.horaInicioMin - newEndMin };
+    return null;
+  }
+
+  function formatHoraMin(min){
+    var h = Math.floor(min / 60), m = min % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+
+  function formatGapMin(min){
+    var h = Math.floor(min / 60), m = min % 60;
+    if (h <= 0) return m + ' min';
+    return h + 'h' + (m > 0 ? ' ' + m + 'min' : '');
+  }
+
+  function secondEventLabel(info){
+    if (!info) return '';
+    if (info.type === 'before'){
+      return 'Termina evento anterior ' + formatHoraMin(info.horaMin) + ' — margen de ' + formatGapMin(info.gapMin) + ' para llegar';
+    }
+    return 'Siguiente evento ' + formatHoraMin(info.horaMin) + ' — margen de ' + formatGapMin(info.gapMin) + ' tras este';
   }
 
   // Construye dinámicamente las opciones del dropdown CIUDAD a partir de los datos
@@ -4051,6 +4102,8 @@
       var isSelected = selectedDj ? (dj === selectedDj) : (idx === 0);
       var badgeClass = dj.busy ? 'busy' : (dj.secondEvent ? 'second' : 'free');
       var badgeText  = dj.busy ? 'OCUPADO' : (dj.secondEvent ? 'DISPONIBLE · 2DO EVENTO' : 'DISPONIBLE');
+      var secondEventLine = (dj.secondEvent && dj.secondEventInfo)
+        ? '<div class="dj-result-line3">' + escapeHtml(secondEventLabel(dj.secondEventInfo)) + '</div>' : '';
       html += '<div class="dj-result-row' + (isSelected ? ' top' : '') + '" data-dj-index="' + idx + '">' +
                 '<div class="dj-result-line1">' +
                   '<span class="dj-result-rank">' + (idx + 1) + '.</span>' +
@@ -4058,6 +4111,7 @@
                   '<span class="dj-availability-badge ' + badgeClass + '">' + badgeText + '</span>' +
                 '</div>' +
                 '<div class="dj-result-line2">' + djResultLabel(dj) + '</div>' +
+                secondEventLine +
               '</div>';
     });
     djResultsEl.innerHTML = html;
@@ -4091,7 +4145,8 @@
     // para que queden por encima en el mismo pane de marcadores.
     function djPopupText(dj){
       var status = dj.busy ? 'OCUPADO' : (dj.secondEvent ? 'DISPONIBLE (2do evento)' : 'DISPONIBLE');
-      return escapeHtml(dj.name) + ' — ' + status + ' — ' + djResultLabel(dj);
+      var gapInfo = (dj.secondEvent && dj.secondEventInfo) ? ' — ' + secondEventLabel(dj.secondEventInfo) : '';
+      return escapeHtml(dj.name) + ' — ' + status + gapInfo + ' — ' + djResultLabel(dj);
     }
 
     pool.forEach(function(dj){
@@ -4256,6 +4311,7 @@
       routedDjs.forEach(function(dj){
         dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin);
         dj.secondEvent = !dj.busy && djHasOtherEventOnDate(dj.nameNorm, selectedDate);
+        dj.secondEventInfo = dj.secondEvent ? findAdjacentEventGap(dj.nameNorm, selectedDate, newStartMin, newEndMin) : null;
       });
 
       var rankedDjs = routedDjs; // sin límite: se muestran TODOS los DJs activos de la ciudad
@@ -4280,6 +4336,7 @@
       rankedDjs.forEach(function(dj){
         dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin);
         dj.secondEvent = !dj.busy && djHasOtherEventOnDate(dj.nameNorm, selectedDate);
+        dj.secondEventInfo = dj.secondEvent ? findAdjacentEventGap(dj.nameNorm, selectedDate, newStartMin, newEndMin) : null;
       });
       currentDjSearch = { point: point, pool: routingCandidates, rankedDjs: rankedDjs };
       setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real — mostrando línea recta aproximada.', true);
