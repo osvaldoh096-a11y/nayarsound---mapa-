@@ -1236,24 +1236,6 @@
   </div>
 
   <div id="demandPage">
-    <div class="djs-kpis">
-      <div class="djs-kpi">
-        <div class="djs-kpi-label">SOLICITUDES RECHAZADAS</div>
-        <div class="djs-kpi-value" id="demandKpiTotal">—</div>
-      </div>
-      <div class="djs-kpi demand-kpi-warn">
-        <div class="djs-kpi-label">SIN COBERTURA ACTUAL</div>
-        <div class="djs-kpi-value" id="demandKpiSinCobertura">—</div>
-      </div>
-      <div class="djs-kpi">
-        <div class="djs-kpi-label">MUNICIPIOS CON DEMANDA</div>
-        <div class="djs-kpi-value" id="demandKpiMunicipios">—</div>
-      </div>
-      <div class="djs-kpi demand-kpi-warn">
-        <div class="djs-kpi-label">ESTADO CON MÁS DEMANDA</div>
-        <div class="djs-kpi-value demand-kpi-value-sm" id="demandKpiTopOpportunity">—</div>
-      </div>
-    </div>
     <div class="demand-meta-row">
       <div id="demandStatusMsg" class="djs-status-msg">Cargando datos…</div>
       <div class="demand-meta-badges">
@@ -1429,10 +1411,6 @@
   var djsStatusMsgEl = document.getElementById('djsStatusMsg');
   var djsTableBodyEl = document.getElementById('djsTableBody');
 
-  var demandKpiTotalEl = document.getElementById('demandKpiTotal');
-  var demandKpiSinCoberturaEl = document.getElementById('demandKpiSinCobertura');
-  var demandKpiMunicipiosEl = document.getElementById('demandKpiMunicipios');
-  var demandKpiTopOpportunityEl = document.getElementById('demandKpiTopOpportunity');
   var demandStatusMsgEl = document.getElementById('demandStatusMsg');
   var quadrantOverlayEl = document.getElementById('quadrantOverlay');
   var outOfZoneEl = document.getElementById('outOfZoneLabel');
@@ -3093,7 +3071,6 @@
     var order = [];
     var estadosSet = {};
     var reviewCount = 0;
-    var sinCoberturaCount = 0;
 
     // Agregación por estado (todas las solicitudes resueltas, sin importar
     // cobertura) — es la que alimenta el TOP 5 de estados con más demanda.
@@ -3102,7 +3079,6 @@
 
     filtered.forEach(function(r){
       if (r.needsReview) reviewCount++;
-      if (!r.covered) sinCoberturaCount++;
 
       if (r.estadoKey){
         estadosSet[r.estadoKey] = true;
@@ -3156,16 +3132,22 @@
       g.trend = computeDemandTrend(g.last30, g.prev30);
     });
 
-    var topEstados = estadoOrder.map(function(k){ return estadoGroups[k]; });
+    // Estados donde ya hay servicio activo (Jalisco/Guadalajara, Guanajuato/León,
+    // Nayarit/Tepic) — se excluyen del TOP 5 porque el ranking es para decidir
+    // dónde expandirse, no para medir rechazos donde ya se opera. Querétaro
+    // también es ciudad operativa hoy pero se deja compitiendo normal (así lo
+    // pidió el usuario).
+    var TOP_ESTADOS_EXCLUDED = { 'JALISCO': true, 'GUANAJUATO': true, 'NAYARIT': true };
+
+    var topEstados = estadoOrder
+      .map(function(k){ return estadoGroups[k]; })
+      .filter(function(eg){ return !TOP_ESTADOS_EXCLUDED[eg.estadoKey]; });
     topEstados.forEach(function(eg){ eg.trend = computeDemandTrend(eg.last30, eg.prev30); });
     topEstados.sort(function(a, b){ return b.total - a.total; });
     topEstados = topEstados.slice(0, 5);
 
     return {
       filteredRows: filtered,
-      totalSolicitudes: filtered.length,
-      sinCoberturaActual: sinCoberturaCount,
-      municipiosConDemanda: groupList.length,
       topEstados: topEstados,
       datosPorRevisar: reviewCount,
       entidadesConDemanda: Object.keys(estadosSet).length,
@@ -3219,12 +3201,9 @@
     // mapa, no un filtro persistente de KPIs/ranking.
     resetDemandViewMode();
 
-    var kpiEls = [demandKpiTotalEl, demandKpiSinCoberturaEl, demandKpiMunicipiosEl, demandKpiTopOpportunityEl];
-
     if (demandStatsError){
       demandStatusMsgEl.textContent = demandStatsError;
       demandStatusMsgEl.classList.add('error');
-      kpiEls.forEach(function(el){ el.textContent = '—'; });
       var entidadesBadgeErr = document.getElementById('demandEntidadesBadge');
       if (entidadesBadgeErr) entidadesBadgeErr.textContent = 'ENTIDADES CON DEMANDA: — / 32';
       var reviewBadgeErr = document.getElementById('demandReviewBadge');
@@ -3241,11 +3220,6 @@
     var stats = computeDemandStats();
     demandGroupsByKey = {};
     stats.groups.forEach(function(g){ demandGroupsByKey[g.key] = g; });
-
-    demandKpiTotalEl.textContent = stats.totalSolicitudes;
-    demandKpiSinCoberturaEl.textContent = stats.sinCoberturaActual;
-    demandKpiMunicipiosEl.textContent = stats.municipiosConDemanda;
-    demandKpiTopOpportunityEl.textContent = stats.topEstados[0] ? (stats.topEstados[0].estadoDisplay + ' (' + stats.topEstados[0].total + ')') : '—';
 
     var entidadesBadge = document.getElementById('demandEntidadesBadge');
     if (entidadesBadge) entidadesBadge.textContent = 'ENTIDADES CON DEMANDA: ' + stats.entidadesConDemanda + ' / 32';
