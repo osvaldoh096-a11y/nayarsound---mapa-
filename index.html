@@ -286,8 +286,46 @@
   .djs-table th:not(:first-child), .djs-table td:not(:first-child){ text-align:right; }
   .djs-table td:not(:first-child){ color:var(--cyan); font-family:'Space Grotesk', sans-serif; font-weight:700; }
 
+  /* ================= PÁGINA DEMANDA (solicitudes rechazadas, coordenadas desde AGENDA) ================= */
+  #demandPage{
+    flex:1;
+    display:none;
+    flex-direction:column;
+    min-height:0;
+    padding:20px;
+    gap:16px;
+  }
+  #demandMap{
+    flex:1;
+    width:100%;
+    min-height:0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--bg);
+  }
+  .demand-marker{
+    display:block;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #ffd9a8, #ff8a3d 55%, #b3480f 100%);
+    box-shadow:0 0 0 4px rgba(255,138,61,0.18), 0 0 10px rgba(255,138,61,0.55);
+  }
+  .demand-cluster-inner{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(255,217,168,0.9), rgba(255,138,61,0.85) 60%, rgba(179,72,15,0.85) 100%);
+    box-shadow:0 0 0 4px rgba(255,138,61,0.18), 0 0 16px rgba(255,138,61,0.5);
+    color:#2a1100;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+  }
+
   @media (max-width: 640px){
     #djsPage{ padding:14px; }
+    #demandPage{ padding:14px; }
   }
 
   .leaflet-control-attribution{
@@ -794,6 +832,7 @@
         <div class="segmented" id="pageSelector">
           <button data-page="mapa" class="active">MAPA</button>
           <button data-page="djs">DJS</button>
+          <button data-page="demanda">DEMANDA</button>
         </div>
         <div class="segmented page-ctrl-mapa" id="viewSelector">
           <button data-view="points" class="active">PUNTOS</button>
@@ -845,6 +884,16 @@
             <button data-period="CURRENT_MONTH" class="active">MES ACTUAL</button>
             <button data-period="PREVIOUS_MONTH">MES ANTERIOR</button>
             <button data-period="ALL">TODOS</button>
+          </div>
+        </div>
+        <div class="dropdown page-ctrl-demanda" id="demandEstadoDropdown" style="display:none;">
+          <button class="dropdown-toggle" id="demandEstadoDropdownToggle" type="button" aria-haspopup="true" aria-expanded="false">
+            <span>ESTADO:</span>
+            <span class="dropdown-toggle-value" id="demandEstadoDropdownValue">TODOS</span>
+            <span class="dropdown-caret">&#9662;</span>
+          </button>
+          <div class="dropdown-menu" id="demandEstadoSelector">
+            <button data-estado="TODOS" class="active">TODOS</button>
           </div>
         </div>
       </div>
@@ -905,6 +954,25 @@
         <tbody id="djsTableBody"></tbody>
       </table>
     </div>
+  </div>
+
+  <div id="demandPage">
+    <div class="djs-kpis">
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">SOLICITUDES RECHAZADAS</div>
+        <div class="djs-kpi-value" id="demandKpiTotal">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">ESTADOS DISTINTOS</div>
+        <div class="djs-kpi-value" id="demandKpiEstados">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">MUNICIPIO CON MÁS RECHAZOS</div>
+        <div class="djs-kpi-value" id="demandKpiTopMunicipio">—</div>
+      </div>
+    </div>
+    <div id="demandStatusMsg" class="djs-status-msg">Cargando datos…</div>
+    <div id="demandMap"></div>
   </div>
 
   <div id="djToolPanel" class="dj-tool-panel">
@@ -994,6 +1062,14 @@
   // fuera del rango C13:R5000 que ya usa loadEvents() para el mapa.
   var AGENDA_STATS_RANGE = 'C12:S5000';
 
+  // ---- Rango para la página DEMANDA (solicitudes rechazadas, misma pestaña AGENDA) ----
+  // Tabla aparte dentro de la misma hoja AGENDA ("LUGARES A LOS QUE SE HA RECHAZADO
+  // EL SERVICIO"), columnas U-Y, mismo renglón de encabezados (12) que la tabla
+  // principal. Cada fila ya trae su propia coordenada capturada a mano (columna
+  // COORDENADAS) — no se geocodifica nada, se lee igual que cualquier coordenada
+  // de AGENDA con parseCoordinate().
+  var DEMAND_RANGE = 'U12:Y5000';
+
   // ---- Hoja externa de ventas/pagos (otro spreadsheet), para GENERADO/PAGADO/GANANCIA ----
   // Misma técnica de conexión (gviz JSONP público, sin backend ni login) contra un
   // archivo de Sheets distinto. Se lee con headers=0 y se escanea la fila de
@@ -1040,6 +1116,11 @@
   var djsKpiGananciaEl = document.getElementById('djsKpiGanancia');
   var djsStatusMsgEl = document.getElementById('djsStatusMsg');
   var djsTableBodyEl = document.getElementById('djsTableBody');
+
+  var demandKpiTotalEl = document.getElementById('demandKpiTotal');
+  var demandKpiEstadosEl = document.getElementById('demandKpiEstados');
+  var demandKpiTopMunicipioEl = document.getElementById('demandKpiTopMunicipio');
+  var demandStatusMsgEl = document.getElementById('demandStatusMsg');
   var quadrantOverlayEl = document.getElementById('quadrantOverlay');
   var outOfZoneEl = document.getElementById('outOfZoneLabel');
   function setStatus(msg){ statusEl.textContent = msg; }
@@ -1123,6 +1204,13 @@
   var djVentasStatsError = null; // mensaje si no se pudo leer la hoja externa de ventas/pagos
   var djsCityFilter = 'GLOBAL';
   var djsPeriodFilter = 'CURRENT_MONTH';
+
+  // ---- Estado de la página independiente "DEMANDA" (solicitudes rechazadas) ----
+  var demandRequests = [];   // [{date, estadoNorm, estadoRaw, municipioRaw, fechaNegada, lat, lng}]
+  var demandStatsError = null;
+  var demandEstadoFilter = 'TODOS';
+  var demandMap = null;
+  var demandMarkerGroup = null;
 
   // Zona urbana FIJA por ciudad: centro + bounding box en km, totalmente independiente
   // de dónde estén los eventos. Esto evita que localidades lejanas (San Blas, Compostela,
@@ -1758,6 +1846,240 @@
       script.src = url;
       document.body.appendChild(script);
     });
+  }
+
+  // ================= CARGA DE DEMANDA (solicitudes rechazadas, misma hoja AGENDA) =================
+  // Misma técnica y mismo SHEET_ID que loadEvents()/loadDjAgendaStats() — es la
+  // tabla "LUGARES A LOS QUE SE HA RECHAZADO EL SERVICIO" que vive en columnas U-Y
+  // de la propia pestaña AGENDA. Cada fila ya trae coordenadas capturadas a mano
+  // (columna COORDENADAS), así que no hay geocodificación: solo se lee por nombre
+  // de encabezado y se reutiliza parseCoordinate(), igual que cualquier otra
+  // coordenada del proyecto.
+  function loadDemandRequests(){
+    return new Promise(function(resolveLoad){
+      var callbackName = '__gvizDemandCallback_' + Date.now();
+      var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+                '/gviz/tq?sheet=' + encodeURIComponent(SHEET_NAME) +
+                '&range=' + DEMAND_RANGE + '&headers=1' +
+                '&tqx=out:json;responseHandler:' + callbackName +
+                '&_=' + Date.now();
+
+      var script = document.createElement('script');
+      var settled = false;
+
+      var timeoutId = setTimeout(function(){
+        if (settled) return;
+        settled = true;
+        cleanup();
+        console.error('Tiempo de espera agotado al cargar DEMANDA (solicitudes rechazadas)');
+        demandStatsError = 'No se pudo actualizar — reintentando…';
+        resolveLoad();
+      }, 10000);
+
+      function cleanup(){
+        clearTimeout(timeoutId);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+
+      window[callbackName] = function(json){
+        if (settled) return;
+        settled = true;
+        cleanup();
+
+        try {
+          var cols = (json.table && json.table.cols) ? json.table.cols : [];
+          var rows = (json.table && json.table.rows) ? json.table.rows : [];
+
+          var fechaOff    = findHeaderOffset(cols, ['FECHA']);
+          var estadoOff   = findHeaderOffset(cols, ['ESTADO']);
+          var municipioOff= findHeaderOffset(cols, ['MUNICIPIO']);
+          var negadaOff   = findHeaderOffset(cols, ['FECHA NEGADA']);
+          var coordOff    = findHeaderOffset(cols, ['COORDENADAS']);
+
+          if (coordOff === -1){
+            demandRequests = [];
+            demandStatsError = 'No se encontró la columna "COORDENADAS" en la tabla de solicitudes rechazadas.';
+          } else {
+            var parsed = [];
+            rows.forEach(function(row){
+              var cells = row.c || [];
+              var coordRaw = cells[coordOff] ? cells[coordOff].v : null;
+              var coord = parseCoordinate(coordRaw);
+              if (!coord) return; // sin coordenada capturada todavía — se omite, no se inventa
+
+              var estadoRaw = estadoOff !== -1 && cells[estadoOff] ? cells[estadoOff].v : null;
+              var municipioRaw = municipioOff !== -1 && cells[municipioOff] ? cells[municipioOff].v : null;
+
+              parsed.push({
+                date: fechaOff !== -1 ? parseSheetDate(cells[fechaOff]) : null,
+                estadoNorm: normalizeCity(estadoRaw),
+                estadoRaw: estadoRaw ? String(estadoRaw).trim() : '',
+                municipioRaw: municipioRaw ? String(municipioRaw).trim() : '',
+                fechaNegada: negadaOff !== -1 ? parseSheetDate(cells[negadaOff]) : null,
+                lat: coord.lat,
+                lng: coord.lng
+              });
+            });
+            demandRequests = parsed;
+            demandStatsError = null;
+            updateDemandEstadoDropdownOptions();
+          }
+        } catch (err){
+          console.error('Error al procesar DEMANDA (solicitudes rechazadas):', err);
+          demandRequests = [];
+          demandStatsError = 'No se pudo procesar la tabla de solicitudes rechazadas.';
+        }
+        resolveLoad();
+      };
+
+      script.onerror = function(){
+        if (settled) return;
+        settled = true;
+        cleanup();
+        console.error('Error al cargar DEMANDA (solicitudes rechazadas)');
+        demandStatsError = 'No se pudo actualizar — reintentando…';
+        resolveLoad();
+      };
+
+      script.src = url;
+      document.body.appendChild(script);
+    });
+  }
+
+  function createDemandClusterIcon(cluster){
+    var count = cluster.getChildCount();
+    var size = count < 10 ? 34 : (count < 50 ? 44 : 56);
+    var fontSize = count < 100 ? 13 : 11;
+    return L.divIcon({
+      html: '<div class="demand-cluster-inner" style="width:' + size + 'px;height:' + size + 'px;font-size:' + fontSize + 'px;">' + count + '</div>',
+      className: '',
+      iconSize: L.point(size, size)
+    });
+  }
+
+  var demandDivIcon = L.divIcon({
+    className: '',
+    html: '<span class="demand-marker"></span>',
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+  });
+
+  function getFilteredDemandRequests(){
+    return demandRequests.filter(function(r){
+      return demandEstadoFilter === 'TODOS' || r.estadoNorm === demandEstadoFilter;
+    });
+  }
+
+  function formatDemandDate(d){
+    if (!d) return '';
+    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function updateDemandEstadoDropdownOptions(){
+    var seen = {};
+    var estados = [];
+    demandRequests.forEach(function(r){
+      if (r.estadoNorm && !seen[r.estadoNorm]){
+        seen[r.estadoNorm] = true;
+        estados.push({ norm: r.estadoNorm, label: r.estadoRaw || r.estadoNorm });
+      }
+    });
+    estados.sort(function(a, b){ return a.label.localeCompare(b.label); });
+
+    if (demandEstadoFilter !== 'TODOS' && !seen[demandEstadoFilter]){
+      demandEstadoFilter = 'TODOS';
+    }
+
+    var menu = document.getElementById('demandEstadoSelector');
+    var html = '<button data-estado="TODOS" class="' + (demandEstadoFilter === 'TODOS' ? 'active' : '') + '">TODOS</button>';
+    estados.forEach(function(e){
+      html += '<button data-estado="' + escapeHtml(e.norm) + '" class="' + (demandEstadoFilter === e.norm ? 'active' : '') + '">' + escapeHtml(e.label) + '</button>';
+    });
+    menu.innerHTML = html;
+
+    var valueEl = document.getElementById('demandEstadoDropdownValue');
+    if (valueEl){
+      var current = estados.filter(function(e){ return e.norm === demandEstadoFilter; })[0];
+      valueEl.textContent = (demandEstadoFilter === 'TODOS') ? 'TODOS' : (current ? current.label : demandEstadoFilter);
+    }
+  }
+
+  function ensureDemandMap(){
+    if (demandMap) return;
+    demandMap = L.map('demandMap', {
+      zoomControl: true,
+      attributionControl: true,
+      center: [23.6, -102.5], // centro aproximado de México
+      zoom: 5
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      subdomains: 'abc',
+      maxZoom: 19
+    }).addTo(demandMap);
+  }
+
+  function renderDemandPage(){
+    ensureDemandMap();
+
+    if (demandStatsError){
+      demandStatusMsgEl.textContent = demandStatsError;
+      demandStatusMsgEl.classList.add('error');
+      demandKpiTotalEl.textContent = '—';
+      demandKpiEstadosEl.textContent = '—';
+      demandKpiTopMunicipioEl.textContent = '—';
+      if (demandMarkerGroup){ demandMap.removeLayer(demandMarkerGroup); demandMarkerGroup = null; }
+      return;
+    }
+    demandStatusMsgEl.classList.remove('error');
+
+    var filtered = getFilteredDemandRequests();
+
+    var estadosSet = {};
+    var municipioCounts = {};
+    filtered.forEach(function(r){
+      if (r.estadoNorm) estadosSet[r.estadoNorm] = true;
+      var key = r.municipioRaw ? normalizeCity(r.municipioRaw) : null;
+      if (key){
+        if (!municipioCounts[key]) municipioCounts[key] = { label: r.municipioRaw, count: 0 };
+        municipioCounts[key].count++;
+      }
+    });
+    var topMunicipio = Object.keys(municipioCounts).map(function(k){ return municipioCounts[k]; })
+      .sort(function(a, b){ return b.count - a.count; })[0];
+
+    demandKpiTotalEl.textContent = filtered.length;
+    demandKpiEstadosEl.textContent = Object.keys(estadosSet).length;
+    demandKpiTopMunicipioEl.textContent = topMunicipio ? (topMunicipio.label + ' (' + topMunicipio.count + ')') : '—';
+
+    if (demandMarkerGroup){ demandMap.removeLayer(demandMarkerGroup); demandMarkerGroup = null; }
+
+    if (!filtered.length){
+      demandStatusMsgEl.textContent = 'No hay solicitudes rechazadas con coordenadas para este filtro.';
+      return;
+    }
+
+    demandStatusMsgEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX');
+
+    demandMarkerGroup = L.markerClusterGroup({
+      iconCreateFunction: createDemandClusterIcon,
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 50
+    });
+
+    filtered.forEach(function(r){
+      var popup = '<b>' + escapeHtml(r.municipioRaw || '(sin municipio)') + '</b>' +
+        (r.estadoRaw ? ' — ' + escapeHtml(r.estadoRaw) : '') +
+        (r.date ? '<br>' + escapeHtml(formatDemandDate(r.date)) : '');
+      demandMarkerGroup.addLayer(L.marker([r.lat, r.lng], { icon: demandDivIcon }).bindPopup(popup));
+    });
+
+    demandMarkerGroup.addTo(demandMap);
+
+    var bounds = L.latLngBounds(filtered.map(function(r){ return [r.lat, r.lng]; }));
+    demandMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
   }
 
   function computeDjsStats(){
@@ -2468,11 +2790,25 @@
     renderDjsPage();
   });
 
+  // ================= PÁGINA DEMANDA: dropdown propio (ESTADO) =================
+  initDropdown('demandEstadoDropdown', 'demandEstadoDropdownToggle');
+
+  document.getElementById('demandEstadoSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    demandEstadoFilter = btn.dataset.estado;
+    document.getElementById('demandEstadoDropdownValue').textContent = btn.textContent.trim();
+    closeAllDropdowns();
+    renderDemandPage();
+  });
+
   // ================= NAVEGACIÓN ENTRE PÁGINAS: MAPA / DJS =================
   // Cambia qué controles del header y qué contenido principal se muestran; no toca
   // la lógica del mapa (filtros, clustering, cuadrantes) ni la de la página DJS.
   var mapPageEl = document.getElementById('mapPage');
   var djsPageEl = document.getElementById('djsPage');
+  var demandPageEl = document.getElementById('demandPage');
 
   function setActivePage(page){
     currentPage = page;
@@ -2484,16 +2820,23 @@
     Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-djs'), function(el){
       el.style.display = (page === 'djs') ? '' : 'none';
     });
+    Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-demanda'), function(el){
+      el.style.display = (page === 'demanda') ? '' : 'none';
+    });
 
     mapPageEl.style.display = (page === 'mapa') ? 'flex' : 'none';
     djsPageEl.style.display = (page === 'djs') ? 'flex' : 'none';
+    demandPageEl.style.display = (page === 'demanda') ? 'flex' : 'none';
 
     if (page === 'mapa'){
-      // El mapa quedó oculto (display:none) mientras se veía DJS: Leaflet necesita
-      // recalcular su tamaño al volver a mostrarse, si no el mapa queda mal recortado.
+      // El mapa quedó oculto (display:none) mientras se veía otra página: Leaflet
+      // necesita recalcular su tamaño al volver a mostrarse, si no queda mal recortado.
       setTimeout(function(){ map.invalidateSize(); }, 0);
-    } else {
+    } else if (page === 'djs'){
       renderDjsPage();
+    } else if (page === 'demanda'){
+      renderDemandPage();
+      setTimeout(function(){ if (demandMap) demandMap.invalidateSize(); }, 0);
     }
   }
 
@@ -3439,6 +3782,15 @@
   setInterval(function(){
     loadDjVentasStats().then(function(){
       if (currentPage === 'djs') renderDjsPage();
+    });
+  }, REFRESH_MS);
+
+  loadDemandRequests().then(function(){
+    if (currentPage === 'demanda') renderDemandPage();
+  });
+  setInterval(function(){
+    loadDemandRequests().then(function(){
+      if (currentPage === 'demanda') renderDemandPage();
     });
   }, REFRESH_MS);
 
