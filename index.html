@@ -493,6 +493,34 @@
     opacity:0.9;
   }
 
+  /* Puntos agregados por estado (vista nacional de DEMANDA): mismo lenguaje
+     visual que los clusters por municipio pero más compactos y con menos
+     "glow", para que no se amontonen entre sí ni tapen los contornos de los
+     estados vecinos (varios estados del centro del país son chicos y caen
+     muy cerca unos de otros). */
+  .demand-state-dot-inner{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(255,217,168,0.9), rgba(255,138,61,0.9) 60%, rgba(179,72,15,0.9) 100%);
+    box-shadow:0 0 0 2px rgba(255,138,61,0.25), 0 0 6px rgba(255,138,61,0.45);
+    color:#2a1100;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+  }
+  .demand-state-dot-inner-covered{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(189,251,255,0.85), rgba(0,224,255,0.8) 60%, rgba(10,132,255,0.8) 100%);
+    box-shadow:0 0 0 2px rgba(0,224,255,0.2), 0 0 6px rgba(0,224,255,0.4);
+    color:#04141a;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+  }
+
   @media (max-width: 900px){
     .demand-layout{ flex-direction:column; }
     .demand-side-col{ max-width:none; }
@@ -2590,9 +2618,9 @@
   var DEMAND_STATE_ZOOM_MAX = 6;
 
   function demandCountIconHtml(count, covered){
-    var size = count < 10 ? 34 : (count < 50 ? 44 : 56);
-    var fontSize = count < 100 ? 13 : 11;
-    var cls = covered ? 'demand-cluster-inner-covered' : 'demand-cluster-inner';
+    var size = count < 10 ? 18 : (count < 50 ? 23 : 28);
+    var fontSize = count < 100 ? 9 : 8;
+    var cls = covered ? 'demand-state-dot-inner-covered' : 'demand-state-dot-inner';
     return {
       html: '<div class="' + cls + '" style="width:' + size + 'px;height:' + size + 'px;font-size:' + fontSize + 'px;">' + count + '</div>',
       size: size
