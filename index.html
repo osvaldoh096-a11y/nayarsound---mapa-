@@ -1163,6 +1163,18 @@
             <button data-estado="TODOS" class="active">TODOS</button>
           </div>
         </div>
+        <div class="dropdown page-ctrl-demanda" id="demandPeriodDropdown" style="display:none;">
+          <button class="dropdown-toggle" id="demandPeriodDropdownToggle" type="button" aria-haspopup="true" aria-expanded="false">
+            <span>PERIODO:</span>
+            <span class="dropdown-toggle-value" id="demandPeriodDropdownValue">GLOBAL</span>
+            <span class="dropdown-caret">&#9662;</span>
+          </button>
+          <div class="dropdown-menu" id="demandPeriodSelector">
+            <button data-period="GLOBAL" class="active">GLOBAL</button>
+            <button data-period="6M">6 MESES</button>
+            <button data-period="1A">1 AÑO</button>
+          </div>
+        </div>
       </div>
 
       <div class="toolbar-group toolbar-right">
@@ -1238,7 +1250,7 @@
         <div class="djs-kpi-value" id="demandKpiMunicipios">—</div>
       </div>
       <div class="djs-kpi demand-kpi-warn">
-        <div class="djs-kpi-label">#1 OPORTUNIDAD</div>
+        <div class="djs-kpi-label">ESTADO CON MÁS DEMANDA</div>
         <div class="djs-kpi-value demand-kpi-value-sm" id="demandKpiTopOpportunity">—</div>
       </div>
     </div>
@@ -1262,7 +1274,7 @@
           <div class="demand-detail-placeholder">Selecciona un punto del mapa o una oportunidad de la lista para ver el detalle de esa zona.</div>
         </div>
         <div class="demand-opportunities">
-          <div class="demand-section-title">OPORTUNIDADES DE EXPANSIÓN</div>
+          <div class="demand-section-title">TOP 5 ESTADOS CON MÁS DEMANDA</div>
           <div id="demandOpportunitiesList" class="demand-opportunities-list"></div>
         </div>
       </div>
@@ -1510,6 +1522,7 @@
   var demandRequests = [];   // [{date, fechaNegada, estadoRaw, estadoKey, estadoDisplay, municipioRaw, municipioNorm, lat, lng, hasValidCoords, covered, needsReview, reviewReasons}]
   var demandStatsError = null;
   var demandEstadoFilter = 'TODOS'; // 'TODOS' | 'POR_REVISAR' | clave de estado
+  var demandPeriodFilter = 'GLOBAL'; // 'GLOBAL' | '6M' | '1A'
   var demandMap = null;
   var demandMarkerGroupCovered = null;
   var demandMarkerGroupUncovered = null;
@@ -2729,8 +2742,22 @@
     iconAnchor: [6, 6]
   });
 
+  // Filtro de periodo del encabezado de DEMANDA: GLOBAL (todo el histórico), 6
+  // meses o 1 año hacia atrás desde hoy. Una solicitud sin FECHA interpretable
+  // nunca cuenta para 6M/1A (no se puede saber si cae en el rango) — solo entra
+  // bajo GLOBAL, igual criterio conservador que el resto del proyecto.
+  function matchesDemandPeriod(date){
+    if (demandPeriodFilter === 'GLOBAL') return true;
+    if (!date) return false;
+    var today = todayLocalMidnight();
+    var monthsBack = demandPeriodFilter === '6M' ? 6 : 12;
+    var cutoff = new Date(today.getFullYear(), today.getMonth() - monthsBack, today.getDate());
+    return date >= cutoff && date <= today;
+  }
+
   function getFilteredDemandRequests(){
     return demandRequests.filter(function(r){
+      if (!matchesDemandPeriod(r.date)) return false;
       if (demandEstadoFilter === 'TODOS') return true;
       if (demandEstadoFilter === 'POR_REVISAR') return !r.estadoKey;
       return r.estadoKey === demandEstadoFilter;
@@ -3068,11 +3095,31 @@
     var reviewCount = 0;
     var sinCoberturaCount = 0;
 
+    // Agregación por estado (todas las solicitudes resueltas, sin importar
+    // cobertura) — es la que alimenta el TOP 5 de estados con más demanda.
+    var estadoGroups = {};
+    var estadoOrder = [];
+
     filtered.forEach(function(r){
       if (r.needsReview) reviewCount++;
-      if (r.estadoKey) estadosSet[r.estadoKey] = true;
       if (!r.covered) sinCoberturaCount++;
-      if (!r.municipioNorm) return; // sin municipio no entra al ranking/agrupación por zona
+
+      if (r.estadoKey){
+        estadosSet[r.estadoKey] = true;
+        if (!estadoGroups[r.estadoKey]){
+          estadoGroups[r.estadoKey] = { estadoKey: r.estadoKey, estadoDisplay: r.estadoDisplay, total: 0, last30: 0, prev30: 0, last90: 0 };
+          estadoOrder.push(r.estadoKey);
+        }
+        var eg = estadoGroups[r.estadoKey];
+        eg.total++;
+        if (r.date){
+          if (r.date >= cutoff30 && r.date <= today) eg.last30++;
+          else if (r.date >= cutoff60 && r.date < cutoff30) eg.prev30++;
+          if (r.date >= cutoff90 && r.date <= today) eg.last90++;
+        }
+      }
+
+      if (!r.municipioNorm) return; // sin municipio no entra al detalle por zona del mapa
 
       var key = (r.estadoKey || 'SIN_ESTADO') + '|' + r.municipioNorm;
       if (!groups[key]){
@@ -3109,16 +3156,17 @@
       g.trend = computeDemandTrend(g.last30, g.prev30);
     });
 
-    var opportunities = groupList.filter(function(g){ return !g.covered; })
-      .sort(function(a, b){ return b.total - a.total; });
+    var topEstados = estadoOrder.map(function(k){ return estadoGroups[k]; });
+    topEstados.forEach(function(eg){ eg.trend = computeDemandTrend(eg.last30, eg.prev30); });
+    topEstados.sort(function(a, b){ return b.total - a.total; });
+    topEstados = topEstados.slice(0, 5);
 
     return {
       filteredRows: filtered,
       totalSolicitudes: filtered.length,
       sinCoberturaActual: sinCoberturaCount,
       municipiosConDemanda: groupList.length,
-      topOpportunity: opportunities[0] || null,
-      opportunities: opportunities,
+      topEstados: topEstados,
       datosPorRevisar: reviewCount,
       entidadesConDemanda: Object.keys(estadosSet).length,
       groups: groupList
@@ -3145,21 +3193,20 @@
       '<div class="demand-detail-coverage ' + coverageClass + '">' + coverageLabel + '</div>';
   }
 
-  function renderOpportunitiesList(opportunities){
+  function renderOpportunitiesList(topEstados){
     var el = document.getElementById('demandOpportunitiesList');
     if (!el) return;
-    if (!opportunities.length){
-      el.innerHTML = '<div class="djs-status-msg">No hay oportunidades sin cobertura para este filtro.</div>';
+    if (!topEstados.length){
+      el.innerHTML = '<div class="djs-status-msg">No hay solicitudes con estado resuelto para este filtro.</div>';
       return;
     }
-    var top = opportunities.slice(0, 15);
-    el.innerHTML = top.map(function(g, i){
-      var trendLabel = demandTrendLabel(g.trend);
-      return '<div class="demand-opp-row" data-key="' + escapeHtml(g.key) + '">' +
+    el.innerHTML = topEstados.map(function(eg, i){
+      var trendLabel = demandTrendLabel(eg.trend);
+      return '<div class="demand-opp-row" data-estado="' + escapeHtml(eg.estadoKey) + '">' +
         '<div class="demand-opp-rank">' + (i + 1) + '</div>' +
         '<div class="demand-opp-info">' +
-          '<div class="demand-opp-name">' + escapeHtml(g.municipioLabel) + (g.estadoDisplay ? ' <span class="demand-opp-estado">' + escapeHtml(g.estadoDisplay) + '</span>' : '') + '</div>' +
-          '<div class="demand-opp-sub">' + g.total + ' solicitud' + (g.total === 1 ? '' : 'es') + ' · ' + g.last90 + ' últimos 90 días' + (trendLabel ? ' · ' + trendLabel : '') + '</div>' +
+          '<div class="demand-opp-name">' + escapeHtml(eg.estadoDisplay) + '</div>' +
+          '<div class="demand-opp-sub">' + eg.total + ' solicitud' + (eg.total === 1 ? '' : 'es') + ' · ' + eg.last90 + ' últimos 90 días' + (trendLabel ? ' · ' + trendLabel : '') + '</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -3198,7 +3245,7 @@
     demandKpiTotalEl.textContent = stats.totalSolicitudes;
     demandKpiSinCoberturaEl.textContent = stats.sinCoberturaActual;
     demandKpiMunicipiosEl.textContent = stats.municipiosConDemanda;
-    demandKpiTopOpportunityEl.textContent = stats.topOpportunity ? (stats.topOpportunity.municipioLabel + ' (' + stats.topOpportunity.total + ')') : '—';
+    demandKpiTopOpportunityEl.textContent = stats.topEstados[0] ? (stats.topEstados[0].estadoDisplay + ' (' + stats.topEstados[0].total + ')') : '—';
 
     var entidadesBadge = document.getElementById('demandEntidadesBadge');
     if (entidadesBadge) entidadesBadge.textContent = 'ENTIDADES CON DEMANDA: ' + stats.entidadesConDemanda + ' / 32';
@@ -3209,7 +3256,7 @@
       reviewBadge.style.display = stats.datosPorRevisar > 0 ? '' : 'none';
     }
 
-    renderOpportunitiesList(stats.opportunities);
+    renderOpportunitiesList(stats.topEstados);
 
     if (demandMarkerGroupCovered){ demandMap.removeLayer(demandMarkerGroupCovered); demandMarkerGroupCovered = null; }
     if (demandMarkerGroupUncovered){ demandMap.removeLayer(demandMarkerGroupUncovered); demandMarkerGroupUncovered = null; }
@@ -3946,7 +3993,7 @@
     renderDjsPage();
   });
 
-  // ================= PÁGINA DEMANDA: dropdown propio (ESTADO) =================
+  // ================= PÁGINA DEMANDA: dropdowns propios (ESTADO / PERIODO) =================
   initDropdown('demandEstadoDropdown', 'demandEstadoDropdownToggle');
 
   document.getElementById('demandEstadoSelector').addEventListener('click', function(ev){
@@ -3959,15 +4006,24 @@
     renderDemandPage();
   });
 
+  initDropdown('demandPeriodDropdown', 'demandPeriodDropdownToggle');
+
+  document.getElementById('demandPeriodSelector').addEventListener('click', function(ev){
+    var btn = ev.target.closest('button');
+    if (!btn) return;
+    setActive(this, btn);
+    demandPeriodFilter = btn.dataset.period;
+    document.getElementById('demandPeriodDropdownValue').textContent = btn.textContent.trim();
+    closeAllDropdowns();
+    renderDemandPage();
+  });
+
+  // Click en una fila del TOP 5 entra al mismo "modo estado" del mapa que ya usa
+  // el punto agregado de ese estado — misma navegación, dos puntos de entrada.
   document.getElementById('demandOpportunitiesList').addEventListener('click', function(ev){
     var row = ev.target.closest('.demand-opp-row');
-    if (!row) return;
-    var g = demandGroupsByKey[row.dataset.key];
-    if (!g) return;
-    showDemandDetail(g);
-    if (g.lat != null && g.lng != null && demandMap){
-      demandMap.setView([g.lat, g.lng], Math.max(demandMap.getZoom(), 10));
-    }
+    if (!row || !row.dataset.estado) return;
+    enterDemandStateMode(row.dataset.estado);
   });
 
   // ================= NAVEGACIÓN ENTRE PÁGINAS: MAPA / DJS =================
