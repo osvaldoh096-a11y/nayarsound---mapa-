@@ -293,16 +293,165 @@
     flex-direction:column;
     min-height:0;
     padding:20px;
-    gap:16px;
+    gap:12px;
+  }
+
+  .demand-kpi-warn .djs-kpi-value{ color:#ff8a3d; text-shadow:0 0 14px rgba(255,138,61,0.3); }
+  .demand-kpi-value-sm{ font-size:17px; line-height:1.3; }
+
+  .demand-meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .demand-meta-badges{ display:flex; flex-wrap:wrap; gap:8px; }
+  .demand-badge{
+    font-size:10px;
+    letter-spacing:0.05em;
+    color:var(--muted);
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:4px 8px;
+    white-space:nowrap;
+  }
+  .demand-badge-warn{ color:#ff8a3d; border-color:rgba(255,138,61,0.35); }
+
+  .demand-layout{
+    flex:1;
+    display:flex;
+    gap:14px;
+    min-height:0;
+  }
+  .demand-map-col{
+    flex:2;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
   }
   #demandMap{
     flex:1;
     width:100%;
-    min-height:0;
+    min-height:260px;
     border:1px solid var(--line);
     border-radius:8px;
     background:var(--bg);
   }
+  .demand-legend{
+    display:flex;
+    gap:16px;
+    font-size:10px;
+    letter-spacing:0.05em;
+    color:var(--muted);
+  }
+  .demand-legend-dot{
+    display:inline-block;
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    margin-right:5px;
+    vertical-align:middle;
+  }
+  .demand-legend-dot.sin-cobertura{ background:#ff8a3d; box-shadow:0 0 6px rgba(255,138,61,0.6); }
+  .demand-legend-dot.con-cobertura{ background:var(--cyan); box-shadow:0 0 6px rgba(0,224,255,0.6); }
+
+  .demand-side-col{
+    flex:1;
+    min-width:260px;
+    max-width:360px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    overflow-y:auto;
+  }
+
+  .demand-detail-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+  }
+  .demand-detail-placeholder{
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.5;
+  }
+  .demand-detail-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:16px;
+    color:var(--text);
+  }
+  .demand-detail-sub{ font-size:11px; color:var(--muted); margin-bottom:8px; }
+  .demand-detail-total{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:18px;
+    color:var(--cyan);
+    margin-bottom:6px;
+  }
+  .demand-detail-row{ font-size:11px; color:var(--muted); }
+  .demand-detail-row b{ color:var(--text); }
+  .demand-detail-trend{ font-size:11px; font-weight:700; color:var(--text); margin-top:6px; }
+  .demand-detail-coverage{
+    display:inline-block;
+    margin-top:10px;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.05em;
+    padding:4px 9px;
+    border-radius:4px;
+  }
+  .demand-detail-coverage.uncovered{ color:#ff8a3d; background:rgba(255,138,61,0.12); border:1px solid rgba(255,138,61,0.35); }
+  .demand-detail-coverage.covered{ color:var(--cyan); background:rgba(0,224,255,0.12); border:1px solid rgba(0,224,255,0.35); }
+
+  .demand-opportunities{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    min-height:0;
+  }
+  .demand-section-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--cyan);
+  }
+  .demand-opportunities-list{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    overflow-y:auto;
+  }
+  .demand-opp-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:8px 10px;
+    cursor:pointer;
+    transition:background 0.12s ease;
+  }
+  .demand-opp-row:hover{ background:rgba(255,138,61,0.08); }
+  .demand-opp-rank{
+    flex-shrink:0;
+    width:20px;
+    text-align:center;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    color:#ff8a3d;
+  }
+  .demand-opp-info{ flex:1; min-width:0; }
+  .demand-opp-name{ font-weight:700; font-size:12.5px; color:var(--text); }
+  .demand-opp-estado{ font-weight:400; color:var(--muted); font-size:10.5px; }
+  .demand-opp-sub{ font-size:10.5px; color:var(--muted); margin-top:2px; }
+
   .demand-marker{
     display:block;
     width:12px;
@@ -321,6 +470,33 @@
     color:#2a1100;
     font-family:'IBM Plex Mono', monospace;
     font-weight:700;
+  }
+  .demand-marker-covered{
+    display:block;
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #bdfbff, var(--cyan) 55%, var(--blue) 100%);
+    box-shadow:0 0 0 3px rgba(0,224,255,0.14), 0 0 8px rgba(0,224,255,0.4);
+    opacity:0.85;
+  }
+  .demand-cluster-inner-covered{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(189,251,255,0.8), rgba(0,224,255,0.7) 60%, rgba(10,132,255,0.7) 100%);
+    box-shadow:0 0 0 3px rgba(0,224,255,0.14), 0 0 10px rgba(0,224,255,0.35);
+    color:#04141a;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+    opacity:0.9;
+  }
+
+  @media (max-width: 900px){
+    .demand-layout{ flex-direction:column; }
+    .demand-side-col{ max-width:none; }
+    #demandMap{ min-height:320px; }
   }
 
   @media (max-width: 640px){
@@ -962,17 +1138,44 @@
         <div class="djs-kpi-label">SOLICITUDES RECHAZADAS</div>
         <div class="djs-kpi-value" id="demandKpiTotal">—</div>
       </div>
-      <div class="djs-kpi">
-        <div class="djs-kpi-label">ESTADOS DISTINTOS</div>
-        <div class="djs-kpi-value" id="demandKpiEstados">—</div>
+      <div class="djs-kpi demand-kpi-warn">
+        <div class="djs-kpi-label">SIN COBERTURA ACTUAL</div>
+        <div class="djs-kpi-value" id="demandKpiSinCobertura">—</div>
       </div>
       <div class="djs-kpi">
-        <div class="djs-kpi-label">MUNICIPIO CON MÁS RECHAZOS</div>
-        <div class="djs-kpi-value" id="demandKpiTopMunicipio">—</div>
+        <div class="djs-kpi-label">MUNICIPIOS CON DEMANDA</div>
+        <div class="djs-kpi-value" id="demandKpiMunicipios">—</div>
+      </div>
+      <div class="djs-kpi demand-kpi-warn">
+        <div class="djs-kpi-label">#1 OPORTUNIDAD</div>
+        <div class="djs-kpi-value demand-kpi-value-sm" id="demandKpiTopOpportunity">—</div>
       </div>
     </div>
-    <div id="demandStatusMsg" class="djs-status-msg">Cargando datos…</div>
-    <div id="demandMap"></div>
+    <div class="demand-meta-row">
+      <div id="demandStatusMsg" class="djs-status-msg">Cargando datos…</div>
+      <div class="demand-meta-badges">
+        <span class="demand-badge" id="demandEntidadesBadge">ENTIDADES CON DEMANDA: — / 32</span>
+        <span class="demand-badge demand-badge-warn" id="demandReviewBadge" style="display:none;">DATOS POR REVISAR: —</span>
+      </div>
+    </div>
+    <div class="demand-layout">
+      <div class="demand-map-col">
+        <div id="demandMap"></div>
+        <div class="demand-legend">
+          <span><span class="demand-legend-dot sin-cobertura"></span> SIN COBERTURA</span>
+          <span><span class="demand-legend-dot con-cobertura"></span> CON COBERTURA</span>
+        </div>
+      </div>
+      <div class="demand-side-col">
+        <div id="demandDetailPanel" class="demand-detail-panel">
+          <div class="demand-detail-placeholder">Selecciona un punto del mapa o una oportunidad de la lista para ver el detalle de esa zona.</div>
+        </div>
+        <div class="demand-opportunities">
+          <div class="demand-section-title">OPORTUNIDADES DE EXPANSIÓN</div>
+          <div id="demandOpportunitiesList" class="demand-opportunities-list"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="djToolPanel" class="dj-tool-panel">
@@ -1118,8 +1321,9 @@
   var djsTableBodyEl = document.getElementById('djsTableBody');
 
   var demandKpiTotalEl = document.getElementById('demandKpiTotal');
-  var demandKpiEstadosEl = document.getElementById('demandKpiEstados');
-  var demandKpiTopMunicipioEl = document.getElementById('demandKpiTopMunicipio');
+  var demandKpiSinCoberturaEl = document.getElementById('demandKpiSinCobertura');
+  var demandKpiMunicipiosEl = document.getElementById('demandKpiMunicipios');
+  var demandKpiTopOpportunityEl = document.getElementById('demandKpiTopOpportunity');
   var demandStatusMsgEl = document.getElementById('demandStatusMsg');
   var quadrantOverlayEl = document.getElementById('quadrantOverlay');
   var outOfZoneEl = document.getElementById('outOfZoneLabel');
@@ -1206,11 +1410,13 @@
   var djsPeriodFilter = 'CURRENT_MONTH';
 
   // ---- Estado de la página independiente "DEMANDA" (solicitudes rechazadas) ----
-  var demandRequests = [];   // [{date, estadoNorm, estadoRaw, municipioRaw, fechaNegada, lat, lng}]
+  var demandRequests = [];   // [{date, fechaNegada, estadoRaw, estadoKey, estadoDisplay, municipioRaw, municipioNorm, lat, lng, hasValidCoords, covered, needsReview, reviewReasons}]
   var demandStatsError = null;
-  var demandEstadoFilter = 'TODOS';
+  var demandEstadoFilter = 'TODOS'; // 'TODOS' | 'POR_REVISAR' | clave de estado
   var demandMap = null;
-  var demandMarkerGroup = null;
+  var demandMarkerGroupCovered = null;
+  var demandMarkerGroupUncovered = null;
+  var demandGroupsByKey = {}; // cache del último computeDemandStats(), para clicks en mapa/lista
 
   // Zona urbana FIJA por ciudad: centro + bounding box en km, totalmente independiente
   // de dónde estén los eventos. Esto evita que localidades lejanas (San Blas, Compostela,
@@ -1247,6 +1453,176 @@
   Object.keys(CITY_ZONES_RAW).forEach(function(key){
     CITY_ZONE_BOUNDS[key] = buildZoneBounds(CITY_ZONES_RAW[key]);
   });
+
+  // ================= NORMALIZACIÓN GEOGRÁFICA (página DEMANDA) =================
+  // Catálogo cerrado de las 32 entidades federativas de México. La clave es la
+  // forma normalizada (mayúsculas, sin acentos, sin puntos, espacios
+  // colapsados — ver normalizeGeoText) y el valor el nombre oficial a
+  // mostrar. Esto es lo único que decide si un ESTADO cuenta como válido:
+  // nunca puede haber más de 32 entradas aquí, así que la métrica de
+  // "entidades con demanda" nunca puede superar 32.
+  var MEXICAN_STATES_DISPLAY = {
+    'AGUASCALIENTES': 'Aguascalientes',
+    'BAJA CALIFORNIA': 'Baja California',
+    'BAJA CALIFORNIA SUR': 'Baja California Sur',
+    'CAMPECHE': 'Campeche',
+    'CHIAPAS': 'Chiapas',
+    'CHIHUAHUA': 'Chihuahua',
+    'CIUDAD DE MEXICO': 'Ciudad de México',
+    'COAHUILA': 'Coahuila',
+    'COLIMA': 'Colima',
+    'DURANGO': 'Durango',
+    'ESTADO DE MEXICO': 'Estado de México',
+    'GUANAJUATO': 'Guanajuato',
+    'GUERRERO': 'Guerrero',
+    'HIDALGO': 'Hidalgo',
+    'JALISCO': 'Jalisco',
+    'MICHOACAN': 'Michoacán',
+    'MORELOS': 'Morelos',
+    'NAYARIT': 'Nayarit',
+    'NUEVO LEON': 'Nuevo León',
+    'OAXACA': 'Oaxaca',
+    'PUEBLA': 'Puebla',
+    'QUERETARO': 'Querétaro',
+    'QUINTANA ROO': 'Quintana Roo',
+    'SAN LUIS POTOSI': 'San Luis Potosí',
+    'SINALOA': 'Sinaloa',
+    'SONORA': 'Sonora',
+    'TABASCO': 'Tabasco',
+    'TAMAULIPAS': 'Tamaulipas',
+    'TLAXCALA': 'Tlaxcala',
+    'VERACRUZ': 'Veracruz',
+    'YUCATAN': 'Yucatán',
+    'ZACATECAS': 'Zacatecas'
+  };
+
+  // Alias/abreviaturas reales de referirse a un estado — no son parches por
+  // fila, son formas de escritura conocidas (CDMX, EDOMEX, Distrito Federal,
+  // nombres oficiales largos, etc.) que deben colapsar al estado oficial.
+  var STATE_ALIASES = {
+    'CDMX': 'CIUDAD DE MEXICO',
+    'DISTRITO FEDERAL': 'CIUDAD DE MEXICO',
+    'DF': 'CIUDAD DE MEXICO',
+    'MEXICO DF': 'CIUDAD DE MEXICO',
+    'EDOMEX': 'ESTADO DE MEXICO',
+    'EDO MEXICO': 'ESTADO DE MEXICO',
+    'EDO DE MEXICO': 'ESTADO DE MEXICO',
+    // "MEXICO" a secas, en un campo ESTADO de un registro por municipio,
+    // prácticamente siempre se refiere al Estado de México (nadie anota el
+    // país completo como estado) — es el único alias "interpretado" y está
+    // explícitamente permitido por el criterio de "contexto inequívoco".
+    'MEXICO': 'ESTADO DE MEXICO',
+    'COAHUILA DE ZARAGOZA': 'COAHUILA',
+    'MICHOACAN DE OCAMPO': 'MICHOACAN',
+    'VERACRUZ DE IGNACIO DE LA LLAVE': 'VERACRUZ',
+    'NL': 'NUEVO LEON',
+    'BC': 'BAJA CALIFORNIA',
+    'BCS': 'BAJA CALIFORNIA SUR',
+    'SLP': 'SAN LUIS POTOSI',
+    'QROO': 'QUINTANA ROO',
+    'GTO': 'GUANAJUATO',
+    'JAL': 'JALISCO'
+  };
+
+  // Ciudades mayores de México cuyo estado es inequívoco (capitales estatales
+  // + un puñado de zonas metropolitanas muy conocidas) — catálogo general y
+  // acotado, no parches para los ejemplos puntuales de esta tarea. Sirve para
+  // cuando el campo ESTADO en realidad trae el nombre de una ciudad (ej.
+  // alguien escribió "TIJUANA" en vez de "BAJA CALIFORNIA"). Se usa como
+  // último recurso, después de intentar match directo contra el estado
+  // oficial y sus alias.
+  var KNOWN_CITY_TO_STATE = {
+    'MEXICALI': 'BAJA CALIFORNIA',
+    'LA PAZ': 'BAJA CALIFORNIA SUR',
+    'TUXTLA GUTIERREZ': 'CHIAPAS',
+    'SALTILLO': 'COAHUILA',
+    'TOLUCA': 'ESTADO DE MEXICO',
+    'TOLUCA DE LERDO': 'ESTADO DE MEXICO',
+    'CHILPANCINGO': 'GUERRERO',
+    'PACHUCA': 'HIDALGO',
+    'GUADALAJARA': 'JALISCO',
+    'MORELIA': 'MICHOACAN',
+    'CUERNAVACA': 'MORELOS',
+    'TEPIC': 'NAYARIT',
+    'MONTERREY': 'NUEVO LEON',
+    'CHETUMAL': 'QUINTANA ROO',
+    'CULIACAN': 'SINALOA',
+    'HERMOSILLO': 'SONORA',
+    'VILLAHERMOSA': 'TABASCO',
+    'CIUDAD VICTORIA': 'TAMAULIPAS',
+    'XALAPA': 'VERACRUZ',
+    'MERIDA': 'YUCATAN',
+    'TIJUANA': 'BAJA CALIFORNIA',
+    'ENSENADA': 'BAJA CALIFORNIA',
+    'MAZATLAN': 'SINALOA',
+    'LOS MOCHIS': 'SINALOA',
+    'PUERTO VALLARTA': 'JALISCO',
+    'CIUDAD GUZMAN': 'JALISCO',
+    'ZAPOTLAN EL GRANDE': 'JALISCO',
+    'LEON': 'GUANAJUATO',
+    'IRAPUATO': 'GUANAJUATO',
+    'CELAYA': 'GUANAJUATO',
+    'SALAMANCA': 'GUANAJUATO',
+    'ACAPULCO': 'GUERRERO',
+    'CANCUN': 'QUINTANA ROO',
+    'PLAYA DEL CARMEN': 'QUINTANA ROO',
+    'COZUMEL': 'QUINTANA ROO',
+    'CIUDAD JUAREZ': 'CHIHUAHUA',
+    'TORREON': 'COAHUILA',
+    'MONCLOVA': 'COAHUILA',
+    'CIUDAD OBREGON': 'SONORA',
+    'NOGALES': 'SONORA',
+    'REYNOSA': 'TAMAULIPAS',
+    'MATAMOROS': 'TAMAULIPAS',
+    'NUEVO LAREDO': 'TAMAULIPAS',
+    'TAMPICO': 'TAMAULIPAS',
+    'TAPACHULA': 'CHIAPAS',
+    'COATZACOALCOS': 'VERACRUZ',
+    'POZA RICA': 'VERACRUZ',
+    'URUAPAN': 'MICHOACAN',
+    'APATZINGAN': 'MICHOACAN'
+  };
+
+  // Igual que normalizeDjKey pero además quita puntos (para abreviaturas
+  // como "D.F." o "Edo. Méx."). Uso exclusivo de la normalización geográfica
+  // de DEMANDA — no toca normalizeCity/normalizeDjKey, que otras partes del
+  // proyecto ya usan tal cual.
+  function normalizeGeoText(raw){
+    return normalizeDjKey(raw).replace(/\./g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Resuelve el ESTADO real a partir del texto crudo de Sheets. matched:false
+  // significa que no se pudo determinar con confianza — el llamador debe
+  // marcarlo como "dato por revisar", nunca inventar un estado.
+  function resolveEstado(rawEstado){
+    var text = normalizeGeoText(rawEstado);
+    if (!text) return { key: null, display: null, matched: false };
+
+    if (MEXICAN_STATES_DISPLAY[text]){
+      return { key: text, display: MEXICAN_STATES_DISPLAY[text], matched: true };
+    }
+    var aliasKey = STATE_ALIASES[text];
+    if (aliasKey && MEXICAN_STATES_DISPLAY[aliasKey]){
+      return { key: aliasKey, display: MEXICAN_STATES_DISPLAY[aliasKey], matched: true };
+    }
+    var cityStateKey = KNOWN_CITY_TO_STATE[text];
+    if (cityStateKey && MEXICAN_STATES_DISPLAY[cityStateKey]){
+      return { key: cityStateKey, display: MEXICAN_STATES_DISPLAY[cityStateKey], matched: true };
+    }
+    return { key: null, display: null, matched: false };
+  }
+
+  // ================= CIUDADES CON COBERTURA (página DEMANDA) =================
+  // Fuente única: las mismas ciudades operativas ya definidas para
+  // PUNTOS/CUADRANTES/DJ CERCANO (CITY_ZONE_BOUNDS). Si se abre una ciudad
+  // nueva ahí, DEMANDA la reconoce como "con cobertura" automáticamente, sin
+  // mantener el nombre en dos lugares distintos del proyecto.
+  var SERVICE_AREAS = Object.keys(CITY_ZONE_BOUNDS);
+
+  function isMunicipioCovered(municipioRaw){
+    var key = normalizeGeoText(municipioRaw);
+    return !!key && SERVICE_AREAS.indexOf(key) !== -1;
+  }
 
   var QUADRANT_LABELS = {
     NW: 'NOROESTE',
@@ -1906,19 +2282,37 @@
               var cells = row.c || [];
               var coordRaw = cells[coordOff] ? cells[coordOff].v : null;
               var coord = parseCoordinate(coordRaw);
-              if (!coord) return; // sin coordenada capturada todavía — se omite, no se inventa
 
               var estadoRaw = estadoOff !== -1 && cells[estadoOff] ? cells[estadoOff].v : null;
               var municipioRaw = municipioOff !== -1 && cells[municipioOff] ? cells[municipioOff].v : null;
 
+              // Fila realmente vacía (relleno del rango hasta la fila 5000) — se
+              // omite sin contar como "dato por revisar", no es un registro real.
+              if (!estadoRaw && !municipioRaw && !coordRaw) return;
+
+              var estadoResolved = resolveEstado(estadoRaw);
+              var municipioNorm = municipioRaw ? normalizeGeoText(municipioRaw) : '';
+              var hasValidCoords = !!coord;
+
+              var reviewReasons = [];
+              if (!estadoResolved.matched) reviewReasons.push('estado');
+              if (!municipioNorm) reviewReasons.push('municipio');
+              if (!hasValidCoords) reviewReasons.push('coordenadas');
+
               parsed.push({
                 date: fechaOff !== -1 ? parseSheetDate(cells[fechaOff]) : null,
-                estadoNorm: normalizeCity(estadoRaw),
-                estadoRaw: estadoRaw ? String(estadoRaw).trim() : '',
-                municipioRaw: municipioRaw ? String(municipioRaw).trim() : '',
                 fechaNegada: negadaOff !== -1 ? parseSheetDate(cells[negadaOff]) : null,
-                lat: coord.lat,
-                lng: coord.lng
+                estadoRaw: estadoRaw ? String(estadoRaw).trim() : '',
+                estadoKey: estadoResolved.key,
+                estadoDisplay: estadoResolved.display,
+                municipioRaw: municipioRaw ? String(municipioRaw).trim() : '',
+                municipioNorm: municipioNorm,
+                lat: hasValidCoords ? coord.lat : null,
+                lng: hasValidCoords ? coord.lng : null,
+                hasValidCoords: hasValidCoords,
+                covered: municipioNorm ? isMunicipioCovered(municipioRaw) : false,
+                needsReview: reviewReasons.length > 0,
+                reviewReasons: reviewReasons
               });
             });
             demandRequests = parsed;
@@ -1958,6 +2352,17 @@
     });
   }
 
+  function createDemandClusterIconCovered(cluster){
+    var count = cluster.getChildCount();
+    var size = count < 10 ? 34 : (count < 50 ? 44 : 56);
+    var fontSize = count < 100 ? 13 : 11;
+    return L.divIcon({
+      html: '<div class="demand-cluster-inner-covered" style="width:' + size + 'px;height:' + size + 'px;font-size:' + fontSize + 'px;">' + count + '</div>',
+      className: '',
+      iconSize: L.point(size, size)
+    });
+  }
+
   var demandDivIcon = L.divIcon({
     className: '',
     html: '<span class="demand-marker"></span>',
@@ -1965,43 +2370,59 @@
     iconAnchor: [6, 6]
   });
 
+  var demandDivIconCovered = L.divIcon({
+    className: '',
+    html: '<span class="demand-marker-covered"></span>',
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+  });
+
   function getFilteredDemandRequests(){
     return demandRequests.filter(function(r){
-      return demandEstadoFilter === 'TODOS' || r.estadoNorm === demandEstadoFilter;
+      if (demandEstadoFilter === 'TODOS') return true;
+      if (demandEstadoFilter === 'POR_REVISAR') return !r.estadoKey;
+      return r.estadoKey === demandEstadoFilter;
     });
-  }
-
-  function formatDemandDate(d){
-    if (!d) return '';
-    return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   function updateDemandEstadoDropdownOptions(){
     var seen = {};
     var estados = [];
+    var hasUnresolved = false;
     demandRequests.forEach(function(r){
-      if (r.estadoNorm && !seen[r.estadoNorm]){
-        seen[r.estadoNorm] = true;
-        estados.push({ norm: r.estadoNorm, label: r.estadoRaw || r.estadoNorm });
+      if (r.estadoKey && !seen[r.estadoKey]){
+        seen[r.estadoKey] = true;
+        estados.push({ key: r.estadoKey, label: r.estadoDisplay });
       }
+      if (!r.estadoKey) hasUnresolved = true;
     });
-    estados.sort(function(a, b){ return a.label.localeCompare(b.label); });
+    estados.sort(function(a, b){ return a.label.localeCompare(b.label, 'es'); });
 
-    if (demandEstadoFilter !== 'TODOS' && !seen[demandEstadoFilter]){
+    if (demandEstadoFilter !== 'TODOS' && demandEstadoFilter !== 'POR_REVISAR' && !seen[demandEstadoFilter]){
+      demandEstadoFilter = 'TODOS';
+    }
+    if (demandEstadoFilter === 'POR_REVISAR' && !hasUnresolved){
       demandEstadoFilter = 'TODOS';
     }
 
     var menu = document.getElementById('demandEstadoSelector');
     var html = '<button data-estado="TODOS" class="' + (demandEstadoFilter === 'TODOS' ? 'active' : '') + '">TODOS</button>';
     estados.forEach(function(e){
-      html += '<button data-estado="' + escapeHtml(e.norm) + '" class="' + (demandEstadoFilter === e.norm ? 'active' : '') + '">' + escapeHtml(e.label) + '</button>';
+      html += '<button data-estado="' + escapeHtml(e.key) + '" class="' + (demandEstadoFilter === e.key ? 'active' : '') + '">' + escapeHtml(e.label) + '</button>';
     });
+    if (hasUnresolved){
+      html += '<button data-estado="POR_REVISAR" class="' + (demandEstadoFilter === 'POR_REVISAR' ? 'active' : '') + '">DATOS POR REVISAR</button>';
+    }
     menu.innerHTML = html;
 
     var valueEl = document.getElementById('demandEstadoDropdownValue');
     if (valueEl){
-      var current = estados.filter(function(e){ return e.norm === demandEstadoFilter; })[0];
-      valueEl.textContent = (demandEstadoFilter === 'TODOS') ? 'TODOS' : (current ? current.label : demandEstadoFilter);
+      if (demandEstadoFilter === 'TODOS') valueEl.textContent = 'TODOS';
+      else if (demandEstadoFilter === 'POR_REVISAR') valueEl.textContent = 'DATOS POR REVISAR';
+      else {
+        var current = estados.filter(function(e){ return e.key === demandEstadoFilter; })[0];
+        valueEl.textContent = current ? current.label : demandEstadoFilter;
+      }
     }
   }
 
@@ -2020,65 +2441,226 @@
     }).addTo(demandMap);
   }
 
+  // Tendencia simple: últimos 30 días contra los 30 días anteriores (31-60).
+  // Exige una muestra mínima combinada para no inventar una flecha con 1-2
+  // solicitudes — en ese caso no hay tendencia (null), nunca se adivina.
+  var DEMAND_TREND_MIN_SAMPLE = 4;
+  function computeDemandTrend(last30, prev30){
+    if (last30 + prev30 < DEMAND_TREND_MIN_SAMPLE) return null;
+    if (prev30 === 0) return last30 > 0 ? 'UP' : null;
+    var ratio = last30 / prev30;
+    if (ratio >= 1.2) return 'UP';
+    if (ratio <= 0.8) return 'DOWN';
+    return 'FLAT';
+  }
+
+  function demandTrendLabel(trend){
+    if (trend === 'UP') return '↑ CRECIENDO';
+    if (trend === 'DOWN') return '↓ BAJANDO';
+    if (trend === 'FLAT') return '→ ESTABLE';
+    return '';
+  }
+
+  // Agrega demandRequests (ya filtrado por ESTADO) por municipio. Clave
+  // compuesta estado+municipio para no mezclar municipios homónimos de
+  // distintos estados; las filas con estado sin resolver agrupan aparte
+  // ("SIN_ESTADO|<municipio>") — siguen contando para el mapa y el ranking,
+  // solo no se cuentan como una entidad federativa válida.
+  function computeDemandStats(){
+    var filtered = getFilteredDemandRequests();
+    var today = todayLocalMidnight();
+    var cutoff30 = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    var cutoff60 = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+    var cutoff90 = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    var groups = {};
+    var order = [];
+    var estadosSet = {};
+    var reviewCount = 0;
+    var sinCoberturaCount = 0;
+
+    filtered.forEach(function(r){
+      if (r.needsReview) reviewCount++;
+      if (r.estadoKey) estadosSet[r.estadoKey] = true;
+      if (!r.covered) sinCoberturaCount++;
+      if (!r.municipioNorm) return; // sin municipio no entra al ranking/agrupación por zona
+
+      var key = (r.estadoKey || 'SIN_ESTADO') + '|' + r.municipioNorm;
+      if (!groups[key]){
+        groups[key] = {
+          key: key,
+          municipioLabel: r.municipioRaw,
+          estadoDisplay: r.estadoDisplay,
+          covered: r.covered,
+          total: 0, last30: 0, prev30: 0, last90: 0,
+          points: []
+        };
+        order.push(key);
+      }
+      var g = groups[key];
+      g.total++;
+      if (r.hasValidCoords) g.points.push([r.lat, r.lng]);
+      if (r.date){
+        if (r.date >= cutoff30 && r.date <= today) g.last30++;
+        else if (r.date >= cutoff60 && r.date < cutoff30) g.prev30++;
+        if (r.date >= cutoff90 && r.date <= today) g.last90++;
+      }
+    });
+
+    var groupList = order.map(function(k){ return groups[k]; });
+    groupList.forEach(function(g){
+      if (g.points.length){
+        var sumLat = 0, sumLng = 0;
+        g.points.forEach(function(p){ sumLat += p[0]; sumLng += p[1]; });
+        g.lat = sumLat / g.points.length;
+        g.lng = sumLng / g.points.length;
+      } else {
+        g.lat = null; g.lng = null;
+      }
+      g.trend = computeDemandTrend(g.last30, g.prev30);
+    });
+
+    var opportunities = groupList.filter(function(g){ return !g.covered; })
+      .sort(function(a, b){ return b.total - a.total; });
+
+    return {
+      filteredRows: filtered,
+      totalSolicitudes: filtered.length,
+      sinCoberturaActual: sinCoberturaCount,
+      municipiosConDemanda: groupList.length,
+      topOpportunity: opportunities[0] || null,
+      opportunities: opportunities,
+      datosPorRevisar: reviewCount,
+      entidadesConDemanda: Object.keys(estadosSet).length,
+      groups: groupList
+    };
+  }
+
+  function showDemandDetail(group){
+    var el = document.getElementById('demandDetailPanel');
+    if (!el || !group) return;
+
+    var coverageLabel = group.covered ? 'CON COBERTURA' : 'SIN COBERTURA';
+    var coverageClass = group.covered ? 'covered' : 'uncovered';
+    var trendLabel = !group.covered ? demandTrendLabel(group.trend) : '';
+
+    el.innerHTML =
+      '<div class="demand-detail-title">' + escapeHtml(group.municipioLabel) + '</div>' +
+      '<div class="demand-detail-sub">' + escapeHtml(group.estadoDisplay || 'Estado por confirmar') + '</div>' +
+      '<div class="demand-detail-total">' + group.total + ' solicitud' + (group.total === 1 ? '' : 'es') + (group.covered ? (group.total === 1 ? ' histórica' : ' históricas') : '') + '</div>' +
+      (!group.covered ?
+        '<div class="demand-detail-row">Últimos 30 días: <b>' + group.last30 + '</b></div>' +
+        '<div class="demand-detail-row">Últimos 90 días: <b>' + group.last90 + '</b></div>'
+        : '') +
+      (trendLabel ? '<div class="demand-detail-trend">' + trendLabel + '</div>' : '') +
+      '<div class="demand-detail-coverage ' + coverageClass + '">' + coverageLabel + '</div>';
+  }
+
+  function renderOpportunitiesList(opportunities){
+    var el = document.getElementById('demandOpportunitiesList');
+    if (!el) return;
+    if (!opportunities.length){
+      el.innerHTML = '<div class="djs-status-msg">No hay oportunidades sin cobertura para este filtro.</div>';
+      return;
+    }
+    var top = opportunities.slice(0, 15);
+    el.innerHTML = top.map(function(g, i){
+      var trendLabel = demandTrendLabel(g.trend);
+      return '<div class="demand-opp-row" data-key="' + escapeHtml(g.key) + '">' +
+        '<div class="demand-opp-rank">' + (i + 1) + '</div>' +
+        '<div class="demand-opp-info">' +
+          '<div class="demand-opp-name">' + escapeHtml(g.municipioLabel) + (g.estadoDisplay ? ' <span class="demand-opp-estado">' + escapeHtml(g.estadoDisplay) + '</span>' : '') + '</div>' +
+          '<div class="demand-opp-sub">' + g.total + ' solicitud' + (g.total === 1 ? '' : 'es') + ' · ' + g.last90 + ' últimos 90 días' + (trendLabel ? ' · ' + trendLabel : '') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
   function renderDemandPage(){
     ensureDemandMap();
+
+    var kpiEls = [demandKpiTotalEl, demandKpiSinCoberturaEl, demandKpiMunicipiosEl, demandKpiTopOpportunityEl];
 
     if (demandStatsError){
       demandStatusMsgEl.textContent = demandStatsError;
       demandStatusMsgEl.classList.add('error');
-      demandKpiTotalEl.textContent = '—';
-      demandKpiEstadosEl.textContent = '—';
-      demandKpiTopMunicipioEl.textContent = '—';
-      if (demandMarkerGroup){ demandMap.removeLayer(demandMarkerGroup); demandMarkerGroup = null; }
+      kpiEls.forEach(function(el){ el.textContent = '—'; });
+      var entidadesBadgeErr = document.getElementById('demandEntidadesBadge');
+      if (entidadesBadgeErr) entidadesBadgeErr.textContent = 'ENTIDADES CON DEMANDA: — / 32';
+      var reviewBadgeErr = document.getElementById('demandReviewBadge');
+      if (reviewBadgeErr) reviewBadgeErr.style.display = 'none';
+      renderOpportunitiesList([]);
+      if (demandMarkerGroupCovered){ demandMap.removeLayer(demandMarkerGroupCovered); demandMarkerGroupCovered = null; }
+      if (demandMarkerGroupUncovered){ demandMap.removeLayer(demandMarkerGroupUncovered); demandMarkerGroupUncovered = null; }
       return;
     }
     demandStatusMsgEl.classList.remove('error');
 
-    var filtered = getFilteredDemandRequests();
+    var stats = computeDemandStats();
+    demandGroupsByKey = {};
+    stats.groups.forEach(function(g){ demandGroupsByKey[g.key] = g; });
 
-    var estadosSet = {};
-    var municipioCounts = {};
-    filtered.forEach(function(r){
-      if (r.estadoNorm) estadosSet[r.estadoNorm] = true;
-      var key = r.municipioRaw ? normalizeCity(r.municipioRaw) : null;
-      if (key){
-        if (!municipioCounts[key]) municipioCounts[key] = { label: r.municipioRaw, count: 0 };
-        municipioCounts[key].count++;
-      }
-    });
-    var topMunicipio = Object.keys(municipioCounts).map(function(k){ return municipioCounts[k]; })
-      .sort(function(a, b){ return b.count - a.count; })[0];
+    demandKpiTotalEl.textContent = stats.totalSolicitudes;
+    demandKpiSinCoberturaEl.textContent = stats.sinCoberturaActual;
+    demandKpiMunicipiosEl.textContent = stats.municipiosConDemanda;
+    demandKpiTopOpportunityEl.textContent = stats.topOpportunity ? (stats.topOpportunity.municipioLabel + ' (' + stats.topOpportunity.total + ')') : '—';
 
-    demandKpiTotalEl.textContent = filtered.length;
-    demandKpiEstadosEl.textContent = Object.keys(estadosSet).length;
-    demandKpiTopMunicipioEl.textContent = topMunicipio ? (topMunicipio.label + ' (' + topMunicipio.count + ')') : '—';
+    var entidadesBadge = document.getElementById('demandEntidadesBadge');
+    if (entidadesBadge) entidadesBadge.textContent = 'ENTIDADES CON DEMANDA: ' + stats.entidadesConDemanda + ' / 32';
 
-    if (demandMarkerGroup){ demandMap.removeLayer(demandMarkerGroup); demandMarkerGroup = null; }
+    var reviewBadge = document.getElementById('demandReviewBadge');
+    if (reviewBadge){
+      reviewBadge.textContent = 'DATOS POR REVISAR: ' + stats.datosPorRevisar;
+      reviewBadge.style.display = stats.datosPorRevisar > 0 ? '' : 'none';
+    }
 
-    if (!filtered.length){
-      demandStatusMsgEl.textContent = 'No hay solicitudes rechazadas con coordenadas para este filtro.';
+    renderOpportunitiesList(stats.opportunities);
+
+    if (demandMarkerGroupCovered){ demandMap.removeLayer(demandMarkerGroupCovered); demandMarkerGroupCovered = null; }
+    if (demandMarkerGroupUncovered){ demandMap.removeLayer(demandMarkerGroupUncovered); demandMarkerGroupUncovered = null; }
+
+    var plottable = stats.filteredRows.filter(function(r){ return r.hasValidCoords; });
+    if (!plottable.length){
+      demandStatusMsgEl.textContent = 'No hay solicitudes con coordenadas para este filtro.';
       return;
     }
 
     demandStatusMsgEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX');
 
-    demandMarkerGroup = L.markerClusterGroup({
+    demandMarkerGroupCovered = L.markerClusterGroup({
+      iconCreateFunction: createDemandClusterIconCovered,
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 50
+    });
+    demandMarkerGroupUncovered = L.markerClusterGroup({
       iconCreateFunction: createDemandClusterIcon,
       showCoverageOnHover: false,
       spiderfyOnMaxZoom: true,
       maxClusterRadius: 50
     });
 
-    filtered.forEach(function(r){
-      var popup = '<b>' + escapeHtml(r.municipioRaw || '(sin municipio)') + '</b>' +
-        (r.estadoRaw ? ' — ' + escapeHtml(r.estadoRaw) : '') +
-        (r.date ? '<br>' + escapeHtml(formatDemandDate(r.date)) : '');
-      demandMarkerGroup.addLayer(L.marker([r.lat, r.lng], { icon: demandDivIcon }).bindPopup(popup));
+    plottable.forEach(function(r){
+      var key = (r.estadoKey || 'SIN_ESTADO') + '|' + r.municipioNorm;
+      var icon = r.covered ? demandDivIconCovered : demandDivIcon;
+      var targetGroup = r.covered ? demandMarkerGroupCovered : demandMarkerGroupUncovered;
+      var popupHtml = '<b>' + escapeHtml(r.municipioRaw || '(sin municipio)') + '</b>' +
+        (r.estadoDisplay ? ' — ' + escapeHtml(r.estadoDisplay) : (r.needsReview ? ' — <i>dato por revisar</i>' : '')) +
+        (r.date ? '<br>' + escapeHtml(formatDateEs(r.date)) : '');
+      var marker = L.marker([r.lat, r.lng], { icon: icon }).bindPopup(popupHtml);
+      marker.on('click', function(){
+        var g = demandGroupsByKey[key];
+        if (g) showDemandDetail(g);
+      });
+      targetGroup.addLayer(marker);
     });
 
-    demandMarkerGroup.addTo(demandMap);
+    // Con cobertura primero, sin cobertura después: queda visualmente encima
+    // (mayor prioridad visual para la demanda SIN COBERTURA, pedido explícito).
+    demandMarkerGroupCovered.addTo(demandMap);
+    demandMarkerGroupUncovered.addTo(demandMap);
 
-    var bounds = L.latLngBounds(filtered.map(function(r){ return [r.lat, r.lng]; }));
+    var bounds = L.latLngBounds(plottable.map(function(r){ return [r.lat, r.lng]; }));
     demandMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
   }
 
@@ -2801,6 +3383,17 @@
     document.getElementById('demandEstadoDropdownValue').textContent = btn.textContent.trim();
     closeAllDropdowns();
     renderDemandPage();
+  });
+
+  document.getElementById('demandOpportunitiesList').addEventListener('click', function(ev){
+    var row = ev.target.closest('.demand-opp-row');
+    if (!row) return;
+    var g = demandGroupsByKey[row.dataset.key];
+    if (!g) return;
+    showDemandDetail(g);
+    if (g.lat != null && g.lng != null && demandMap){
+      demandMap.setView([g.lat, g.lng], Math.max(demandMap.getZoom(), 10));
+    }
   });
 
   // ================= NAVEGACIÓN ENTRE PÁGINAS: MAPA / DJS =================
