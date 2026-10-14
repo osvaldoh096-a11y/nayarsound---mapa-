@@ -520,6 +520,20 @@
     font-family:'IBM Plex Mono', monospace;
     font-weight:700;
   }
+  /* Los 3 estados con más solicitudes rechazadas (vista nacional de DEMANDA):
+     color distinto al de cobertura/sin cobertura, para que salten a la vista
+     de inmediato sin tener que leer cada número. */
+  .demand-state-dot-inner-top{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff3c4, #ffd23f 55%, #b8860b 100%);
+    box-shadow:0 0 0 2px rgba(255,210,63,0.45), 0 0 8px rgba(255,210,63,0.65);
+    color:#3a2a00;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+  }
 
   @media (max-width: 900px){
     .demand-layout{ flex-direction:column; }
@@ -2771,10 +2785,10 @@
   // ya existe (clases .demand-cluster-inner / -covered), solo una capa nueva.
   var DEMAND_STATE_ZOOM_MAX = 6;
 
-  function demandCountIconHtml(count, covered){
+  function demandCountIconHtml(count, covered, isTop){
     var size = count < 10 ? 18 : (count < 50 ? 23 : 28);
     var fontSize = count < 100 ? 9 : 8;
-    var cls = covered ? 'demand-state-dot-inner-covered' : 'demand-state-dot-inner';
+    var cls = isTop ? 'demand-state-dot-inner-top' : (covered ? 'demand-state-dot-inner-covered' : 'demand-state-dot-inner');
     return {
       html: '<div class="' + cls + '" style="width:' + size + 'px;height:' + size + 'px;font-size:' + fontSize + 'px;">' + count + '</div>',
       size: size
@@ -2819,8 +2833,16 @@
 
   function buildDemandStateLayer(stateGroups){
     var layer = L.layerGroup();
+    // Los 3 estados con más solicitudes (sin importar cobertura) se resaltan con un
+    // color distinto en el círculo — solo visual, no cambia el orden ni la posición.
+    var topKeys = stateGroups.slice()
+      .sort(function(a, b){ return b.total - a.total; })
+      .slice(0, 3)
+      .map(function(sg){ return sg.estadoKey; });
+
     stateGroups.forEach(function(sg){
-      var iconInfo = demandCountIconHtml(sg.total, sg.covered);
+      var isTop = topKeys.indexOf(sg.estadoKey) !== -1;
+      var iconInfo = demandCountIconHtml(sg.total, sg.covered, isTop);
       var icon = L.divIcon({ html: iconInfo.html, className: '', iconSize: L.point(iconInfo.size, iconInfo.size) });
       var marker = L.marker([sg.lat, sg.lng], { icon: icon })
         .bindPopup('<b>' + escapeHtml(sg.estadoDisplay) + '</b><br>' + sg.total + ' solicitud' + (sg.total === 1 ? '' : 'es') + '<br><i>Click para ver el detalle del estado</i>');
