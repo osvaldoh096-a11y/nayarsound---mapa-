@@ -1255,6 +1255,10 @@
     <input id="djDateInput" class="dj-tool-input" type="text" placeholder="8 SEPTIEMBRE" autocomplete="off">
     <label class="dj-tool-label" for="djLocationInput">UBICACIÓN DEL EVENTO</label>
     <input id="djLocationInput" class="dj-tool-input" type="text" placeholder="Pega coordenadas o link de Google Maps" autocomplete="off">
+    <label class="dj-tool-label" for="djHoraInput">HORA DE INICIO</label>
+    <input id="djHoraInput" class="dj-tool-input" type="text" placeholder="18:00 o 6pm" autocomplete="off">
+    <label class="dj-tool-label" for="djDuracionInput">DURACIÓN (horas)</label>
+    <input id="djDuracionInput" class="dj-tool-input" type="text" placeholder="5" autocomplete="off">
     <button id="djSearchBtn" class="dj-tool-search-btn" type="button">BUSCAR DJ MÁS CERCANO</button>
     <div id="djSearchMsg" class="dj-tool-msg"></div>
     <div class="dj-results-wrap"><div id="djResults" class="dj-results"></div></div>
@@ -1323,6 +1327,8 @@
   var FECHA_COL_IDX = 2;  // E (FECHA) está 2 columnas después de C — solo se usa para filtrar, nunca se muestra
   var COORD_COL_IDX = 14; // Q está 14 columnas después de C
   var BLOQUEADO_COL_IDX = 15; // R — evento bloqueado (conserva su DJ actual, fuera de OPTIMIZAR ASIGNACIONES)
+  var HORA_INICIO_COL_IDX = 4; // G — hora de inicio del evento, usada para detectar choques de horario
+  var TOT_HORAS_COL_IDX = 5; // H — duración del evento en horas (puede venir decimal, ej. 3.5)
   var REFRESH_MS  = 5 * 60 * 1000;
 
   // ---- Rango para la página DJS (estadísticas de eventos/horas extra por DJ) ----
@@ -1895,6 +1901,18 @@
     return isNaN(n) ? 0 : n;
   }
 
+  // Duración de un evento (columna TOT.HORAS, o la que escribe el usuario en DJ
+  // CERCANO): a diferencia de parseHorasExtra, aquí vacío/no numérico/≤0 nunca
+  // cuenta como 0 — una duración desconocida NO es "el evento no dura nada", es
+  // "no sabemos cuánto dura" (null), para que el choque de horario se calcule
+  // conservador (ver isDjBusyAtTime) en vez de asumir que el DJ queda libre al
+  // instante.
+  function parseDuracionHoras(raw){
+    if (raw == null || raw === '') return null;
+    var n = (typeof raw === 'number') ? raw : parseFloat(String(raw).replace(',', '.'));
+    return (isNaN(n) || n <= 0) ? null : n;
+  }
+
   // Convierte una celda de dinero (columnas GENERADO/PAGADO/GANANCIA de la hoja de
   // ventas) a número: gviz normalmente ya entrega el número crudo en cell.v aunque
   // la celda se vea formateada como "$1,100.00"; por si acaso también limpia
@@ -2079,12 +2097,76 @@
       a.getDate() === b.getDate();
   }
 
-  // Disponibilidad por DÍA COMPLETO: si el DJ tiene cualquier evento ese día ya
-  // cargado en memoria desde AGENDA (allEvents), está OCUPADO. Reutiliza los datos
-  // ya cargados — no hace ninguna consulta nueva a Google Sheets por DJ.
-  function isDjBusyOnDate(djNameNorm, selectedDate){
+  // Interpreta una hora en texto en cualquier formato común: 24h ("18:00", "18"),
+  // 12h con am/pm en cualquier variante ("6pm", "6:30pm", "6 PM", "6a.m."). Devuelve
+  // minutos desde medianoche (0-1439), o null si no se pudo interpretar. Nunca
+  // adivina AM/PM: un número de 1-12 sin sufijo se toma tal cual en formato 24h
+  // (ej. "6" son las 6 de la mañana, no las 6pm) — ambiguar la mitad del día en algo
+  // que decide si un DJ puede llegar a un evento sería peor que pedir el sufijo.
+  function parseHoraFlexible(raw){
+    if (!raw) return null;
+    var text = String(raw).trim().toLowerCase()
+      .replace(/\s+/g, '')   // "6 pm" -> "6pm", "6 : 30" -> "6:30"
+      .replace(/\./g, '');   // "a.m." -> "am"
+
+    var m = text.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)?$/);
+    if (!m) return null;
+
+    var hour = parseInt(m[1], 10);
+    var minute = m[2] ? parseInt(m[2], 10) : 0;
+    var suffix = m[3];
+    if (minute > 59) return null;
+
+    if (suffix){
+      if (hour < 1 || hour > 12) return null;
+      hour = (suffix === 'am') ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
+    } else if (hour > 23){
+      return null;
+    }
+
+    return hour * 60 + minute;
+  }
+
+  // Celda de hora de AGENDA (columna G, formato de celda "hora" en Sheets): gviz la
+  // entrega como texto "Date(1899,11,30,H,M,S)" (el "día cero" que usa Sheets para
+  // valores de solo-hora) o, si la celda es texto plano, en cualquier formato que
+  // entienda parseHoraFlexible. Devuelve minutos desde medianoche, o null si no se
+  // pudo interpretar — nunca inventa una hora.
+  function parseHoraCelda(cell){
+    if (!cell || cell.v == null) return null;
+    var raw = cell.v;
+    if (typeof raw === 'number') return Math.round(raw * 24 * 60); // fracción de día
+    if (typeof raw === 'string'){
+      var m = raw.match(/^Date\(\d+,\d+,\d+,(\d+),(\d+)/);
+      if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      return parseHoraFlexible(raw);
+    }
+    return null;
+  }
+
+  // Colchón mínimo de traslado entre el fin de un evento y el inicio del siguiente:
+  // se suma al final de CADA evento (no al principio) antes de comparar, así que
+  // aplica por igual sin importar cuál de los dos eventos ocurre primero.
+  var TRASLADO_BUFFER_MIN = 60;
+
+  // Disponibilidad real de un DJ en una fecha y horario (newStartMin/newEndMin en
+  // minutos desde medianoche). Si el DJ tiene ese día cualquier evento cuyo horario
+  // no se conoce (sin hora de inicio o sin duración en AGENDA), se asume OCUPADO
+  // todo el día — nunca se asume disponible sin datos reales. excludeEvent (opcional)
+  // evita que un evento se compare contra sí mismo cuando se llama con un evento ya
+  // existente de allEvents en vez de una hora hipotética (uso de OPTIMIZAR ASIGNACIONES).
+  function isDjBusyAtTime(djNameNorm, selectedDate, newStartMin, newEndMin, excludeEvent){
     return allEvents.some(function(e){
-      return e.djNameNorm && e.djNameNorm === djNameNorm && isSameLocalDate(e.date, selectedDate);
+      if (e === excludeEvent) return false;
+      if (!e.djNameNorm || e.djNameNorm !== djNameNorm) return false;
+      if (!isSameLocalDate(e.date, selectedDate)) return false;
+
+      if (e.horaInicioMin == null || e.horaFinMin == null) return true;
+      if (newStartMin == null || newEndMin == null) return true;
+
+      var existingEnd = e.horaFinMin + TRASLADO_BUFFER_MIN;
+      var newEnd = newEndMin + TRASLADO_BUFFER_MIN;
+      return newStartMin < existingEnd && e.horaInicioMin < newEnd;
     });
   }
 
@@ -2188,13 +2270,19 @@
           var coord = parseCoordinate(coordRaw);
           if (!coord) return;
 
+          var horaInicioMin = parseHoraCelda(cells[HORA_INICIO_COL_IDX]);
+          var duracionHoras = parseDuracionHoras(cells[TOT_HORAS_COL_IDX] ? cells[TOT_HORAS_COL_IDX].v : null);
+          var horaFinMin = (horaInicioMin != null && duracionHoras != null) ? horaInicioMin + duracionHoras * 60 : null;
+
           events.push({
             lat: coord.lat,
             lng: coord.lng,
             cityNorm: normalizeCity(cityRaw),
             date: eventDate,
             djNameNorm: normalizeCity(djRaw), // usado por OCUPADO/DISPONIBLE en DJ CERCANO
-            blocked: normalizeCity(bloqueadoRaw) === 'SI' // usado por OPTIMIZAR ASIGNACIONES
+            blocked: normalizeCity(bloqueadoRaw) === 'SI', // usado por OPTIMIZAR ASIGNACIONES
+            horaInicioMin: horaInicioMin, // minutos desde medianoche — null si no se pudo leer
+            horaFinMin: horaFinMin // horaInicioMin + duración — null si falta hora o duración
           });
         });
 
@@ -3914,6 +4002,8 @@
   var djToolClose    = document.getElementById('djToolClose');
   var djDateInput    = document.getElementById('djDateInput');
   var djLocationInput= document.getElementById('djLocationInput');
+  var djHoraInput    = document.getElementById('djHoraInput');
+  var djDuracionInput= document.getElementById('djDuracionInput');
   var djSearchBtn    = document.getElementById('djSearchBtn');
   var djSearchMsgEl  = document.getElementById('djSearchMsg');
   var djResultsEl    = document.getElementById('djResults');
@@ -4044,19 +4134,32 @@
     setDjSearchMsg('');
     djResultsEl.innerHTML = '';
 
-    // FECHA y UBICACIÓN son obligatorias: no se ejecuta la búsqueda si falta alguna
-    // o si la fecha escrita no es interpretable/no existe en el calendario.
+    // FECHA, UBICACIÓN, HORA y DURACIÓN son obligatorias: sin las 4 no hay forma de
+    // calcular si un DJ con otro evento ese día realmente puede llegar a este.
     var selectedDate = parseNaturalSpanishDate(djDateInput.value);
     if (!selectedDate){
       setDjSearchMsg('Fecha no válida. Ejemplo: 8 SEPTIEMBRE o 8 SEPTIEMBRE 2027', true);
       return;
     }
 
+    var newStartMin = parseHoraFlexible(djHoraInput.value);
+    if (newStartMin == null){
+      setDjSearchMsg('Hora no válida. Ejemplos: 18:00, 6pm, 6:30pm', true);
+      return;
+    }
+
+    var duracionHoras = parseDuracionHoras(djDuracionInput.value);
+    if (duracionHoras == null){
+      setDjSearchMsg('Duración no válida. Ejemplo: 5 o 3.5', true);
+      return;
+    }
+    var newEndMin = newStartMin + duracionHoras * 60;
+
     var raw = djLocationInput.value;
     var point = extractCoordinatesFromInput(raw);
 
     if (point){
-      runDjSearch(point, selectedDate);
+      runDjSearch(point, selectedDate, newStartMin, newEndMin);
       return;
     }
 
@@ -4077,7 +4180,7 @@
         setDjSearchMsg('El enlace no contiene coordenadas reconocibles. Prueba con el link largo de Google Maps o pega las coordenadas directamente.', true);
         return;
       }
-      return runDjSearch(resolvedPoint, selectedDate);
+      return runDjSearch(resolvedPoint, selectedDate, newStartMin, newEndMin);
     }).catch(function(){
       setDjSearchMsg('No se pudo resolver el enlace corto automáticamente. Abre el link en el navegador y pega el link largo, o pega las coordenadas directamente.', true);
     }).then(function(){
@@ -4086,7 +4189,7 @@
     });
   }
 
-  function runDjSearch(point, selectedDate){
+  function runDjSearch(point, selectedDate, newStartMin, newEndMin){
     if (!allDjs.length){
       djResultsEl.innerHTML = '';
       setDjSearchMsg('Aún no hay DJs activos cargados desde Google Sheets.', true);
@@ -4135,7 +4238,7 @@
       });
       // OCUPADO/DISPONIBLE es solo información — no afecta el orden, que sigue siendo
       // por cercanía/ruta real ya calculada arriba.
-      routedDjs.forEach(function(dj){ dj.busy = isDjBusyOnDate(dj.nameNorm, selectedDate); });
+      routedDjs.forEach(function(dj){ dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin); });
 
       var rankedDjs = routedDjs; // sin límite: se muestran TODOS los DJs activos de la ciudad
       currentDjSearch = { point: point, pool: routingCandidates, rankedDjs: rankedDjs };
@@ -4156,7 +4259,7 @@
       // Respaldo si OpenRouteService falla (cuota, red, etc.): línea recta, avisando.
       console.error('Fallo al calcular la matriz de rutas (DJ CERCANO):', err);
       var rankedDjs = routingCandidates;
-      rankedDjs.forEach(function(dj){ dj.busy = isDjBusyOnDate(dj.nameNorm, selectedDate); });
+      rankedDjs.forEach(function(dj){ dj.busy = isDjBusyAtTime(dj.nameNorm, selectedDate, newStartMin, newEndMin); });
       currentDjSearch = { point: point, pool: routingCandidates, rankedDjs: rankedDjs };
       setDjSearchMsg(cityMsg + ' No se pudo calcular la ruta real — mostrando línea recta aproximada.', true);
       renderDjResults(rankedDjs);
@@ -4217,6 +4320,12 @@
   djSearchBtn.addEventListener('click', handleDjSearch);
 
   djLocationInput.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter') handleDjSearch();
+  });
+  djHoraInput.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter') handleDjSearch();
+  });
+  djDuracionInput.addEventListener('keydown', function(ev){
     if (ev.key === 'Enter') handleDjSearch();
   });
 
