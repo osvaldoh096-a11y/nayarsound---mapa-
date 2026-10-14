@@ -1416,6 +1416,7 @@
   var demandMap = null;
   var demandMarkerGroupCovered = null;
   var demandMarkerGroupUncovered = null;
+  var demandStateLayer = null; // vista agregada por estado (zoom alejado)
   var demandGroupsByKey = {}; // cache del último computeDemandStats(), para clicks en mapa/lista
 
   // Zona urbana FIJA por ciudad: centro + bounding box en km, totalmente independiente
@@ -2426,6 +2427,94 @@
     }
   }
 
+  // ---- Vista nacional por estado (zoom alejado) ----
+  // A este nivel de zoom o menos, el mapa de DEMANDA muestra un solo punto por
+  // estado con el total agregado; por encima de este zoom se usa el
+  // clustering normal por solicitud (sin tocarlo). Mismo lenguaje visual que
+  // ya existe (clases .demand-cluster-inner / -covered), solo una capa nueva.
+  var DEMAND_STATE_ZOOM_MAX = 6;
+
+  function demandCountIconHtml(count, covered){
+    var size = count < 10 ? 34 : (count < 50 ? 44 : 56);
+    var fontSize = count < 100 ? 13 : 11;
+    var cls = covered ? 'demand-cluster-inner-covered' : 'demand-cluster-inner';
+    return {
+      html: '<div class="' + cls + '" style="width:' + size + 'px;height:' + size + 'px;font-size:' + fontSize + 'px;">' + count + '</div>',
+      size: size
+    };
+  }
+
+  // Agrega las solicitudes graficables por estado (solo las que tienen ESTADO
+  // resuelto — sin inventar un punto para "dato por revisar"). El centroide es
+  // el promedio de las coordenadas reales ya capturadas, no una coordenada
+  // nueva inventada. "covered" solo es true si TODA la demanda del estado cae
+  // en ciudades con cobertura — prioridad visual a SIN COBERTURA, igual que en
+  // el resto de la página.
+  function buildDemandStateAggregation(rows){
+    var groups = {};
+    var order = [];
+    rows.forEach(function(r){
+      if (!r.estadoKey) return;
+      if (!groups[r.estadoKey]){
+        groups[r.estadoKey] = { estadoKey: r.estadoKey, estadoDisplay: r.estadoDisplay, total: 0, uncoveredCount: 0, sumLat: 0, sumLng: 0, n: 0 };
+        order.push(r.estadoKey);
+      }
+      var g = groups[r.estadoKey];
+      g.total++;
+      if (!r.covered) g.uncoveredCount++;
+      g.sumLat += r.lat;
+      g.sumLng += r.lng;
+      g.n++;
+    });
+    return order.map(function(k){
+      var g = groups[k];
+      return {
+        estadoKey: g.estadoKey,
+        estadoDisplay: g.estadoDisplay,
+        total: g.total,
+        covered: g.uncoveredCount === 0,
+        lat: g.sumLat / g.n,
+        lng: g.sumLng / g.n
+      };
+    });
+  }
+
+  function buildDemandStateLayer(stateGroups){
+    var layer = L.layerGroup();
+    stateGroups.forEach(function(sg){
+      var iconInfo = demandCountIconHtml(sg.total, sg.covered);
+      var icon = L.divIcon({ html: iconInfo.html, className: '', iconSize: L.point(iconInfo.size, iconInfo.size) });
+      var marker = L.marker([sg.lat, sg.lng], { icon: icon })
+        .bindPopup('<b>' + escapeHtml(sg.estadoDisplay) + '</b><br>' + sg.total + ' solicitud' + (sg.total === 1 ? '' : 'es'));
+      marker.on('click', function(){
+        // Zoom in a la zona del estado, donde ya aplica el clustering normal
+        // por solicitud — forma natural de "desagrupar" sin esperar al scroll.
+        demandMap.setView([sg.lat, sg.lng], DEMAND_STATE_ZOOM_MAX + 2);
+      });
+      layer.addLayer(marker);
+    });
+    return layer;
+  }
+
+  // Decide, según el zoom actual, si se muestra la vista agregada por estado
+  // o las capas normales de clustering por solicitud — nunca ambas a la vez.
+  function applyDemandZoomLayer(){
+    if (!demandMap) return;
+    var showState = demandMap.getZoom() <= DEMAND_STATE_ZOOM_MAX;
+
+    if (showState){
+      if (demandMarkerGroupCovered && demandMap.hasLayer(demandMarkerGroupCovered)) demandMap.removeLayer(demandMarkerGroupCovered);
+      if (demandMarkerGroupUncovered && demandMap.hasLayer(demandMarkerGroupUncovered)) demandMap.removeLayer(demandMarkerGroupUncovered);
+      if (demandStateLayer && !demandMap.hasLayer(demandStateLayer)) demandStateLayer.addTo(demandMap);
+    } else {
+      if (demandStateLayer && demandMap.hasLayer(demandStateLayer)) demandMap.removeLayer(demandStateLayer);
+      // Con cobertura primero, sin cobertura después: queda visualmente encima
+      // (mayor prioridad visual para la demanda SIN COBERTURA, ya establecido).
+      if (demandMarkerGroupCovered && !demandMap.hasLayer(demandMarkerGroupCovered)) demandMarkerGroupCovered.addTo(demandMap);
+      if (demandMarkerGroupUncovered && !demandMap.hasLayer(demandMarkerGroupUncovered)) demandMarkerGroupUncovered.addTo(demandMap);
+    }
+  }
+
   function ensureDemandMap(){
     if (demandMap) return;
     demandMap = L.map('demandMap', {
@@ -2439,6 +2528,7 @@
       subdomains: 'abc',
       maxZoom: 19
     }).addTo(demandMap);
+    demandMap.on('zoomend', applyDemandZoomLayer);
   }
 
   // Tendencia simple: últimos 30 días contra los 30 días anteriores (31-60).
@@ -2592,6 +2682,7 @@
       renderOpportunitiesList([]);
       if (demandMarkerGroupCovered){ demandMap.removeLayer(demandMarkerGroupCovered); demandMarkerGroupCovered = null; }
       if (demandMarkerGroupUncovered){ demandMap.removeLayer(demandMarkerGroupUncovered); demandMarkerGroupUncovered = null; }
+      if (demandStateLayer){ demandMap.removeLayer(demandStateLayer); demandStateLayer = null; }
       return;
     }
     demandStatusMsgEl.classList.remove('error');
@@ -2618,6 +2709,7 @@
 
     if (demandMarkerGroupCovered){ demandMap.removeLayer(demandMarkerGroupCovered); demandMarkerGroupCovered = null; }
     if (demandMarkerGroupUncovered){ demandMap.removeLayer(demandMarkerGroupUncovered); demandMarkerGroupUncovered = null; }
+    if (demandStateLayer){ demandMap.removeLayer(demandStateLayer); demandStateLayer = null; }
 
     var plottable = stats.filteredRows.filter(function(r){ return r.hasValidCoords; });
     if (!plottable.length){
@@ -2655,13 +2747,14 @@
       targetGroup.addLayer(marker);
     });
 
-    // Con cobertura primero, sin cobertura después: queda visualmente encima
-    // (mayor prioridad visual para la demanda SIN COBERTURA, pedido explícito).
-    demandMarkerGroupCovered.addTo(demandMap);
-    demandMarkerGroupUncovered.addTo(demandMap);
+    demandStateLayer = buildDemandStateLayer(buildDemandStateAggregation(plottable));
 
     var bounds = L.latLngBounds(plottable.map(function(r){ return [r.lat, r.lng]; }));
     demandMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+
+    // La capa que corresponde (agregada por estado o clustering normal) se
+    // decide según el zoom resultante de fitBounds — nunca ambas a la vez.
+    applyDemandZoomLayer();
   }
 
   function computeDjsStats(){
