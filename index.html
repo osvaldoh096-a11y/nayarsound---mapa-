@@ -518,6 +518,45 @@
   }
   .leaflet-control-zoom a:hover{ background:#0f1c22 !important; }
 
+  /* Banner "modo estado" en el mapa de DEMANDA: nombre del estado activo +
+     botón para volver a la vista nacional. Oculto por defecto (vista
+     nacional); visible solo mientras se navega un estado. */
+  .demand-state-banner{
+    display:none;
+    align-items:center;
+    gap:8px;
+    background:rgba(10,18,22,0.94);
+    border:1px solid var(--cyan);
+    border-radius:6px;
+    padding:7px 10px;
+    margin:10px;
+    box-shadow:0 0 12px rgba(0,224,255,0.25);
+  }
+  .demand-state-banner.visible{ display:flex; }
+  .demand-state-banner-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    color:var(--cyan);
+    white-space:nowrap;
+  }
+  .demand-state-banner-exit{
+    appearance:none;
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:4px;
+    color:var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:0.03em;
+    padding:4px 8px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .demand-state-banner-exit:hover{ color:var(--text); border-color:var(--cyan); background:rgba(0,224,255,0.08); }
+
   /* punto individual */
   .event-marker{
     display:block;
@@ -1418,6 +1457,14 @@
   var demandMarkerGroupUncovered = null;
   var demandStateLayer = null; // vista agregada por estado (zoom alejado)
   var demandGroupsByKey = {}; // cache del último computeDemandStats(), para clicks en mapa/lista
+  var demandOutlineLayer = null; // contornos reales de los 32 estados, siempre visibles de fondo
+  var demandActiveStateOutline = null; // contorno resaltado del estado activo en "modo estado"
+  var demandStateBannerControl = null; // control Leaflet con el nombre del estado activo + botón "volver a México"
+  var demandStateModeGroupCovered = null; // clusters filtrados al estado activo (modo estado)
+  var demandStateModeGroupUncovered = null;
+  var demandViewMode = 'NATIONAL'; // 'NATIONAL' | 'STATE'
+  var demandActiveStateKey = null;
+  var demandPlottableRows = []; // último conjunto de filas con coordenadas válidas renderizado
 
   // Zona urbana FIJA por ciudad: centro + bounding box en km, totalmente independiente
   // de dónde estén los eventos. Esto evita que localidades lejanas (San Blas, Compostela,
@@ -1627,6 +1674,98 @@
       }
     }
     return { key: null, display: null, matched: false };
+  }
+
+  // Índice del GeoJSON por clave de estado (misma clave que usa estadoKey),
+  // para poder tomar el contorno/geometría real de un estado dado su key —
+  // usado por la navegación "modo estado" del mapa de DEMANDA.
+  var STATE_GEOJSON_BY_KEY = null;
+  function getStateGeoJsonByKey(){
+    if (STATE_GEOJSON_BY_KEY) return STATE_GEOJSON_BY_KEY;
+    STATE_GEOJSON_BY_KEY = {};
+    MEXICO_STATES_GEOJSON.features.forEach(function(f){
+      var key = normalizeGeoText(f.properties.name);
+      var aliasKey = STATE_ALIASES[key] || key;
+      if (MEXICAN_STATES_DISPLAY[aliasKey]) STATE_GEOJSON_BY_KEY[aliasKey] = f;
+    });
+    return STATE_GEOJSON_BY_KEY;
+  }
+
+  // Centroide (área-ponderada, fórmula estándar del polígono) de un anillo
+  // [[lng,lat], ...]. Si el área es ~0 (anillo degenerado), cae a un promedio
+  // simple de vértices.
+  function polygonRingArea(ring){
+    var sum = 0;
+    for (var i = 0; i < ring.length; i++){
+      var j = (i + 1) % ring.length;
+      sum += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+    }
+    return sum / 2;
+  }
+  function polygonRingCentroid(ring){
+    var area = polygonRingArea(ring);
+    if (Math.abs(area) < 1e-12){
+      var sx = 0, sy = 0;
+      for (var i = 0; i < ring.length; i++){ sx += ring[i][0]; sy += ring[i][1]; }
+      return { lng: sx / ring.length, lat: sy / ring.length };
+    }
+    var cx = 0, cy = 0;
+    for (var i = 0; i < ring.length; i++){
+      var j = (i + 1) % ring.length;
+      var cross = ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+      cx += (ring[i][0] + ring[j][0]) * cross;
+      cy += (ring[i][1] + ring[j][1]) * cross;
+    }
+    return { lng: cx / (6 * area), lat: cy / (6 * area) };
+  }
+
+  // Punto representativo de un estado: el centroide de su anillo exterior
+  // más grande (la masa de tierra principal, ignorando islas menores en
+  // MultiPolygon). Si ese centroide cae fuera del polígono (formas muy
+  // cóncavas), se busca con una rejilla el punto interior más cercano al
+  // centroide — nunca se coloca el punto agregado fuera del territorio real
+  // del estado.
+  function getStateRepresentativePoint(geometry){
+    var outerRings = geometry.type === 'Polygon' ? [geometry.coordinates[0]] : geometry.coordinates.map(function(part){ return part[0]; });
+    var mainRing = null, mainArea = -1;
+    outerRings.forEach(function(ring){
+      var area = Math.abs(polygonRingArea(ring));
+      if (area > mainArea){ mainArea = area; mainRing = ring; }
+    });
+    var centroid = polygonRingCentroid(mainRing);
+    if (pointInPolygonGeom(centroid.lat, centroid.lng, geometry)){
+      return { lat: centroid.lat, lng: centroid.lng };
+    }
+    var minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+    mainRing.forEach(function(pt){
+      if (pt[1] < minLat) minLat = pt[1];
+      if (pt[1] > maxLat) maxLat = pt[1];
+      if (pt[0] < minLng) minLng = pt[0];
+      if (pt[0] > maxLng) maxLng = pt[0];
+    });
+    var steps = 24, closest = null, closestDist = Infinity;
+    for (var i = 0; i <= steps; i++){
+      for (var j = 0; j <= steps; j++){
+        var lat = minLat + (maxLat - minLat) * (i / steps);
+        var lng = minLng + (maxLng - minLng) * (j / steps);
+        if (pointInPolygonGeom(lat, lng, geometry)){
+          var d = (lat - centroid.lat) * (lat - centroid.lat) + (lng - centroid.lng) * (lng - centroid.lng);
+          if (d < closestDist){ closestDist = d; closest = { lat: lat, lng: lng }; }
+        }
+      }
+    }
+    return closest || centroid;
+  }
+
+  var STATE_REPRESENTATIVE_POINTS = null;
+  function getStateRepresentativePoints(){
+    if (STATE_REPRESENTATIVE_POINTS) return STATE_REPRESENTATIVE_POINTS;
+    STATE_REPRESENTATIVE_POINTS = {};
+    var geoByKey = getStateGeoJsonByKey();
+    Object.keys(geoByKey).forEach(function(key){
+      STATE_REPRESENTATIVE_POINTS[key] = getStateRepresentativePoint(geoByKey[key].geometry);
+    });
+    return STATE_REPRESENTATIVE_POINTS;
   }
 
   // ================= CIUDADES CON COBERTURA (página DEMANDA) =================
@@ -2461,38 +2600,39 @@
   }
 
   // Agrega las solicitudes graficables por estado (solo las que tienen ESTADO
-  // resuelto — sin inventar un punto para "dato por revisar"). El centroide es
-  // el promedio de las coordenadas reales ya capturadas, no una coordenada
-  // nueva inventada. "covered" solo es true si TODA la demanda del estado cae
-  // en ciudades con cobertura — prioridad visual a SIN COBERTURA, igual que en
-  // el resto de la página.
+  // resuelto — sin inventar un punto para "dato por revisar"). La posición del
+  // punto agregado es el punto representativo/centroide real del territorio
+  // del estado (ver getStateRepresentativePoints), NUNCA el promedio de las
+  // coordenadas de las solicitudes — así no se amontonan ni se desplazan según
+  // dónde caiga la demanda real. "covered" solo es true si TODA la demanda del
+  // estado cae en ciudades con cobertura — prioridad visual a SIN COBERTURA,
+  // igual que en el resto de la página.
   function buildDemandStateAggregation(rows){
     var groups = {};
     var order = [];
     rows.forEach(function(r){
       if (!r.estadoKey) return;
       if (!groups[r.estadoKey]){
-        groups[r.estadoKey] = { estadoKey: r.estadoKey, estadoDisplay: r.estadoDisplay, total: 0, uncoveredCount: 0, sumLat: 0, sumLng: 0, n: 0 };
+        groups[r.estadoKey] = { estadoKey: r.estadoKey, estadoDisplay: r.estadoDisplay, total: 0, uncoveredCount: 0 };
         order.push(r.estadoKey);
       }
       var g = groups[r.estadoKey];
       g.total++;
       if (!r.covered) g.uncoveredCount++;
-      g.sumLat += r.lat;
-      g.sumLng += r.lng;
-      g.n++;
     });
+    var representativePoints = getStateRepresentativePoints();
     return order.map(function(k){
       var g = groups[k];
+      var rp = representativePoints[k];
       return {
         estadoKey: g.estadoKey,
         estadoDisplay: g.estadoDisplay,
         total: g.total,
         covered: g.uncoveredCount === 0,
-        lat: g.sumLat / g.n,
-        lng: g.sumLng / g.n
+        lat: rp ? rp.lat : null,
+        lng: rp ? rp.lng : null
       };
-    });
+    }).filter(function(sg){ return sg.lat != null && sg.lng != null; });
   }
 
   function buildDemandStateLayer(stateGroups){
@@ -2501,11 +2641,9 @@
       var iconInfo = demandCountIconHtml(sg.total, sg.covered);
       var icon = L.divIcon({ html: iconInfo.html, className: '', iconSize: L.point(iconInfo.size, iconInfo.size) });
       var marker = L.marker([sg.lat, sg.lng], { icon: icon })
-        .bindPopup('<b>' + escapeHtml(sg.estadoDisplay) + '</b><br>' + sg.total + ' solicitud' + (sg.total === 1 ? '' : 'es'));
+        .bindPopup('<b>' + escapeHtml(sg.estadoDisplay) + '</b><br>' + sg.total + ' solicitud' + (sg.total === 1 ? '' : 'es') + '<br><i>Click para ver el detalle del estado</i>');
       marker.on('click', function(){
-        // Zoom in a la zona del estado, donde ya aplica el clustering normal
-        // por solicitud — forma natural de "desagrupar" sin esperar al scroll.
-        demandMap.setView([sg.lat, sg.lng], DEMAND_STATE_ZOOM_MAX + 2);
+        enterDemandStateMode(sg.estadoKey);
       });
       layer.addLayer(marker);
     });
@@ -2514,8 +2652,10 @@
 
   // Decide, según el zoom actual, si se muestra la vista agregada por estado
   // o las capas normales de clustering por solicitud — nunca ambas a la vez.
+  // No actúa si ya se está en "modo estado": ahí la visibilidad de capas la
+  // controla enterDemandStateMode/exitDemandStateMode, no el zoom.
   function applyDemandZoomLayer(){
-    if (!demandMap) return;
+    if (!demandMap || demandViewMode === 'STATE') return;
     var showState = demandMap.getZoom() <= DEMAND_STATE_ZOOM_MAX;
 
     if (showState){
@@ -2531,6 +2671,121 @@
     }
   }
 
+  // Construye un par de marker cluster groups (con cobertura / sin cobertura)
+  // a partir de un conjunto de filas ya filtradas — reutilizado tanto por la
+  // vista nacional (todas las filas graficables) como por el "modo estado"
+  // (filas de un solo estado), para no duplicar la lógica de íconos/popups.
+  function buildDemandMarkerGroups(rows){
+    var covered = L.markerClusterGroup({
+      iconCreateFunction: createDemandClusterIconCovered,
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 50
+    });
+    var uncovered = L.markerClusterGroup({
+      iconCreateFunction: createDemandClusterIcon,
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 50
+    });
+    rows.forEach(function(r){
+      var key = (r.estadoKey || 'SIN_ESTADO') + '|' + r.municipioNorm;
+      var icon = r.covered ? demandDivIconCovered : demandDivIcon;
+      var targetGroup = r.covered ? covered : uncovered;
+      var popupHtml = '<b>' + escapeHtml(r.municipioRaw || '(sin municipio)') + '</b>' +
+        (r.estadoDisplay ? ' — ' + escapeHtml(r.estadoDisplay) : (r.needsReview ? ' — <i>dato por revisar</i>' : '')) +
+        (r.date ? '<br>' + escapeHtml(formatDateEs(r.date)) : '');
+      var marker = L.marker([r.lat, r.lng], { icon: icon }).bindPopup(popupHtml);
+      marker.on('click', function(){
+        var g = demandGroupsByKey[key];
+        if (g) showDemandDetail(g);
+      });
+      targetGroup.addLayer(marker);
+    });
+    return { covered: covered, uncovered: uncovered };
+  }
+
+  // ---- "Modo estado": navegación de un estado a la vez ----
+  // Al entrar, se oculta toda la demás demanda (aunque esté geográficamente
+  // cerca de la frontera) y solo se muestra la distribución real de ese
+  // estado, con su contorno resaltado siempre visible como referencia — así
+  // nunca se pierde de vista qué estado se está analizando, incluso haciendo
+  // zoom hasta municipios/puntos reales.
+  function rebuildDemandStateModeGroups(estadoKey){
+    if (demandStateModeGroupCovered){ demandMap.removeLayer(demandStateModeGroupCovered); demandStateModeGroupCovered = null; }
+    if (demandStateModeGroupUncovered){ demandMap.removeLayer(demandStateModeGroupUncovered); demandStateModeGroupUncovered = null; }
+    var rows = demandPlottableRows.filter(function(r){ return r.estadoKey === estadoKey; });
+    var built = buildDemandMarkerGroups(rows);
+    demandStateModeGroupCovered = built.covered;
+    demandStateModeGroupUncovered = built.uncovered;
+    demandStateModeGroupCovered.addTo(demandMap);
+    demandStateModeGroupUncovered.addTo(demandMap);
+  }
+
+  function highlightDemandState(estadoKey){
+    if (demandActiveStateOutline){ demandMap.removeLayer(demandActiveStateOutline); demandActiveStateOutline = null; }
+    var feature = getStateGeoJsonByKey()[estadoKey];
+    if (!feature) return;
+    demandActiveStateOutline = L.geoJSON(feature, {
+      style: function(){ return { color: '#00e0ff', weight: 3, opacity: 0.9, fillColor: '#00e0ff', fillOpacity: 0.05 }; },
+      interactive: false
+    }).addTo(demandMap);
+  }
+
+  function showDemandStateBanner(estadoKey){
+    var label = document.getElementById('demandStateBannerLabel');
+    if (label) label.textContent = (MEXICAN_STATES_DISPLAY[estadoKey] || estadoKey).toUpperCase();
+    var el = document.querySelector('.demand-state-banner');
+    if (el) el.classList.add('visible');
+  }
+
+  function hideDemandStateBanner(){
+    var el = document.querySelector('.demand-state-banner');
+    if (el) el.classList.remove('visible');
+  }
+
+  // Limpia el "modo estado" sin tocar el encuadre del mapa — lo usa tanto
+  // exitDemandStateMode (que sí reencuadra a México) como renderDemandPage al
+  // reconstruir todo tras un cambio de filtro (que reencuadra por su cuenta).
+  function resetDemandViewMode(){
+    demandViewMode = 'NATIONAL';
+    demandActiveStateKey = null;
+    if (demandStateModeGroupCovered){ demandMap.removeLayer(demandStateModeGroupCovered); demandStateModeGroupCovered = null; }
+    if (demandStateModeGroupUncovered){ demandMap.removeLayer(demandStateModeGroupUncovered); demandStateModeGroupUncovered = null; }
+    if (demandActiveStateOutline){ demandMap.removeLayer(demandActiveStateOutline); demandActiveStateOutline = null; }
+    hideDemandStateBanner();
+  }
+
+  function enterDemandStateMode(estadoKey){
+    if (!demandMap || !estadoKey) return;
+    demandViewMode = 'STATE';
+    demandActiveStateKey = estadoKey;
+
+    if (demandStateLayer && demandMap.hasLayer(demandStateLayer)) demandMap.removeLayer(demandStateLayer);
+    if (demandMarkerGroupCovered && demandMap.hasLayer(demandMarkerGroupCovered)) demandMap.removeLayer(demandMarkerGroupCovered);
+    if (demandMarkerGroupUncovered && demandMap.hasLayer(demandMarkerGroupUncovered)) demandMap.removeLayer(demandMarkerGroupUncovered);
+
+    rebuildDemandStateModeGroups(estadoKey);
+    highlightDemandState(estadoKey);
+    showDemandStateBanner(estadoKey);
+
+    var feature = getStateGeoJsonByKey()[estadoKey];
+    if (feature){
+      var boundsLayer = L.geoJSON(feature);
+      demandMap.fitBounds(boundsLayer.getBounds(), { padding: [24, 24] });
+    }
+  }
+
+  function exitDemandStateMode(){
+    if (!demandMap) return;
+    resetDemandViewMode();
+    if (demandPlottableRows.length){
+      var bounds = L.latLngBounds(demandPlottableRows.map(function(r){ return [r.lat, r.lng]; }));
+      demandMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+    }
+    applyDemandZoomLayer();
+  }
+
   function ensureDemandMap(){
     if (demandMap) return;
     demandMap = L.map('demandMap', {
@@ -2544,6 +2799,30 @@
       subdomains: 'abc',
       maxZoom: 19
     }).addTo(demandMap);
+
+    // Contornos reales de los 32 estados, siempre visibles de fondo (tanto en
+    // vista nacional como dentro de "modo estado") — referencia geográfica
+    // constante, independiente del punto agregado o del clustering.
+    demandOutlineLayer = L.geoJSON(MEXICO_STATES_GEOJSON, {
+      style: function(){ return { color: '#2f5560', weight: 1, opacity: 0.55, fillOpacity: 0 }; },
+      interactive: false
+    }).addTo(demandMap);
+
+    var DemandStateBanner = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function(){
+        var div = L.DomUtil.create('div', 'demand-state-banner');
+        div.innerHTML = '<span class="demand-state-banner-label" id="demandStateBannerLabel"></span>' +
+          '<button type="button" class="demand-state-banner-exit" id="demandStateBannerExit">✕ Volver a México</button>';
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        return div;
+      }
+    });
+    demandStateBannerControl = new DemandStateBanner();
+    demandStateBannerControl.addTo(demandMap);
+    document.getElementById('demandStateBannerExit').addEventListener('click', exitDemandStateMode);
+
     demandMap.on('zoomend', applyDemandZoomLayer);
   }
 
@@ -2684,6 +2963,10 @@
 
   function renderDemandPage(){
     ensureDemandMap();
+    // Cualquier reconstrucción de la página (nueva data o cambio de filtro)
+    // vuelve a la vista nacional — el "modo estado" es navegación efímera del
+    // mapa, no un filtro persistente de KPIs/ranking.
+    resetDemandViewMode();
 
     var kpiEls = [demandKpiTotalEl, demandKpiSinCoberturaEl, demandKpiMunicipiosEl, demandKpiTopOpportunityEl];
 
@@ -2699,6 +2982,7 @@
       if (demandMarkerGroupCovered){ demandMap.removeLayer(demandMarkerGroupCovered); demandMarkerGroupCovered = null; }
       if (demandMarkerGroupUncovered){ demandMap.removeLayer(demandMarkerGroupUncovered); demandMarkerGroupUncovered = null; }
       if (demandStateLayer){ demandMap.removeLayer(demandStateLayer); demandStateLayer = null; }
+      demandPlottableRows = [];
       return;
     }
     demandStatusMsgEl.classList.remove('error');
@@ -2728,6 +3012,7 @@
     if (demandStateLayer){ demandMap.removeLayer(demandStateLayer); demandStateLayer = null; }
 
     var plottable = stats.filteredRows.filter(function(r){ return r.hasValidCoords; });
+    demandPlottableRows = plottable;
     if (!plottable.length){
       demandStatusMsgEl.textContent = 'No hay solicitudes con coordenadas para este filtro.';
       return;
@@ -2735,33 +3020,9 @@
 
     demandStatusMsgEl.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX');
 
-    demandMarkerGroupCovered = L.markerClusterGroup({
-      iconCreateFunction: createDemandClusterIconCovered,
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-      maxClusterRadius: 50
-    });
-    demandMarkerGroupUncovered = L.markerClusterGroup({
-      iconCreateFunction: createDemandClusterIcon,
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-      maxClusterRadius: 50
-    });
-
-    plottable.forEach(function(r){
-      var key = (r.estadoKey || 'SIN_ESTADO') + '|' + r.municipioNorm;
-      var icon = r.covered ? demandDivIconCovered : demandDivIcon;
-      var targetGroup = r.covered ? demandMarkerGroupCovered : demandMarkerGroupUncovered;
-      var popupHtml = '<b>' + escapeHtml(r.municipioRaw || '(sin municipio)') + '</b>' +
-        (r.estadoDisplay ? ' — ' + escapeHtml(r.estadoDisplay) : (r.needsReview ? ' — <i>dato por revisar</i>' : '')) +
-        (r.date ? '<br>' + escapeHtml(formatDateEs(r.date)) : '');
-      var marker = L.marker([r.lat, r.lng], { icon: icon }).bindPopup(popupHtml);
-      marker.on('click', function(){
-        var g = demandGroupsByKey[key];
-        if (g) showDemandDetail(g);
-      });
-      targetGroup.addLayer(marker);
-    });
+    var builtGroups = buildDemandMarkerGroups(plottable);
+    demandMarkerGroupCovered = builtGroups.covered;
+    demandMarkerGroupUncovered = builtGroups.uncovered;
 
     demandStateLayer = buildDemandStateLayer(buildDemandStateAggregation(plottable));
 
