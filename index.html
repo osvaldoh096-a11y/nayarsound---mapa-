@@ -1423,12 +1423,15 @@
     center: [21.3, -104.2],
     zoom: 8,
     // Sensibilidad de zoom reducida: cada clic en +/- o notch de scroll avanza
-    // medio nivel en vez de uno completo, y el scroll/trackpad necesita el
-    // doble de recorrido por nivel — así el acercar/alejar se siente gradual,
-    // no un salto brusco.
+    // medio nivel en vez de uno completo. wheelPxPerZoomLevel alto (Leaflet
+    // acumula el scroll de una ráfaga y lo aplica con una curva que satura en
+    // ±4 niveles — con el valor por defecto, una ráfaga normal de trackpad ya
+    // se acerca a ese tope, y entre más sigues deslizando más grande es cada
+    // ráfaga acumulada, por eso "el segundo salto se siente más fuerte que el
+    // primero". Subirlo bastante aplana esa curva para tener control real.
     zoomSnap: 0.5,
     zoomDelta: 0.5,
-    wheelPxPerZoomLevel: 120
+    wheelPxPerZoomLevel: 500
   });
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -3012,7 +3015,7 @@
       // Misma sensibilidad reducida que el mapa principal (ver comentario ahí).
       zoomSnap: 0.5,
       zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 120
+      wheelPxPerZoomLevel: 500
     });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
