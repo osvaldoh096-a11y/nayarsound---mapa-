@@ -3060,11 +3060,11 @@
     // delgado y brillante encima) para que la división se note de verdad
     // sobre el mapa base, aunque esté lleno de círculos de demanda.
     L.geoJSON(MEXICO_STATES_GEOJSON, {
-      style: function(){ return { color: '#0a84ff', weight: 7, opacity: 0.35, fillOpacity: 0 }; },
+      style: function(){ return { color: '#0a84ff', weight: 3.5, opacity: 0.35, fillOpacity: 0 }; },
       interactive: false
     }).addTo(demandMap);
     demandOutlineLayer = L.geoJSON(MEXICO_STATES_GEOJSON, {
-      style: function(){ return { color: '#4db8ff', weight: 2.5, opacity: 1, fillOpacity: 0 }; },
+      style: function(){ return { color: '#4db8ff', weight: 1.5, opacity: 1, fillOpacity: 0 }; },
       interactive: false
     }).addTo(demandMap);
 
