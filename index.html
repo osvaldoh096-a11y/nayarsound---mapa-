@@ -1084,6 +1084,60 @@
   }
   .dj-tool-search-btn.secondary:hover{ background:rgba(0,224,255,0.16); }
 
+  #demandReviewBadge{ cursor:pointer; }
+  #demandReviewBadge:hover{ background:rgba(255,138,61,0.14); }
+
+  .review-modal-card{ width:760px; }
+  .review-summary{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    padding:10px 0;
+  }
+  .review-summary-item{
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:7px 10px;
+    flex:1;
+    min-width:160px;
+  }
+  .review-summary-label{ font-size:9.5px; color:var(--muted); letter-spacing:0.04em; }
+  .review-summary-value{ font-size:17px; font-weight:700; color:#ff8a3d; font-family:'Space Grotesk', sans-serif; }
+  .review-summary-note{ font-size:10px; color:var(--muted); width:100%; }
+  .review-list{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    overflow-y:auto;
+    max-height:48vh;
+  }
+  .review-row{
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:8px 10px;
+    font-size:11px;
+  }
+  .review-row-main{ display:flex; justify-content:space-between; gap:8px; color:var(--text); font-weight:700; }
+  .review-row-sub{ color:var(--muted); font-size:10.5px; margin-top:2px; }
+  .review-row-reasons{ display:flex; gap:6px; flex-wrap:wrap; margin-top:5px; }
+  .review-reason-tag{
+    font-size:9px;
+    padding:2px 6px;
+    border-radius:3px;
+    background:rgba(255,138,61,0.14);
+    color:#ff8a3d;
+    border:1px solid rgba(255,138,61,0.4);
+    white-space:nowrap;
+  }
+  .review-list-note{ font-size:10px; color:var(--muted); text-align:center; padding-top:4px; }
+
+  @media (max-width: 640px){
+    .review-modal-card{ width:100%; }
+  }
+
   @media (max-width: 640px){
     .dj-tool-panel{ width:290px; }
   }
@@ -1326,6 +1380,18 @@
           <button id="convertOpenBtn" class="dj-tool-search-btn secondary" type="button">ABRIR EN GOOGLE MAPS</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="reviewModalOverlay" class="modal-overlay">
+    <div class="modal-card review-modal-card">
+      <div class="modal-header">
+        <span>DATOS POR REVISAR</span>
+        <button id="reviewModalClose" class="dj-tool-close" type="button" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="dj-tool-msg">Solicitudes rechazadas (del filtro actual) que no se pudieron ubicar del todo — el texto es tal cual está en la hoja, para encontrarlas fácil.</div>
+      <div id="reviewModalSummary" class="review-summary"></div>
+      <div id="reviewModalList" class="review-list"></div>
     </div>
   </div>
 </div>
@@ -2688,6 +2754,7 @@
                 estadoDisplay: estadoResolved.display,
                 municipioRaw: municipioRaw ? String(municipioRaw).trim() : '',
                 municipioNorm: municipioNorm,
+                coordRaw: coordRaw ? String(coordRaw).trim() : '', // texto crudo, solo para mostrar en "datos por revisar"
                 lat: hasValidCoords ? coord.lat : null,
                 lng: hasValidCoords ? coord.lng : null,
                 hasValidCoords: hasValidCoords,
@@ -3239,6 +3306,68 @@
         '</div>' +
       '</div>';
     }).join('');
+  }
+
+  // ================= MODAL "DATOS POR REVISAR" =================
+  // Desglose + lista de las solicitudes marcadas needsReview dentro del
+  // filtro actual (mismo ESTADO/PERIODO que el resto de la página) — texto
+  // tal cual está en la hoja, para poder encontrarlas y corregirlas ahí.
+  // Solo diagnostica: nunca escribe en Google Sheets.
+  var REVIEW_LIST_MAX_ROWS = 300;
+  var REVIEW_REASON_LABELS = {
+    coordenadas: 'SIN COORDENADA',
+    estado: 'COORDENADA NO RECONOCIDA',
+    municipio: 'SIN MUNICIPIO'
+  };
+
+  function buildReviewRowHtml(r){
+    var tags = r.reviewReasons.map(function(reason){
+      return '<span class="review-reason-tag">' + escapeHtml(REVIEW_REASON_LABELS[reason] || reason) + '</span>';
+    }).join('');
+    var fechaLabel = r.date ? formatDateEs(r.date) : 'sin fecha';
+    var estadoLabel = r.estadoRaw || '(ESTADO vacío)';
+    var municipioLabel = r.municipioRaw || '(MUNICIPIO vacío)';
+    var coordLabel = r.coordRaw || '(COORDENADAS vacío)';
+    return '<div class="review-row">' +
+      '<div class="review-row-main"><span>' + escapeHtml(estadoLabel) + ' — ' + escapeHtml(municipioLabel) + '</span><span>' + escapeHtml(fechaLabel) + '</span></div>' +
+      '<div class="review-row-sub">Coordenadas: ' + escapeHtml(coordLabel) + '</div>' +
+      '<div class="review-row-reasons">' + tags + '</div>' +
+    '</div>';
+  }
+
+  function openReviewModal(){
+    var rows = getFilteredDemandRequests().filter(function(r){ return r.needsReview; });
+
+    var sinCoordenadas = rows.filter(function(r){ return r.reviewReasons.indexOf('coordenadas') !== -1; }).length;
+    // "coordenada no reconocida" se cuenta aparte de "sin coordenada" — todo
+    // registro sin coordenada ya trae 'estado' como motivo también (no se
+    // pudo resolver), así que sin este filtro se duplicarían.
+    var estadoNoReconocido = rows.filter(function(r){
+      return r.reviewReasons.indexOf('estado') !== -1 && r.reviewReasons.indexOf('coordenadas') === -1;
+    }).length;
+    var sinMunicipio = rows.filter(function(r){ return r.reviewReasons.indexOf('municipio') !== -1; }).length;
+
+    document.getElementById('reviewModalSummary').innerHTML =
+      '<div class="review-summary-item"><div class="review-summary-label">TOTAL POR REVISAR</div><div class="review-summary-value">' + rows.length + '</div></div>' +
+      '<div class="review-summary-item"><div class="review-summary-label">SIN COORDENADA</div><div class="review-summary-value">' + sinCoordenadas + '</div></div>' +
+      '<div class="review-summary-item"><div class="review-summary-label">COORDENADA NO RECONOCIDA</div><div class="review-summary-value">' + estadoNoReconocido + '</div></div>' +
+      '<div class="review-summary-item"><div class="review-summary-label">SIN MUNICIPIO</div><div class="review-summary-value">' + sinMunicipio + '</div></div>' +
+      '<div class="review-summary-note">Un registro puede faltar más de una cosa a la vez, por eso los 3 de arriba pueden sumar más que el total.</div>';
+
+    var listEl = document.getElementById('reviewModalList');
+    if (!rows.length){
+      listEl.innerHTML = '<div class="djs-status-msg">No hay datos por revisar para este filtro.</div>';
+    } else {
+      var shown = rows.slice(0, REVIEW_LIST_MAX_ROWS);
+      listEl.innerHTML = shown.map(buildReviewRowHtml).join('') +
+        (rows.length > shown.length ? '<div class="review-list-note">Mostrando ' + shown.length + ' de ' + rows.length + '.</div>' : '');
+    }
+
+    reviewModalOverlay.classList.add('visible');
+  }
+
+  function closeReviewModal(){
+    reviewModalOverlay.classList.remove('visible');
   }
 
   function renderDemandPage(){
@@ -4908,6 +5037,10 @@
   var convertCopyBtn     = document.getElementById('convertCopyBtn');
   var convertOpenBtn     = document.getElementById('convertOpenBtn');
 
+  var reviewModalOverlay = document.getElementById('reviewModalOverlay');
+  var reviewModalClose   = document.getElementById('reviewModalClose');
+  var demandReviewBadgeEl= document.getElementById('demandReviewBadge');
+
   function setConvertMsg(msg, isError){
     convertMsgEl.textContent = msg || '';
     convertMsgEl.classList.toggle('error', !!isError);
@@ -5007,6 +5140,12 @@
   convertModalClose.addEventListener('click', closeConvertModal);
   convertModalOverlay.addEventListener('click', function(ev){
     if (ev.target === convertModalOverlay) closeConvertModal();
+  });
+
+  demandReviewBadgeEl.addEventListener('click', openReviewModal);
+  reviewModalClose.addEventListener('click', closeReviewModal);
+  reviewModalOverlay.addEventListener('click', function(ev){
+    if (ev.target === reviewModalOverlay) closeReviewModal();
   });
   convertBtn.addEventListener('click', handleConvert);
   convertInput.addEventListener('keydown', function(ev){
