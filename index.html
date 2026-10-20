@@ -1262,10 +1262,6 @@
         <div class="djs-kpi-value" id="djsKpiEvents">—</div>
       </div>
       <div class="djs-kpi">
-        <div class="djs-kpi-label">TOTAL HORAS EXTRA</div>
-        <div class="djs-kpi-value" id="djsKpiHours">—</div>
-      </div>
-      <div class="djs-kpi">
         <div class="djs-kpi-label">TOTAL GENERADO</div>
         <div class="djs-kpi-value" id="djsKpiGenerado">—</div>
       </div>
@@ -1282,7 +1278,7 @@
     <div class="djs-table-wrap">
       <table class="djs-table">
         <thead>
-          <tr><th>DJ</th><th>EVENTOS</th><th>HORAS EXTRA</th><th>GENERADO</th><th>PAGADO</th><th>GANANCIA</th></tr>
+          <tr><th>DJ</th><th>EVENTOS</th><th>GENERADO</th><th>PAGADO</th><th>GANANCIA</th></tr>
         </thead>
         <tbody id="djsTableBody"></tbody>
       </table>
@@ -1447,7 +1443,6 @@
   var VENTAS_FECHA_COL_IDX     = 4;  // E
   var VENTAS_GENERADO_COL_IDX  = 8;  // I — "AL EVENTO" (total generado por el evento)
   var VENTAS_PAGADO_COL_IDX    = 11; // L — "DJ" (repetido): monto pagado al DJ
-  var VENTAS_GANANCIA_COL_IDX  = 13; // N — "GANANCIA 2" (ganancia neta de Osvaldo)
   var VENTAS_REALIZADO_COL_IDX = 15; // P — REALIZADO, usada solo para ubicar la fila de encabezados
                                       // (findVentasHeaderRowIndex); los montos ya NO se filtran por
                                       // esta columna — se piden datos generales, con todo lo capturado.
@@ -1470,7 +1465,6 @@
 
   var djsKpiCountEl = document.getElementById('djsKpiCount');
   var djsKpiEventsEl = document.getElementById('djsKpiEvents');
-  var djsKpiHoursEl = document.getElementById('djsKpiHours');
   var djsKpiGeneradoEl = document.getElementById('djsKpiGenerado');
   var djsKpiPagadoEl = document.getElementById('djsKpiPagado');
   var djsKpiGananciaEl = document.getElementById('djsKpiGanancia');
@@ -1593,9 +1587,9 @@
 
   // ---- Estado de la página independiente "DJS" (estadísticas desde AGENDA) ----
   var currentPage = 'mapa'; // 'mapa' | 'djs'
-  var djAgendaRows = [];    // [{cityNorm, djKey, djName, date, realizado, horasExtra}]
-  var djAgendaStatsError = null; // mensaje si no se pudieron leer REALIZADO/HORAS EXTRA por nombre de encabezado
-  var djVentasRows = [];    // [{cityNorm, djKey, djName, date, generado, pagado, ganancia}] — solo filas REALIZADO=SI
+  var djAgendaRows = [];    // [{cityNorm, djKey, djName, date, realizado}]
+  var djAgendaStatsError = null; // mensaje si no se pudo leer REALIZADO por nombre de encabezado
+  var djVentasRows = [];    // [{cityNorm, djKey, djName, date, generado, pagado}] — sin filtrar por REALIZADO
   var djVentasStatsError = null; // mensaje si no se pudo leer la hoja externa de ventas/pagos
   var djsCityFilter = 'GLOBAL';
   var djsPeriodFilter = 'CURRENT_MONTH';
@@ -2011,21 +2005,11 @@
     return -1;
   }
 
-  // Convierte el valor crudo de la columna "Horas Extra" a número: ya puede venir
-  // como número (gviz detecta el tipo de columna) o como texto con coma decimal;
-  // vacío/no numérico cuenta como 0, nunca como NaN.
-  function parseHorasExtra(raw){
-    if (raw == null || raw === '') return 0;
-    var n = (typeof raw === 'number') ? raw : parseFloat(String(raw).replace(',', '.'));
-    return isNaN(n) ? 0 : n;
-  }
-
   // Duración de un evento (columna TOT.HORAS, o la que escribe el usuario en DJ
-  // CERCANO): a diferencia de parseHorasExtra, aquí vacío/no numérico/≤0 nunca
-  // cuenta como 0 — una duración desconocida NO es "el evento no dura nada", es
-  // "no sabemos cuánto dura" (null), para que el choque de horario se calcule
-  // conservador (ver isDjBusyAtTime) en vez de asumir que el DJ queda libre al
-  // instante.
+  // CERCANO): vacío/no numérico/≤0 nunca cuenta como 0 — una duración
+  // desconocida NO es "el evento no dura nada", es "no sabemos cuánto dura"
+  // (null), para que el choque de horario se calcule conservador (ver
+  // isDjBusyAtTime) en vez de asumir que el DJ queda libre al instante.
   function parseDuracionHoras(raw){
     if (raw == null || raw === '') return null;
     var n = (typeof raw === 'number') ? raw : parseFloat(String(raw).replace(',', '.'));
@@ -2530,7 +2514,6 @@
           var djOff        = findHeaderOffset(cols, ['DJ', 'DJ ASIGNADO', 'NOMBRE DJ', 'NOMBRE DEL DJ']);
           var fechaOff     = findHeaderOffset(cols, ['FECHA']);
           var realizadoOff = findHeaderOffset(cols, ['REALIZADO']);
-          var horasOff     = findHeaderOffset(cols, ['HORAS EXTRA']);
 
           // Respaldo a las posiciones ya conocidas y probadas del mapa si por algún
           // motivo el encabezado no calza exacto (nunca debería pasar en la práctica).
@@ -2538,9 +2521,9 @@
           if (djOff === -1) djOff = DJ_ASSIGNED_COL_IDX;
           if (fechaOff === -1) fechaOff = FECHA_COL_IDX;
 
-          if (realizadoOff === -1 || horasOff === -1){
+          if (realizadoOff === -1){
             djAgendaRows = [];
-            djAgendaStatsError = 'No se encontraron en AGENDA las columnas "REALIZADO" y/o "Horas Extra" — revisa que esos encabezados existan tal cual en la hoja.';
+            djAgendaStatsError = 'No se encontró en AGENDA la columna "REALIZADO" — revisa que exista tal cual en la hoja.';
           } else {
             var parsed = [];
             rows.forEach(function(row){
@@ -2555,8 +2538,7 @@
                 djKey: djKey,
                 djName: String(djRaw).trim(),
                 date: parseSheetDate(cells[fechaOff]),
-                realizado: normalizeCity(cells[realizadoOff] ? cells[realizadoOff].v : null) === 'SI',
-                horasExtra: parseHorasExtra(cells[horasOff] ? cells[horasOff].v : null)
+                realizado: normalizeCity(cells[realizadoOff] ? cells[realizadoOff].v : null) === 'SI'
               });
             });
             djAgendaRows = parsed;
@@ -2642,8 +2624,7 @@
                 cityNorm: normalizeCity(cells[VENTAS_CIUDAD_COL_IDX] ? cells[VENTAS_CIUDAD_COL_IDX].v : null),
                 date: parseSheetDate(cells[VENTAS_FECHA_COL_IDX]),
                 generado: parseMoneyCell(cells[VENTAS_GENERADO_COL_IDX]),
-                pagado: parseMoneyCell(cells[VENTAS_PAGADO_COL_IDX]),
-                ganancia: parseMoneyCell(cells[VENTAS_GANANCIA_COL_IDX])
+                pagado: parseMoneyCell(cells[VENTAS_PAGADO_COL_IDX])
               });
             });
             djVentasRows = parsed;
@@ -3440,7 +3421,7 @@
     var order = [];
     function ensureEntry(key, name){
       if (!byDj[key]){
-        byDj[key] = { name: name, totalEvents: 0, totalHorasExtra: 0, totalGenerado: 0, totalPagado: 0, totalGanancia: 0 };
+        byDj[key] = { name: name, totalEvents: 0, totalGenerado: 0, totalPagado: 0 };
         order.push(key);
       }
       return byDj[key];
@@ -3452,7 +3433,6 @@
     }).forEach(function(r){
       var entry = ensureEntry(r.djKey, r.djName);
       if (r.realizado) entry.totalEvents += 1;
-      entry.totalHorasExtra += r.horasExtra;
     });
 
     djVentasRows.filter(function(r){
@@ -3462,38 +3442,39 @@
       var entry = ensureEntry(r.djKey, r.djName);
       entry.totalGenerado += r.generado;
       entry.totalPagado += r.pagado;
-      entry.totalGanancia += r.ganancia;
     });
 
-    var list = order.map(function(k){ return byDj[k]; });
+    // Ganancia SIEMPRE es el resultado de generado − pagado, calculada aquí —
+    // nunca se lee de una columna aparte de la hoja (esa podía traer un
+    // número distinto al de restar las otras dos, por captura manual
+    // inconsistente). Un solo cálculo, siempre consistente con lo que se ve
+    // en pantalla.
+    var list = order.map(function(k){
+      var d = byDj[k];
+      d.totalGanancia = d.totalGenerado - d.totalPagado;
+      return d;
+    });
     list.sort(function(a, b){ return b.totalEvents - a.totalEvents; });
 
     var totals = list.reduce(function(acc, d){
       acc.events += d.totalEvents;
-      acc.horas += d.totalHorasExtra;
       acc.generado += d.totalGenerado;
       acc.pagado += d.totalPagado;
-      acc.ganancia += d.totalGanancia;
       return acc;
-    }, { events: 0, horas: 0, generado: 0, pagado: 0, ganancia: 0 });
+    }, { events: 0, generado: 0, pagado: 0 });
 
     return {
       list: list,
       totalDjs: list.length,
       totalEvents: totals.events,
-      totalHorasExtra: totals.horas,
       totalGenerado: totals.generado,
       totalPagado: totals.pagado,
-      totalGanancia: totals.ganancia
+      totalGanancia: totals.generado - totals.pagado
     };
   }
 
-  function formatHoras(n){
-    return (Math.round(n * 100) / 100).toString();
-  }
-
   function renderDjsPage(){
-    var kpiEls = [djsKpiCountEl, djsKpiEventsEl, djsKpiHoursEl, djsKpiGeneradoEl, djsKpiPagadoEl, djsKpiGananciaEl];
+    var kpiEls = [djsKpiCountEl, djsKpiEventsEl, djsKpiGeneradoEl, djsKpiPagadoEl, djsKpiGananciaEl];
 
     if (djAgendaStatsError){
       djsStatusMsgEl.textContent = djAgendaStatsError;
@@ -3506,13 +3487,12 @@
     var stats = computeDjsStats();
     djsKpiCountEl.textContent = stats.totalDjs;
     djsKpiEventsEl.textContent = stats.totalEvents;
-    djsKpiHoursEl.textContent = formatHoras(stats.totalHorasExtra);
     djsKpiGeneradoEl.textContent = formatMoney(stats.totalGenerado);
     djsKpiPagadoEl.textContent = formatMoney(stats.totalPagado);
     djsKpiGananciaEl.textContent = formatMoney(stats.totalGanancia);
 
     // La hoja de ventas/pagos es una fuente independiente: si falla, no bloquea los
-    // datos de AGENDA (eventos/horas extra) que sí cargaron bien — solo se avisa.
+    // datos de AGENDA (eventos) que sí cargaron bien — solo se avisa.
     djsStatusMsgEl.classList.toggle('error', !!djVentasStatsError);
 
     if (!stats.list.length){
@@ -3522,13 +3502,12 @@
     }
 
     djsStatusMsgEl.textContent = djVentasStatsError
-      ? (djVentasStatsError + ' (Eventos y horas extra sí están al día.)')
+      ? (djVentasStatsError + ' (Eventos sí están al día.)')
       : ('Actualizado ' + new Date().toLocaleTimeString('es-MX'));
 
     djsTableBodyEl.innerHTML = stats.list.map(function(d){
       return '<tr><td>' + escapeHtml(d.name) + '</td>' +
         '<td>' + d.totalEvents + '</td>' +
-        '<td>' + formatHoras(d.totalHorasExtra) + '</td>' +
         '<td>' + formatMoney(d.totalGenerado) + '</td>' +
         '<td>' + formatMoney(d.totalPagado) + '</td>' +
         '<td>' + formatMoney(d.totalGanancia) + '</td></tr>';
