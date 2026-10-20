@@ -4173,6 +4173,9 @@
   function setActivePage(page){
     currentPage = page;
     closeAllDropdowns();
+    // Para que un refresh de la pestaña deje al usuario donde estaba, en vez
+    // de regresarlo siempre a MAPA.
+    try { localStorage.setItem('nayarCurrentPage', page); } catch(e){}
 
     Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-mapa'), function(el){
       el.style.display = (page === 'mapa') ? '' : 'none';
@@ -4206,6 +4209,20 @@
     setActive(this, btn);
     setActivePage(btn.dataset.page);
   });
+
+  // Restaura la página en la que estaba el usuario antes del refresh (MAPA ya
+  // es el estado inicial por defecto, así que solo hace falta actuar si
+  // quedó guardado DJS o DEMANDA).
+  (function restoreSavedPage(){
+    var saved = null;
+    try { saved = localStorage.getItem('nayarCurrentPage'); } catch(e){}
+    if (saved !== 'djs' && saved !== 'demanda') return;
+    var pageSelectorEl = document.getElementById('pageSelector');
+    var btn = pageSelectorEl.querySelector('button[data-page="' + saved + '"]');
+    if (!btn) return;
+    setActive(pageSelectorEl, btn);
+    setActivePage(saved);
+  })();
 
   // ================= HERRAMIENTA INDEPENDIENTE: DJ MÁS CERCANO =================
   // No participa de clearLayers()/renderCurrentView(): tiene su propia capa (djLayerGroup)
