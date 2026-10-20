@@ -1443,6 +1443,9 @@
   var VENTAS_FECHA_COL_IDX     = 4;  // E
   var VENTAS_GENERADO_COL_IDX  = 8;  // I — "AL EVENTO" (total generado por el evento)
   var VENTAS_PAGADO_COL_IDX    = 11; // L — "DJ" (repetido): monto pagado al DJ
+  var VENTAS_GANANCIA_COL_IDX  = 13; // N — "GANANCIA 2": AL EVENTO + GAS A COI (gasolina) - DJ pagado,
+                                      // ya calculada en la hoja (confirmado por el usuario como la columna
+                                      // correcta) — no se recalcula aquí para no perder el ajuste de gasolina.
   var VENTAS_REALIZADO_COL_IDX = 15; // P — REALIZADO, usada solo para ubicar la fila de encabezados
                                       // (findVentasHeaderRowIndex); los montos ya NO se filtran por
                                       // esta columna — se piden datos generales, con todo lo capturado.
@@ -2624,7 +2627,8 @@
                 cityNorm: normalizeCity(cells[VENTAS_CIUDAD_COL_IDX] ? cells[VENTAS_CIUDAD_COL_IDX].v : null),
                 date: parseSheetDate(cells[VENTAS_FECHA_COL_IDX]),
                 generado: parseMoneyCell(cells[VENTAS_GENERADO_COL_IDX]),
-                pagado: parseMoneyCell(cells[VENTAS_PAGADO_COL_IDX])
+                pagado: parseMoneyCell(cells[VENTAS_PAGADO_COL_IDX]),
+                ganancia: parseMoneyCell(cells[VENTAS_GANANCIA_COL_IDX])
               });
             });
             djVentasRows = parsed;
@@ -3421,7 +3425,7 @@
     var order = [];
     function ensureEntry(key, name){
       if (!byDj[key]){
-        byDj[key] = { name: name, totalEvents: 0, totalGenerado: 0, totalPagado: 0 };
+        byDj[key] = { name: name, totalEvents: 0, totalGenerado: 0, totalPagado: 0, totalGanancia: 0 };
         order.push(key);
       }
       return byDj[key];
@@ -3442,26 +3446,22 @@
       var entry = ensureEntry(r.djKey, r.djName);
       entry.totalGenerado += r.generado;
       entry.totalPagado += r.pagado;
+      // GANANCIA 2 ya incluye el ajuste de gasolina (AL EVENTO + GAS A COI - DJ
+      // pagado) — se suma tal cual viene de la hoja en vez de recalcular
+      // generado - pagado, que ignoraría ese ajuste.
+      entry.totalGanancia += r.ganancia;
     });
 
-    // Ganancia SIEMPRE es el resultado de generado − pagado, calculada aquí —
-    // nunca se lee de una columna aparte de la hoja (esa podía traer un
-    // número distinto al de restar las otras dos, por captura manual
-    // inconsistente). Un solo cálculo, siempre consistente con lo que se ve
-    // en pantalla.
-    var list = order.map(function(k){
-      var d = byDj[k];
-      d.totalGanancia = d.totalGenerado - d.totalPagado;
-      return d;
-    });
+    var list = order.map(function(k){ return byDj[k]; });
     list.sort(function(a, b){ return b.totalEvents - a.totalEvents; });
 
     var totals = list.reduce(function(acc, d){
       acc.events += d.totalEvents;
       acc.generado += d.totalGenerado;
       acc.pagado += d.totalPagado;
+      acc.ganancia += d.totalGanancia;
       return acc;
-    }, { events: 0, generado: 0, pagado: 0 });
+    }, { events: 0, generado: 0, pagado: 0, ganancia: 0 });
 
     return {
       list: list,
@@ -3469,7 +3469,7 @@
       totalEvents: totals.events,
       totalGenerado: totals.generado,
       totalPagado: totals.pagado,
-      totalGanancia: totals.generado - totals.pagado
+      totalGanancia: totals.ganancia
     };
   }
 
