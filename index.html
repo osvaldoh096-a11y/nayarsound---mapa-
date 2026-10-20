@@ -1421,7 +1421,14 @@
     zoomControl: true,
     attributionControl: true,
     center: [21.3, -104.2],
-    zoom: 8
+    zoom: 8,
+    // Sensibilidad de zoom reducida: cada clic en +/- o notch de scroll avanza
+    // medio nivel en vez de uno completo, y el scroll/trackpad necesita el
+    // doble de recorrido por nivel — así el acercar/alejar se siente gradual,
+    // no un salto brusco.
+    zoomSnap: 0.5,
+    zoomDelta: 0.5,
+    wheelPxPerZoomLevel: 120
   });
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -3001,7 +3008,11 @@
       zoomControl: true,
       attributionControl: true,
       center: [23.6, -102.5], // centro aproximado de México
-      zoom: 5
+      zoom: 5,
+      // Misma sensibilidad reducida que el mapa principal (ver comentario ahí).
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 120
     });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
