@@ -3055,9 +3055,16 @@
 
     // Contornos reales de los 32 estados, siempre visibles de fondo (tanto en
     // vista nacional como dentro de "modo estado") — referencia geográfica
-    // constante, independiente del punto agregado o del clustering.
+    // constante, independiente del punto agregado o del clustering. Azul
+    // fuerte con glow (dos trazos apilados: uno ancho y suave de halo, uno
+    // delgado y brillante encima) para que la división se note de verdad
+    // sobre el mapa base, aunque esté lleno de círculos de demanda.
+    L.geoJSON(MEXICO_STATES_GEOJSON, {
+      style: function(){ return { color: '#0a84ff', weight: 7, opacity: 0.35, fillOpacity: 0 }; },
+      interactive: false
+    }).addTo(demandMap);
     demandOutlineLayer = L.geoJSON(MEXICO_STATES_GEOJSON, {
-      style: function(){ return { color: '#2f5560', weight: 1, opacity: 0.55, fillOpacity: 0 }; },
+      style: function(){ return { color: '#4db8ff', weight: 2.5, opacity: 1, fillOpacity: 0 }; },
       interactive: false
     }).addTo(demandMap);
 
