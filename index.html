@@ -1416,23 +1416,51 @@
   var outOfZoneEl = document.getElementById('outOfZoneLabel');
   function setStatus(msg){ statusEl.textContent = msg; }
 
+  // El zoom nativo de Leaflet con scroll/trackpad (ScrollWheelZoom) ACUMULA el
+  // movimiento de cada ráfaga y lo aplica con una curva que acelera según qué
+  // tan fuerte/seguido se desliza — por diseño, nunca da un paso parejo, y por
+  // más que se suba wheelPxPerZoomLevel sigue acelerando con ráfagas más
+  // largas. Se reemplaza por un manejador propio de PASO FIJO: cada "tick"
+  // aceptado mueve siempre lo mismo (WHEEL_ZOOM_STEP), sin importar qué tan
+  // fuerte se desliza, y se ignoran los eventos que lleguen antes de que pase
+  // WHEEL_ZOOM_THROTTLE_MS desde el último paso aplicado — así una ráfaga
+  // larga da una seguidilla de pasos chicos y parejos, nunca un salto grande
+  // de golpe. Mismo manejador para los dos mapas de la app (ver su otro uso
+  // en ensureDemandMap).
+  var WHEEL_ZOOM_STEP = 0.25;
+  var WHEEL_ZOOM_THROTTLE_MS = 120;
+
+  function attachControlledWheelZoom(leafletMap){
+    leafletMap.scrollWheelZoom.disable();
+    var lastZoomTime = 0;
+    leafletMap.getContainer().addEventListener('wheel', function(ev){
+      ev.preventDefault();
+      var now = Date.now();
+      if (now - lastZoomTime < WHEEL_ZOOM_THROTTLE_MS) return;
+      lastZoomTime = now;
+
+      var direction = ev.deltaY < 0 ? 1 : -1; // deltaY negativo = scroll "hacia arriba"/pinch-out = acercar
+      var minZoom = leafletMap.getMinZoom(), maxZoom = leafletMap.getMaxZoom();
+      var targetZoom = Math.min(maxZoom, Math.max(minZoom, leafletMap.getZoom() + direction * WHEEL_ZOOM_STEP));
+      if (targetZoom === leafletMap.getZoom()) return;
+
+      leafletMap.setZoomAround(leafletMap.mouseEventToContainerPoint(ev), targetZoom);
+    }, { passive: false });
+  }
+
   // ================= MAPA BASE (100% gratis, sin API key) =================
   var map = L.map('map', {
     zoomControl: true,
     attributionControl: true,
     center: [21.3, -104.2],
     zoom: 8,
-    // Sensibilidad de zoom reducida: cada clic en +/- o notch de scroll avanza
-    // medio nivel en vez de uno completo. wheelPxPerZoomLevel alto (Leaflet
-    // acumula el scroll de una ráfaga y lo aplica con una curva que satura en
-    // ±4 niveles — con el valor por defecto, una ráfaga normal de trackpad ya
-    // se acerca a ese tope, y entre más sigues deslizando más grande es cada
-    // ráfaga acumulada, por eso "el segundo salto se siente más fuerte que el
-    // primero". Subirlo bastante aplana esa curva para tener control real.
-    zoomSnap: 0.5,
-    zoomDelta: 0.5,
-    wheelPxPerZoomLevel: 500
+    // zoomSnap más fino que zoomDelta a propósito: así el paso de 0.25 del
+    // scroll (WHEEL_ZOOM_STEP) no se redondea, mientras +/- y teclado siguen
+    // avanzando medio nivel por clic (zoomDelta).
+    zoomSnap: 0.25,
+    zoomDelta: 0.5
   });
+  attachControlledWheelZoom(map);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
@@ -3012,11 +3040,13 @@
       attributionControl: true,
       center: [23.6, -102.5], // centro aproximado de México
       zoom: 5,
-      // Misma sensibilidad reducida que el mapa principal (ver comentario ahí).
-      zoomSnap: 0.5,
-      zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 500
+      // Mismo criterio que el mapa principal: zoomSnap más fino que zoomDelta
+      // para que el paso de 0.25 del scroll no se redondee (ver comentario en
+      // la inicialización del mapa principal).
+      zoomSnap: 0.25,
+      zoomDelta: 0.5
     });
+    attachControlledWheelZoom(demandMap);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
       subdomains: 'abc',
