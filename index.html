@@ -16,8 +16,8 @@
     --bg:      #050a0d;
     --panel:   #0a1216;
     --line:    #142329;
-    --cyan:    #00e0ff;
-    --blue:    #0a84ff;
+    --cyan:    #3b82f6;
+    --blue:    #1d4ed8;
     --text:    #eaf6f8;
     --muted:   #5c7a82;
   }
@@ -85,7 +85,7 @@
     font-weight:700;
     font-size:16px;
     color:var(--cyan);
-    text-shadow:0 0 10px rgba(0,224,255,0.3);
+    text-shadow:0 0 10px rgba(59,130,246,0.3);
     min-width:1.4ch;
     text-align:right;
   }
@@ -116,7 +116,7 @@
   .dropdown-caret{ font-size:9px; color:var(--muted); transition:transform 0.15s ease; }
   .dropdown.open .dropdown-toggle{
     border-color:var(--cyan);
-    background:rgba(0,224,255,0.08);
+    background:rgba(59,130,246,0.08);
   }
   .dropdown.open .dropdown-caret{ transform:rotate(180deg); color:var(--cyan); }
 
@@ -153,8 +153,8 @@
     white-space:nowrap;
     transition:background 0.12s ease, color 0.12s ease;
   }
-  .dropdown-menu button:hover{ background:rgba(0,224,255,0.08); color:var(--text); }
-  .dropdown-menu button.active{ background:rgba(0,224,255,0.14); color:var(--cyan); }
+  .dropdown-menu button:hover{ background:rgba(59,130,246,0.08); color:var(--text); }
+  .dropdown-menu button.active{ background:rgba(59,130,246,0.14); color:var(--cyan); }
 
   @media (max-width: 900px){
     .toolbar{
@@ -190,7 +190,7 @@
   .segmented button:last-child{ border-right:none; }
   .segmented button:hover{ color:var(--text); }
   .segmented button.active{
-    background:rgba(0,224,255,0.12);
+    background:rgba(59,130,246,0.12);
     color:var(--cyan);
   }
 
@@ -244,7 +244,7 @@
     font-weight:700;
     font-size:26px;
     color:var(--cyan);
-    text-shadow:0 0 14px rgba(0,224,255,0.3);
+    text-shadow:0 0 14px rgba(59,130,246,0.3);
   }
 
   .djs-status-msg{
@@ -281,7 +281,7 @@
     white-space:nowrap;
   }
   .djs-table tbody tr:last-child td{ border-bottom:none; }
-  .djs-table tbody tr:hover{ background:rgba(0,224,255,0.05); }
+  .djs-table tbody tr:hover{ background:rgba(59,130,246,0.05); }
   .djs-table td:first-child{ color:var(--text); font-weight:700; }
   .djs-table th:not(:first-child), .djs-table td:not(:first-child){ text-align:right; }
   .djs-table td:not(:first-child){ color:var(--cyan); font-family:'Space Grotesk', sans-serif; font-weight:700; }
@@ -356,7 +356,7 @@
     vertical-align:middle;
   }
   .demand-legend-dot.sin-cobertura{ background:#ff8a3d; box-shadow:0 0 6px rgba(255,138,61,0.6); }
-  .demand-legend-dot.con-cobertura{ background:var(--cyan); box-shadow:0 0 6px rgba(0,224,255,0.6); }
+  .demand-legend-dot.con-cobertura{ background:var(--cyan); box-shadow:0 0 6px rgba(59,130,246,0.6); }
 
   .demand-side-col{
     flex:1;
@@ -406,7 +406,7 @@
     border-radius:4px;
   }
   .demand-detail-coverage.uncovered{ color:#ff8a3d; background:rgba(255,138,61,0.12); border:1px solid rgba(255,138,61,0.35); }
-  .demand-detail-coverage.covered{ color:var(--cyan); background:rgba(0,224,255,0.12); border:1px solid rgba(0,224,255,0.35); }
+  .demand-detail-coverage.covered{ color:var(--cyan); background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); }
 
   .demand-opportunities{
     flex:1;
@@ -476,8 +476,8 @@
     width:10px;
     height:10px;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #bdfbff, var(--cyan) 55%, var(--blue) 100%);
-    box-shadow:0 0 0 3px rgba(0,224,255,0.14), 0 0 8px rgba(0,224,255,0.4);
+    background:radial-gradient(circle at 35% 30%, #dbe9ff, var(--cyan) 55%, var(--blue) 100%);
+    box-shadow:0 0 0 3px rgba(59,130,246,0.14), 0 0 8px rgba(59,130,246,0.4);
     opacity:0.85;
   }
   .demand-cluster-inner-covered{
@@ -485,8 +485,8 @@
     align-items:center;
     justify-content:center;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, rgba(189,251,255,0.8), rgba(0,224,255,0.7) 60%, rgba(10,132,255,0.7) 100%);
-    box-shadow:0 0 0 3px rgba(0,224,255,0.14), 0 0 10px rgba(0,224,255,0.35);
+    background:radial-gradient(circle at 35% 30%, rgba(219,233,255,0.8), rgba(59,130,246,0.7) 60%, rgba(29,78,216,0.7) 100%);
+    box-shadow:0 0 0 3px rgba(59,130,246,0.14), 0 0 10px rgba(59,130,246,0.35);
     color:#04141a;
     font-family:'IBM Plex Mono', monospace;
     font-weight:700;
@@ -514,8 +514,8 @@
     align-items:center;
     justify-content:center;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, rgba(189,251,255,0.85), rgba(0,224,255,0.8) 60%, rgba(10,132,255,0.8) 100%);
-    box-shadow:0 0 0 2px rgba(0,224,255,0.2), 0 0 6px rgba(0,224,255,0.4);
+    background:radial-gradient(circle at 35% 30%, rgba(219,233,255,0.85), rgba(59,130,246,0.8) 60%, rgba(29,78,216,0.8) 100%);
+    box-shadow:0 0 0 2px rgba(59,130,246,0.2), 0 0 6px rgba(59,130,246,0.4);
     color:#04141a;
     font-family:'IBM Plex Mono', monospace;
     font-weight:700;
@@ -572,7 +572,7 @@
     border-radius:6px;
     padding:7px 10px;
     margin:10px;
-    box-shadow:0 0 12px rgba(0,224,255,0.25);
+    box-shadow:0 0 12px rgba(59,130,246,0.25);
   }
   .demand-state-banner.visible{ display:flex; }
   .demand-state-banner-label{
@@ -597,7 +597,7 @@
     white-space:nowrap;
     transition:background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   }
-  .demand-state-banner-exit:hover{ color:var(--text); border-color:var(--cyan); background:rgba(0,224,255,0.08); }
+  .demand-state-banner-exit:hover{ color:var(--text); border-color:var(--cyan); background:rgba(59,130,246,0.08); }
 
   /* punto individual */
   .event-marker{
@@ -605,8 +605,8 @@
     width:12px;
     height:12px;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #bdfbff, var(--cyan) 55%, var(--blue) 100%);
-    box-shadow:0 0 0 4px rgba(0,224,255,0.15), 0 0 10px rgba(0,224,255,0.55);
+    background:radial-gradient(circle at 35% 30%, #dbe9ff, var(--cyan) 55%, var(--blue) 100%);
+    box-shadow:0 0 0 4px rgba(59,130,246,0.15), 0 0 10px rgba(59,130,246,0.55);
   }
 
   /* cluster personalizado */
@@ -615,8 +615,8 @@
     align-items:center;
     justify-content:center;
     border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, rgba(189,251,255,0.9), rgba(0,224,255,0.85) 60%, rgba(10,132,255,0.85) 100%);
-    box-shadow:0 0 0 4px rgba(0,224,255,0.15), 0 0 16px rgba(0,224,255,0.5);
+    background:radial-gradient(circle at 35% 30%, rgba(219,233,255,0.9), rgba(59,130,246,0.85) 60%, rgba(29,78,216,0.85) 100%);
+    box-shadow:0 0 0 4px rgba(59,130,246,0.15), 0 0 16px rgba(59,130,246,0.5);
     color:#04141a;
     font-family:'IBM Plex Mono', monospace;
     font-weight:700;
@@ -754,12 +754,12 @@
     white-space:nowrap;
     transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
-  .dj-tool-toggle:hover{ color:var(--cyan); border-color:#1c3138; background:rgba(0,224,255,0.08); }
+  .dj-tool-toggle:hover{ color:var(--cyan); border-color:#1c3138; background:rgba(59,130,246,0.08); }
   .dj-tool-toggle.active{
     color:var(--cyan);
     border-color:var(--cyan);
-    background:rgba(0,224,255,0.12);
-    box-shadow:0 0 12px rgba(0,224,255,0.15);
+    background:rgba(59,130,246,0.12);
+    box-shadow:0 0 12px rgba(59,130,246,0.15);
   }
 
   .dj-tool-panel{
@@ -824,7 +824,7 @@
 
   .dj-tool-search-btn{
     width:100%;
-    background:rgba(0,224,255,0.12);
+    background:rgba(59,130,246,0.12);
     border:1px solid var(--cyan);
     color:var(--cyan);
     font-family:'IBM Plex Mono', monospace;
@@ -836,7 +836,7 @@
     cursor:pointer;
     transition:background 0.15s ease;
   }
-  .dj-tool-search-btn:hover{ background:rgba(0,224,255,0.22); }
+  .dj-tool-search-btn:hover{ background:rgba(59,130,246,0.22); }
   .dj-tool-search-btn:disabled{ opacity:0.5; cursor:not-allowed; }
 
   .dj-tool-msg{
@@ -894,7 +894,7 @@
     cursor:pointer;
     transition:background 0.12s ease;
   }
-  .dj-result-row:hover{ background:rgba(0,224,255,0.08); }
+  .dj-result-row:hover{ background:rgba(59,130,246,0.08); }
   .dj-result-line1{
     display:flex;
     align-items:center;
@@ -982,7 +982,7 @@
 
   /* ============ OPTIMIZAR ASIGNACIONES (independiente de DJ CERCANO) ============ */
   .opt-summary{
-    background:rgba(0,224,255,0.06);
+    background:rgba(59,130,246,0.06);
     border:1px solid var(--line);
     border-radius:6px;
     padding:10px 12px;
@@ -1078,11 +1078,11 @@
   }
   .dj-tool-search-btn.secondary{
     flex:1;
-    background:rgba(0,224,255,0.06);
+    background:rgba(59,130,246,0.06);
     font-size:10px;
     padding:9px 6px;
   }
-  .dj-tool-search-btn.secondary:hover{ background:rgba(0,224,255,0.16); }
+  .dj-tool-search-btn.secondary:hover{ background:rgba(59,130,246,0.16); }
 
   #demandReviewBadge{ cursor:pointer; }
   #demandReviewBadge:hover{ background:rgba(255,138,61,0.14); }
@@ -3029,7 +3029,7 @@
     var feature = getStateGeoJsonByKey()[estadoKey];
     if (!feature) return;
     demandActiveStateOutline = L.geoJSON(feature, {
-      style: function(){ return { color: '#00e0ff', weight: 3, opacity: 0.9, fillColor: '#00e0ff', fillOpacity: 0.05 }; },
+      style: function(){ return { color: '#3b82f6', weight: 3, opacity: 0.9, fillColor: '#3b82f6', fillOpacity: 0.05 }; },
       interactive: false
     }).addTo(demandMap);
   }
@@ -3115,7 +3115,7 @@
     // sí fuera fina) pero de azul intenso, para que la división se note sin
     // verse como una franja ancha.
     demandOutlineLayer = L.geoJSON(MEXICO_STATES_GEOJSON, {
-      style: function(){ return { color: '#4db8ff', weight: 1, opacity: 1, fillOpacity: 0 }; },
+      style: function(){ return { color: '#3b82f6', weight: 1, opacity: 1, fillOpacity: 0 }; },
       interactive: false
     }).addTo(demandMap);
 
@@ -3759,10 +3759,10 @@
     var fillOpacity = 0.10 + intensity * 0.65;
 
     var rect = L.rectangle(rectBounds, {
-      color: '#00e0ff',
+      color: '#3b82f6',
       weight: 1,
       opacity: 0.4,
-      fillColor: '#00e0ff',
+      fillColor: '#3b82f6',
       fillOpacity: fillOpacity,
       interactive: false
     });
@@ -3797,10 +3797,10 @@
     var fillOpacity = 0.10 + intensity * 0.65; // más eventos = mayor intensidad visual
 
     var rect = L.rectangle(rectBounds, {
-      color: '#00e0ff',
+      color: '#3b82f6',
       weight: 1,
       opacity: 0.35,
-      fillColor: '#00e0ff',
+      fillColor: '#3b82f6',
       fillOpacity: fillOpacity,
       interactive: false
     });
@@ -3830,11 +3830,11 @@
   function drawMainCross(zoneBounds){
     var vLine = L.polyline(
       [[zoneBounds.south, zoneBounds.center.lng], [zoneBounds.north, zoneBounds.center.lng]],
-      { color: '#00e0ff', weight: 2, opacity: 0.65, interactive: false }
+      { color: '#3b82f6', weight: 2, opacity: 0.65, interactive: false }
     );
     var hLine = L.polyline(
       [[zoneBounds.center.lat, zoneBounds.west], [zoneBounds.center.lat, zoneBounds.east]],
-      { color: '#00e0ff', weight: 2, opacity: 0.65, interactive: false }
+      { color: '#3b82f6', weight: 2, opacity: 0.65, interactive: false }
     );
     quadrantLayerGroup.addLayer(vLine);
     quadrantLayerGroup.addLayer(hLine);
@@ -4342,11 +4342,11 @@
           color: '#04141a', weight: 6, opacity: 0.35, interactive: false
         }).addTo(djLayerGroup);
         L.polyline(routeLatLngs, {
-          color: '#00e0ff', weight: 3, opacity: 0.95, interactive: false
+          color: '#3b82f6', weight: 3, opacity: 0.95, interactive: false
         }).addTo(djLayerGroup);
       } else {
         L.polyline([[point.lat, point.lng], [nearest.lat, nearest.lng]], {
-          color: '#00e0ff', weight: 2, opacity: 0.8, dashArray: '6,6', interactive: false
+          color: '#3b82f6', weight: 2, opacity: 0.8, dashArray: '6,6', interactive: false
         }).addTo(djLayerGroup);
       }
     }
