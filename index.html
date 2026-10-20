@@ -1225,6 +1225,9 @@
           </button>
           <div class="dropdown-menu" id="demandPeriodSelector">
             <button data-period="GLOBAL" class="active">GLOBAL</button>
+            <button data-period="1M">1 MES</button>
+            <button data-period="2M">2 MESES</button>
+            <button data-period="3M">3 MESES</button>
             <button data-period="6M">6 MESES</button>
             <button data-period="1A">1 AÑO</button>
           </div>
@@ -1601,7 +1604,7 @@
   var demandRequests = [];   // [{date, fechaNegada, estadoRaw, estadoKey, estadoDisplay, municipioRaw, municipioNorm, lat, lng, hasValidCoords, covered, needsReview, reviewReasons}]
   var demandStatsError = null;
   var demandEstadoFilter = 'TODOS'; // 'TODOS' | 'POR_REVISAR' | clave de estado
-  var demandPeriodFilter = 'GLOBAL'; // 'GLOBAL' | '6M' | '1A'
+  var demandPeriodFilter = 'GLOBAL'; // 'GLOBAL' | '1M' | '2M' | '3M' | '6M' | '1A'
   var demandMap = null;
   var demandMarkerGroupCovered = null;
   var demandMarkerGroupUncovered = null;
@@ -2817,11 +2820,13 @@
   // meses o 1 año hacia atrás desde hoy. Una solicitud sin FECHA interpretable
   // nunca cuenta para 6M/1A (no se puede saber si cae en el rango) — solo entra
   // bajo GLOBAL, igual criterio conservador que el resto del proyecto.
+  var DEMAND_PERIOD_MONTHS = { '1M': 1, '2M': 2, '3M': 3, '6M': 6, '1A': 12 };
+
   function matchesDemandPeriod(date){
     if (demandPeriodFilter === 'GLOBAL') return true;
     if (!date) return false;
     var today = todayLocalMidnight();
-    var monthsBack = demandPeriodFilter === '6M' ? 6 : 12;
+    var monthsBack = DEMAND_PERIOD_MONTHS[demandPeriodFilter] || 12;
     var cutoff = new Date(today.getFullYear(), today.getMonth() - monthsBack, today.getDate());
     return date >= cutoff && date <= today;
   }
