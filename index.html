@@ -2618,9 +2618,12 @@
               var djKey = normalizeDjKey(djRaw);
               if (!djKey) return;
 
-              // Sin filtro por REALIZADO: se piden montos generales (esta hoja no
-              // mantiene esa columna tan al día como AGENDA — filtrar por ella
-              // dejaba fuera casi todos los eventos con dinero ya capturado).
+              // Solo eventos REALIZADO=SI: igual que del lado de AGENDA (EVENTOS),
+              // para no sumar dinero de reservas futuras o no confirmadas que
+              // todavía no tienen todas sus columnas de dinero consistentes entre sí.
+              var realizado = normalizeCity(cells[VENTAS_REALIZADO_COL_IDX] ? cells[VENTAS_REALIZADO_COL_IDX].v : null) === 'SI';
+              if (!realizado) return;
+
               parsed.push({
                 djKey: djKey,
                 djName: String(djRaw).trim(),
