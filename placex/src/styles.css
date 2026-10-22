@@ -76,42 +76,72 @@ button {
 .dev-warning code {
   font-size: 12px;
 }
-/* ---------- Promoción ---------- */
-.promo-strip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 2px 14px;
-  padding: 7px var(--gutter);
-  background: linear-gradient(90deg, #5e0a12, var(--accent-strong) 50%, #5e0a12);
+/* ---------- Barra superior fija ---------- */
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.marquee {
+  overflow: hidden;
+  background: linear-gradient(90deg, #6a0b14, var(--accent-strong) 50%, #6a0b14);
   color: #fff;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-align: center;
-  line-height: 1.35;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.promo-strip-text strong {
-  font-weight: 600;
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
 }
-.promo-strip-sep::before {
-  content: '·';
-  margin: 0 8px;
-  opacity: 0.7;
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
 }
-.promo-strip-timer {
+.marquee-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-}
-.promo-strip-label {
+  white-space: nowrap;
+  padding: 8px 0;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  opacity: 0.92;
+  line-height: 1;
+}
+.marquee-sep {
+  margin: 0 18px;
+  color: #ffd2d6;
+  font-size: 10px;
+}
+.marquee-static {
+  display: none;
+  margin: 0;
+  padding: 7px var(--gutter);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.5;
+}
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    display: none;
+  }
+  .marquee-static {
+    display: block;
+  }
 }
 
+/* ---------- Promoción ---------- */
 .countdown {
   display: inline-flex;
   gap: 6px;
@@ -129,10 +159,10 @@ button {
   font-size: 0.75em;
   opacity: 0.75;
 }
-.countdown:not(.is-compact) {
+.countdown {
   gap: 8px;
 }
-.countdown:not(.is-compact) .countdown-unit {
+.countdown .countdown-unit {
   min-width: 52px;
   justify-content: center;
   padding: 6px 8px;
@@ -140,7 +170,7 @@ button {
   border-radius: var(--radius);
   background: rgba(0, 0, 0, 0.35);
 }
-.countdown:not(.is-compact) strong {
+.countdown strong {
   font-size: 20px;
 }
 
@@ -175,27 +205,57 @@ button {
   text-transform: uppercase;
 }
 .promo-title {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   font-family: var(--font-brand);
   font-weight: 400;
   font-size: clamp(22px, 6.4vw, 34px);
   line-height: 1.15;
   letter-spacing: 0.04em;
 }
-.promo-points {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.promo-points li {
-  padding: 5px 10px;
-  border: 1px solid #4a3d40;
-  border-radius: 999px;
-  font-size: 12px;
+.promo-subtitle {
+  margin: 0 0 4px;
+  font-size: 15px;
   font-weight: 500;
+  line-height: 1.4;
+}
+.promo-support {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.promo-actions {
+  position: relative;
+  z-index: 1;
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.btn-hero {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(184, 21, 31, 0.3);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.btn-hero:hover {
+  filter: brightness(1.08);
+}
+.btn-hero:active {
+  transform: scale(0.98);
+}
+.promo-pay {
+  font-size: 12px;
+  color: var(--muted);
 }
 .promo-timer {
   margin-top: 14px;
@@ -250,11 +310,8 @@ button {
   border-bottom: 1px solid var(--line);
 }
 .site-header.is-compact {
-  padding: 12px var(--gutter);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.88);
+  padding: 10px var(--gutter);
+  background: rgba(0, 0, 0, 0.97);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -305,6 +362,9 @@ main {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+.catalog-head .section-title {
+  scroll-margin-top: 48px;
 }
 .section-title {
   font-family: var(--font-brand);
@@ -958,7 +1018,7 @@ main:has(.product-page) + .site-footer {
   .product-media {
     margin: 0;
     position: sticky;
-    top: 80px;
+    top: 110px;
   }
   .gallery {
     display: grid;

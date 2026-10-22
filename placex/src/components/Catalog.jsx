@@ -7,6 +7,9 @@ import { PromoHero } from './Promo.jsx'
 const SCROLL_KEY = 'placex-catalog-scroll'
 
 export default function Catalog({ products, promo }) {
+  const goToCatalog = () =>
+    document.getElementById('catalog-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
   useEffect(() => {
     try {
       const y = Number(sessionStorage.getItem(SCROLL_KEY))
@@ -23,7 +26,7 @@ export default function Catalog({ products, promo }) {
 
   return (
       <section className="catalog" aria-labelledby="catalog-title">
-        <PromoHero promo={promo} />
+        <PromoHero promo={promo} onCta={goToCatalog} />
         <div className="catalog-head">
           <h1 id="catalog-title" className="section-title">Colección</h1>
           {store.shippingNote && <p className="catalog-note">{store.shippingNote}</p>}

@@ -40,6 +40,17 @@ export const store = {
   // Aviso de edad en el pie de página.
   ageNotice: 'Productos para personas mayores de 18 años.',
 
+  // ---------- BARRA SUPERIOR Y PORTADA ----------
+  // {precio} se reemplaza por el precio común del catálogo (p. ej. $299).
+  // Si los productos tienen precios distintos, los textos con {precio} se ocultan.
+  marquee: ['Envío gratis a toda la República', 'Envíos rápidos', 'Todos los conjuntos a {precio} MXN'],
+  hero: {
+    title: 'Tu próximo look atrevido, a un clic.',
+    subtitle: 'Conjuntos a {precio} con envío gratis a toda la República.',
+    support: 'Consulta por WhatsApp cuándo llega a tu código postal.',
+    cta: 'Ver conjuntos',
+  },
+
   // ---------- PROMOCIÓN ----------
   // endsAt: fecha y hora REAL en que termina la promoción, en hora de
   // Ciudad de México, con el formato 'AAAA-MM-DDTHH:MM'.

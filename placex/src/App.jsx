@@ -6,7 +6,7 @@ import Header from './components/Header.jsx'
 import Catalog from './components/Catalog.jsx'
 import ProductPage from './components/ProductPage.jsx'
 import Footer from './components/Footer.jsx'
-import { PromoStrip, usePromo } from './components/Promo.jsx'
+import { Marquee, usePromo } from './components/Promo.jsx'
 
 function parseRoute() {
   const match = window.location.hash.match(/^#\/producto\/([^/?#]+)/)
@@ -41,8 +41,12 @@ export default function App() {
           Pendiente: configura tu número de WhatsApp en <code>src/config/store.js</code>
         </div>
       )}
-      <PromoStrip promo={promo} />
-      <Header compact={route.view === 'product'} />
+      {/* Barra fija: la cinta promocional (y, en las fichas, el logo compacto). */}
+      <div className="top-bar">
+        <Marquee />
+        {route.view === 'product' && <Header compact />}
+      </div>
+      {route.view !== 'product' && <Header />}
       <main>
         {route.view === 'product' && product ? (
           <ProductPage key={product.id} product={product} />
