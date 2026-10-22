@@ -11,7 +11,7 @@ export const store = {
   // sin "+", espacios ni guiones. México: 52 + 10 dígitos.
   // Ejemplo de formato (no es un número real): '523300000000'
   // Si queda vacío, WhatsApp se abre sin destinatario.
-  whatsappNumber: '523161157998',
+  whatsappNumber: '523112851465',
 
   // URL pública de la tienda para el enlace del producto en el mensaje.
   // Déjalo vacío para usar la dirección actual (p. ej. http://localhost:3000).
