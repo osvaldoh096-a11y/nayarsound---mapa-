@@ -1,0 +1,2 @@
+Guarda aquí las fotos de los productos (JPG o WEBP, idealmente 1200x1500 px, vertical 4:5)
+y agrégalas en src/config/products.js, por ejemplo:  images: ['/products/enfermera-1.jpg']
