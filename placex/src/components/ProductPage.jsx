@@ -22,18 +22,34 @@ export default function ProductPage({ product }) {
     setSizeError(false)
   }
 
-  const order = () => {
-    if (!size) {
-      setSizeError(true)
-      sizesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      sizesRef.current?.querySelector('button:not(:disabled)')?.focus({ preventScroll: true })
-      return
-    }
-    const url = whatsappLink(buildOrderMessage(product, size, quantity))
-    // Navegación directa: funciona mejor que window.open en los navegadores
-    // internos de Facebook e Instagram, de donde llegan las visitas de anuncios.
-    window.location.href = url
+  // Con talla elegida, el botón es un enlace normal a WhatsApp: es lo que abre
+  // la app con más seguridad en iPhone, Android y los navegadores internos de
+  // Facebook e Instagram. Sin talla, avisa y lleva al selector.
+  const orderUrl = size ? whatsappLink(buildOrderMessage(product, size, quantity)) : null
+
+  const askForSize = () => {
+    setSizeError(true)
+    sizesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    sizesRef.current?.querySelector('button:not(:disabled)')?.focus({ preventScroll: true })
   }
+
+  const orderButton = (label) =>
+    soldOut ? (
+      <button type="button" className="btn-whatsapp" disabled>
+        <WhatsAppIcon />
+        Sin tallas disponibles
+      </button>
+    ) : orderUrl ? (
+      <a className="btn-whatsapp" href={orderUrl} rel="noopener">
+        <WhatsAppIcon />
+        {label}
+      </a>
+    ) : (
+      <button type="button" className="btn-whatsapp" onClick={askForSize}>
+        <WhatsAppIcon />
+        {label}
+      </button>
+    )
 
   return (
     <article className="product-page">
@@ -142,10 +158,7 @@ export default function ProductPage({ product }) {
                 Ahorras {formatPrice(savingsOf(product) * quantity)}
               </p>
             )}
-            <button type="button" className="btn-whatsapp" onClick={order} disabled={soldOut}>
-              <WhatsAppIcon />
-              {soldOut ? 'Sin tallas disponibles' : 'Pedir por WhatsApp'}
-            </button>
+            {orderButton('Pedir por WhatsApp')}
             {store.paymentMethods.length > 0 && (
               <div className="payment-methods" data-testid="payment-methods">
                 <span className="payment-title">Formas de pago</span>
@@ -194,13 +207,16 @@ export default function ProductPage({ product }) {
       {/* Barra fija en celular: total y botón siempre a la mano */}
       <div className="sticky-order">
         <div className="sticky-total">
-          <span>{size ? `Talla ${size} · ${quantity} pza` : 'Elige tu talla'}</span>
+          {size ? (
+            <span>{`Talla ${size} · ${quantity} pza`}</span>
+          ) : (
+            <span className={sizeError ? 'sticky-error' : undefined} role={sizeError ? 'alert' : undefined}>
+              {sizeError ? 'Primero elige tu talla ↑' : 'Elige tu talla'}
+            </span>
+          )}
           <strong>{formatPrice(total)}</strong>
         </div>
-        <button type="button" className="btn-whatsapp" onClick={order} disabled={soldOut}>
-          <WhatsAppIcon />
-          Pedir
-        </button>
+        {orderButton('Pedir')}
       </div>
     </article>
   )

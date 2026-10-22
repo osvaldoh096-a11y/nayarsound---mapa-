@@ -891,6 +891,7 @@ main {
   letter-spacing: 0;
 }
 .btn-whatsapp {
+  text-decoration: none;
   width: 100%;
   min-height: 54px;
   display: inline-flex;
@@ -1004,6 +1005,11 @@ main {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.sticky-total .sticky-error {
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 13px;
 }
 .sticky-total strong {
   font-size: 18px;
