@@ -64,6 +64,11 @@ export default function ProductPage({ product }) {
               <span className="field-label">Color</span> {product.color}
             </p>
           )}
+          {product.material && (
+            <p className="product-color">
+              <span className="field-label">Material</span> {product.material}
+            </p>
+          )}
 
           <fieldset
             className={`field sizes${sizeError ? ' has-error' : ''}`}
@@ -89,6 +94,7 @@ export default function ProductPage({ product }) {
                 </button>
               ))}
             </div>
+            {product.sizeNote && <p className="size-note">{product.sizeNote}</p>}
             {sizeError && (
               <p className="field-error" id="size-error" role="alert">
                 Selecciona una talla para continuar.
@@ -151,10 +157,12 @@ export default function ProductPage({ product }) {
             </section>
           )}
 
-          <section className="detail-section">
-            <h2 className="detail-title">Medidas</h2>
-            <MeasurementsTable measurements={product.measurements} />
-          </section>
+          {product.measurements?.rows?.length > 0 && (
+            <section className="detail-section">
+              <h2 className="detail-title">Medidas</h2>
+              <MeasurementsTable measurements={product.measurements} />
+            </section>
+          )}
 
           <a href="#/" className="btn-outline back-bottom">
             Ver todo el catálogo

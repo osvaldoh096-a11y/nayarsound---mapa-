@@ -37,6 +37,6 @@ y sube los cambios de `placex/` y `tienda/` a la rama `main`.
 ## Antes de publicar
 
 - Número de WhatsApp Business en `store.whatsappNumber`.
-- Fotos, descripciones, piezas incluidas, tallas y medidas reales (los 3 productos actuales son de demostración).
+- Medidas pendientes ("Por confirmar") de cada producto.
 - Dominio en `store.siteUrl` para que el enlace del mensaje apunte a la tienda publicada.
 - Fecha real de fin de la promoción en `promo.endsAt` (vacío = temporizador oculto y "Precio de lanzamiento").

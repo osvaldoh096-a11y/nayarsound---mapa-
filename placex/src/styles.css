@@ -612,6 +612,14 @@ main {
   margin: 0 0 22px;
   font-size: 15px;
 }
+.product-color:has(+ .product-color) {
+  margin-bottom: 8px;
+}
+.size-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 .product-color .field-label {
   display: inline;
   margin: 0 6px 0 0;

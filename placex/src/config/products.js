@@ -14,15 +14,15 @@
 //                   La primera FOTO de la lista es la portada del catálogo.
 //    description  → texto de la ficha
 //    color        → (opcional) color o colores de la prenda
+//    material     → (opcional) material, solo si está confirmado
 //    includes     → lista de piezas que incluye
 //    note         → (opcional) aclaración visible bajo "Incluye"
 //    sizes        → tallas: { label, available }  (available: false = no se puede elegir)
-//    measurements → tabla de medidas: columnas y una fila por talla.
+//    sizeNote     → (opcional) aclaración bajo el selector de talla
+//    measurements → tabla de medidas: columnas y una fila por talla (null = sin tabla).
 //                   Usa null en un valor que aún no tengas: se muestra "Por confirmar".
 //    provisional  → true muestra la etiqueta "Provisional" (quítalo con datos reales)
 //
-//  PX-001 y PX-002 tienen datos reales. PX-003 es DE DEMOSTRACIÓN: no tiene fotos, medidas
-//  ni materiales reales. Reemplázalo antes de publicar.
 // ============================================================
 
 // Precio y tallas comunes. Puedes cambiar el precio o las tallas de un
@@ -93,16 +93,24 @@ export const products = [
     measurements: pendingMeasurements(['M', 'L', 'XL', '2XL']),
   },
   {
-    id: 'conjunto-diablita',
+    id: 'conjunto-mucama',
     code: 'PX-003',
-    name: 'Conjunto Diablita',
+    name: 'Conjunto Mucama de Encaje',
     price: PRICE,
-    images: [],
+    images: [
+      '/products/mucama-1.webp',
+      '/products/mucama-2.webp',
+      '/products/mucama-3.webp',
+      '/products/mucama-4.webp',
+    ],
     description:
-      'Producto de demostración. Sustituye este texto por la descripción real cuando tengas la prenda.',
-    includes: ['Pieza 1 (por confirmar)', 'Pieza 2 (por confirmar)', 'Accesorio (por confirmar)'],
-    sizes: sizes(),
-    measurements: pendingMeasurements(),
-    provisional: true,
+      'Encaje, transparencias y un toque coqueto para una noche especial. Un conjunto de mucama con medias incluidas para completar el look.',
+    material: 'Poliéster con cierta elasticidad',
+    includes: ['Vestido de encaje', 'Diadema', 'Medias'],
+    // Las fotos muestran piezas que no vienen en el paquete.
+    note: 'El collar con moño y las mangas que aparecen en las fotos no están incluidos.',
+    sizes: sizes(['Unitalla']),
+    sizeNote: 'El proveedor recomienda un peso de 40–65 kg. Es orientativo y no garantiza el ajuste.',
+    measurements: null,
   },
 ]
