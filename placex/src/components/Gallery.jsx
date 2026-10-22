@@ -64,17 +64,28 @@ export default function Gallery({ images, name }) {
         ))}
       </div>
       {slides.length > 1 && (
-        <div className="gallery-dots">
-          {slides.map((item, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`gallery-dot${i === active ? ' is-active' : ''}`}
-              aria-label={item?.video ? 'Ver video' : `Ver foto ${i + 1}`}
-              aria-current={i === active}
-              onClick={() => goTo(i)}
-            />
-          ))}
+        <div className="gallery-thumbs" role="list" aria-label="Elegir foto">
+          {slides.map((item, i) => {
+            const thumb = item?.video ? item.poster : item?.src || item
+            return (
+              <button
+                key={i}
+                type="button"
+                role="listitem"
+                className={`gallery-thumb${i === active ? ' is-active' : ''}${item?.fit === 'contain' ? ' is-contain' : ''}`}
+                aria-label={item?.video ? 'Ver video' : `Ver foto ${i + 1}`}
+                aria-current={i === active}
+                onClick={() => goTo(i)}
+              >
+                {thumb ? (
+                  <img src={assetUrl(thumb)} alt="" loading="lazy" decoding="async" />
+                ) : (
+                  <span className="gallery-thumb-empty">{i + 1}</span>
+                )}
+                {item?.video && <span className="gallery-thumb-play" aria-hidden="true" />}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
