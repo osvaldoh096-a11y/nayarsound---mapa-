@@ -52,6 +52,13 @@ function withPrice(text) {
   return text.replaceAll('{precio}', formatPrice(price).replace(` ${store.currency}`, ''))
 }
 
+// Precio tachado común del catálogo (p. ej. "$700"), o null.
+function uniformCompareAt() {
+  const values = new Set(products.map((p) => (p.compareAtPrice > p.price ? p.compareAtPrice : null)))
+  const [value] = values
+  return values.size === 1 && value ? formatPrice(value).replace(` ${store.currency}`, '') : null
+}
+
 // Copias por mitad de la cinta: suficientes para cubrir pantallas anchas sin huecos.
 const MARQUEE_REPEAT = 4
 
@@ -88,6 +95,7 @@ export function PromoHero({ promo, onCta }) {
   const { title, support, cta } = store.hero
   const { timerLabel, offer } = store.promo
   const offerText = withPrice(offer)
+  const before = uniformCompareAt()
   const { stage } = promo
   return (
     <section className={`promo-hero${stage ? ' is-urgent' : ''}`} aria-labelledby="hero-title">
@@ -110,7 +118,12 @@ export function PromoHero({ promo, onCta }) {
       {stage === 'dayBefore' && <p className="promo-ends">Termina mañana a medianoche</p>}
       {stage === 'earlier' && <p className="promo-ends">Termina el {promoEndDateText()} a medianoche</p>}
 
-      {offerText && <p className="promo-offer">{offerText}</p>}
+      {offerText && (
+        <p className="promo-offer">
+          {before && <del className="promo-before">{before}</del>}
+          <span className="promo-offer-text">{offerText}</span>
+        </p>
+      )}
       {!stage && support && <p className="promo-support">{support}</p>}
 
       <div className="promo-actions">

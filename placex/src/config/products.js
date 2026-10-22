@@ -6,6 +6,7 @@
 //    code         → código interno que aparece en el mensaje de WhatsApp
 //    name         → nombre visible
 //    price        → precio unitario en MXN (número, sin "$"), envío incluido
+//    compareAtPrice → (opcional) precio regular que se muestra tachado
 //    images       → rutas de fotos. Guarda las fotos en  public/products/
 //                   y escribe '/products/archivo.jpg'. Si la lista está vacía
 //                   se muestran espacios "FOTO PROVISIONAL".
@@ -17,7 +18,6 @@
 //    material     → (opcional) material, solo si está confirmado
 //    details      → (opcional) lista de detalles de diseño
 //    includes     → lista de piezas que incluye
-//    note         → (opcional) aclaración visible bajo "Incluye"
 //    sizes        → tallas: { label, available }  (available: false = no se puede elegir)
 //    sizeNote     → (opcional) aclaración bajo el selector de talla
 //                   (las tablas de tallas van como foto en `images`)
@@ -28,6 +28,7 @@
 // Precio y tallas comunes. Puedes cambiar el precio o las tallas de un
 // producto concreto escribiendo otro valor en ese producto.
 const PRICE = 299
+const COMPARE_AT = 700 // precio regular, se muestra tachado
 const SIZES = ['S', 'M', 'L', 'XL']
 
 const sizes = (labels = SIZES) => labels.map((label) => ({ label, available: true }))
@@ -38,6 +39,7 @@ export const products = [
     code: 'PX-001',
     name: 'Conjunto Colegiala',
     price: PRICE,
+    compareAtPrice: COMPARE_AT,
     images: [
       '/products/colegiala-1.webp',
       {
@@ -58,6 +60,7 @@ export const products = [
     code: 'PX-002',
     name: 'Conjunto Caperucita Roja',
     price: PRICE,
+    compareAtPrice: COMPARE_AT,
     images: [
       '/products/caperucita-1.webp',
       {
@@ -72,8 +75,6 @@ export const products = [
       'Dale un giro atrevido al cuento. Top con lazo y minifalda con volantes de encaje en rojo, negro y blanco. Ideal para una noche especial o una fiesta temática.',
     color: 'Rojo, negro y blanco',
     includes: ['Top', 'Minifalda', 'Cinta para el cuello'],
-    // Las fotos muestran piezas que no vienen en el paquete.
-    note: 'La capa y la diadema que aparecen en las fotos no están incluidas.',
     sizes: sizes(['M', 'L', 'XL', '2XL']),
   },
   {
@@ -81,6 +82,7 @@ export const products = [
     code: 'PX-003',
     name: 'Conjunto Mucama de Encaje',
     price: PRICE,
+    compareAtPrice: COMPARE_AT,
     images: [
       '/products/mucama-1.webp',
       '/products/mucama-2.webp',
@@ -99,6 +101,7 @@ export const products = [
     code: 'PX-004',
     name: 'Babydoll Corsé Rojo y Negro',
     price: PRICE,
+    compareAtPrice: COMPARE_AT,
     images: [
       '/products/babydoll-1.webp',
       {
@@ -114,7 +117,6 @@ export const products = [
     color: 'Negro y rojo',
     details: ['Cordones laterales ajustables', 'Escote con encaje', 'Falda con volantes'],
     includes: ['Vestido de lencería'],
-    note: 'No incluye medias ni accesorios.',
     sizes: sizes(),
   },
 ]

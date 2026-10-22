@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { store } from '../config/store.js'
-import { assetUrl, formatPrice } from '../lib.js'
+import { assetUrl, formatPrice, pricingText, savingsOf } from '../lib.js'
 import PhotoPlaceholder from './PhotoPlaceholder.jsx'
 import { PromoHero } from './Promo.jsx'
 
@@ -49,10 +49,20 @@ export default function Catalog({ products, promo }) {
                     <PhotoPlaceholder index={0} total={1} />
                   )}
                   {product.provisional && <span className="badge">Provisional</span>}
+                  {savingsOf(product) > 0 && (
+                    <span className="badge-discount">{pricingText(store.pricing.badge, product)}</span>
+                  )}
                 </div>
                 <div className="product-card-body">
                   <h2 className="product-card-name">{product.name}</h2>
-                  <p className="product-card-price" data-testid="card-price">{formatPrice(product.price)}</p>
+                  <p className="product-card-price">
+                    {savingsOf(product) > 0 && (
+                      <del className="price-before" data-testid="card-before">
+                        {formatPrice(product.compareAtPrice).replace(` ${store.currency}`, '')}
+                      </del>
+                    )}
+                    <span data-testid="card-price">{formatPrice(product.price)}</span>
+                  </p>
                   <span className="product-card-cta">Ver detalles</span>
                 </div>
               </a>

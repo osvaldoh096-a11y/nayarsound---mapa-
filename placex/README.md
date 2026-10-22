@@ -16,6 +16,7 @@ npm run dev      # http://localhost:3000
 | Qué | Dónde |
 | --- | --- |
 | Productos: nombre, código, precio, descripción, qué incluye, tallas, disponibilidad, medidas | `src/config/products.js` |
+| Precio tachado (regular) y texto de ahorro | `COMPARE_AT` en `src/config/products.js`; textos en `pricing` de `src/config/store.js` |
 | Fotos | Guárdalas en `public/products/` y ponlas en `images` del producto, p. ej. `'/products/enfermera-1.jpg'` |
 | Número de WhatsApp, URL pública, envío, formas de pago, textos generales | `src/config/store.js` |
 | Promoción (último día real, hora de Ciudad de México) | `promo.lastDay` en `src/config/store.js`, formato `'2026-10-31'` |

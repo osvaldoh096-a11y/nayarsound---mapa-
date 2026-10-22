@@ -28,6 +28,12 @@ export const store = {
   paymentMethods: ['Transferencia bancaria', 'Pago en OXXO'],
   paymentSummary: 'Paga por transferencia o en OXXO',
 
+  // Textos del precio tachado ({ahorro} = precio regular − precio, {pct} = % de descuento).
+  pricing: {
+    savings: 'Ahorras {ahorro} solo durante la promoción',
+    badge: '-{pct}%',
+  },
+
   // Cantidad máxima que se puede pedir de un producto en un mismo mensaje.
   maxQuantity: 10,
 

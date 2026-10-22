@@ -20,6 +20,17 @@ export function productUrl(product) {
   return `${base}#/producto/${product.id}`
 }
 
+// Ahorro por pieza frente al precio regular (0 si no hay precio tachado).
+export const savingsOf = (product) => Math.max(0, (product.compareAtPrice || 0) - product.price)
+export const discountPct = (product) =>
+  product.compareAtPrice > product.price ? Math.round((savingsOf(product) / product.compareAtPrice) * 100) : 0
+
+// Rellena {ahorro} y {pct} en un texto de `store.pricing`.
+export const pricingText = (template, product, quantity = 1) =>
+  template
+    .replaceAll('{ahorro}', formatPrice(savingsOf(product) * quantity))
+    .replaceAll('{pct}', String(discountPct(product)))
+
 export function paymentMethodsText() {
   return store.paymentMethods.map((m) => m.charAt(0).toLowerCase() + m.slice(1)).join(' o ')
 }
@@ -30,9 +41,15 @@ export function buildOrderMessage(product, size, quantity) {
     `Producto: ${product.name} (${product.code})`,
     `Talla: ${size}`,
     `Cantidad: ${quantity}`,
-    `Precio unitario: ${formatPrice(product.price)}`,
-    `Total: ${formatPrice(product.price * quantity)}`,
   ]
+  if (savingsOf(product)) {
+    lines.push(`Precio regular: ${formatPrice(product.compareAtPrice)}`)
+    lines.push(`Precio de promoción: ${formatPrice(product.price)}`)
+  } else {
+    lines.push(`Precio unitario: ${formatPrice(product.price)}`)
+  }
+  lines.push(`Total: ${formatPrice(product.price * quantity)}`)
+  if (savingsOf(product)) lines.push(`Ahorro: ${formatPrice(savingsOf(product) * quantity)}`)
   if (store.shippingNote) lines.push(`${store.shippingNote}.`)
   if (store.paymentMethods.length) lines.push(`Métodos de pago disponibles: ${paymentMethodsText()}.`)
   lines.push(store.whatsappClosing)

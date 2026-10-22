@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { store } from '../config/store.js'
-import { buildOrderMessage, formatPrice, whatsappLink } from '../lib.js'
+import { buildOrderMessage, formatPrice, pricingText, savingsOf, whatsappLink } from '../lib.js'
 import Gallery from './Gallery.jsx'
 
 export default function ProductPage({ product }) {
@@ -53,9 +53,22 @@ export default function ProductPage({ product }) {
           <p className="product-code">{product.code}</p>
           <h1 className="product-title">{product.name}</h1>
           <p className="product-price">
+            {savingsOf(product) > 0 && (
+              <del className="price-before" data-testid="unit-before">
+                {formatPrice(product.compareAtPrice)}
+              </del>
+            )}
             <span data-testid="unit-price">{formatPrice(product.price)}</span>
+            {savingsOf(product) > 0 && (
+              <span className="badge-discount is-inline">{pricingText(store.pricing.badge, product)}</span>
+            )}
             {store.shippingNote && <span className="price-note">{store.shippingNote}</span>}
           </p>
+          {savingsOf(product) > 0 && (
+            <p className="price-urgency" data-testid="savings">
+              {pricingText(store.pricing.savings, product)}
+            </p>
+          )}
 
           <p className="product-description">{product.description}</p>
           {product.color && (
@@ -124,6 +137,11 @@ export default function ProductPage({ product }) {
               <span>Total</span>
               <strong data-testid="total">{formatPrice(total)}</strong>
             </div>
+            {savingsOf(product) > 0 && (
+              <p className="order-savings" data-testid="order-savings">
+                Ahorras {formatPrice(savingsOf(product) * quantity)}
+              </p>
+            )}
             <button type="button" className="btn-whatsapp" onClick={order} disabled={soldOut}>
               <WhatsAppIcon />
               {soldOut ? 'Sin tallas disponibles' : 'Pedir por WhatsApp'}
