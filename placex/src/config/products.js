@@ -107,8 +107,6 @@ export const products = [
       'Encaje, transparencias y un toque coqueto para una noche especial. Un conjunto de mucama con medias incluidas para completar el look.',
     material: 'Poliéster con cierta elasticidad',
     includes: ['Vestido de encaje', 'Diadema', 'Medias'],
-    // Las fotos muestran piezas que no vienen en el paquete.
-    note: 'El collar con moño y las mangas que aparecen en las fotos no están incluidos.',
     sizes: sizes(['Unitalla']),
     sizeNote: 'El proveedor recomienda un peso de 40–65 kg. Es orientativo y no garantiza el ajuste.',
     measurements: null,
