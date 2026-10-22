@@ -34,17 +34,25 @@ const pendingMeasurements = (labels = SIZES) => ({
 
 export const products = [
   {
-    id: 'conjunto-enfermera',
+    id: 'conjunto-colegiala',
     code: 'PX-001',
-    name: 'Conjunto Enfermera',
+    name: 'Conjunto Colegiala',
     price: PRICE,
-    images: [],
+    images: ['/products/colegiala-1.webp', '/products/colegiala-2.webp'],
     description:
-      'Producto de demostración. Aquí irá la descripción real del conjunto: estilo, ajuste y detalles confirmados por el proveedor.',
-    includes: ['Pieza 1 (por confirmar)', 'Pieza 2 (por confirmar)', 'Accesorio (por confirmar)'],
+      'Top de encaje blanco con lazo frontal y minifalda de cuadros rojos. Un conjunto atrevido para sorprender en una noche especial.',
+    includes: ['Top', 'Minifalda', 'Tanga'],
     sizes: sizes(),
-    measurements: pendingMeasurements(),
-    provisional: true,
+    // Medidas de la tabla del proveedor. La talla S no viene en la tabla.
+    measurements: {
+      columns: ['Pecho (cm)', 'Cintura (cm)'],
+      rows: [
+        { size: 'S', values: [null, null] },
+        { size: 'M', values: [89, 70] },
+        { size: 'L', values: [93, 74] },
+        { size: 'XL', values: [98, 78] },
+      ],
+    },
   },
   {
     id: 'conjunto-oficial',
