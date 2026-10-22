@@ -1,5 +1,12 @@
 import { store } from './config/store.js'
 
+// Ruta de un archivo de public/ que funciona en localhost y en una subcarpeta
+// publicada (p. ej. GitHub Pages). Acepta '/products/foto.jpg' o 'products/foto.jpg'.
+export function assetUrl(path) {
+  if (/^(https?:|data:)/.test(path)) return path
+  return import.meta.env.BASE_URL + String(path).replace(/^\/+/, '')
+}
+
 const numberFormat = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 })
 
 export function formatPrice(amount) {

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { store } from '../config/store.js'
-import { formatPrice } from '../lib.js'
+import { assetUrl, formatPrice } from '../lib.js'
 import PhotoPlaceholder from './PhotoPlaceholder.jsx'
 import { PromoHero } from './Promo.jsx'
 
@@ -35,7 +35,7 @@ export default function Catalog({ products, promo }) {
               <div className="product-card-media">
                 {product.images.length ? (
                   <img
-                    src={product.images[0]}
+                    src={assetUrl(product.images[0])}
                     alt={product.name}
                     loading={i < 2 ? 'eager' : 'lazy'}
                     decoding="async"

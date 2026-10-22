@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import PhotoPlaceholder from './PhotoPlaceholder.jsx'
+import { assetUrl } from '../lib.js'
 
 const PLACEHOLDER_COUNT = 3
 
@@ -25,7 +26,7 @@ export default function Gallery({ images, name }) {
         {slides.map((src, i) => (
           <div className="gallery-slide" key={i}>
             {src ? (
-              <img src={src} alt={`${name} — foto ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
+              <img src={assetUrl(src)} alt={`${name} — foto ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
             ) : (
               <PhotoPlaceholder index={i} total={slides.length} />
             )}
