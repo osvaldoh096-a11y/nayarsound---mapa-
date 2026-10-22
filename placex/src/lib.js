@@ -86,7 +86,7 @@ export function parseZonedDate(value, timeZone) {
   return utc
 }
 
-const { lastDay, timeZone } = store.promo
+const { lastDay, timeZone, cycle } = store.promo
 
 // Fecha 'AAAA-MM-DD' desplazada `days` días (aritmética de calendario, sin horas).
 const shiftDay = (day, days) => {
@@ -94,24 +94,39 @@ const shiftDay = (day, days) => {
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
 }
+const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 864e5)
+const isDay = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '')
 
-const validDay = /^\d{4}-\d{2}-\d{2}$/.test(lastDay || '')
+const cycleOn = Boolean(cycle?.enabled) && isDay(cycle.firstLastDay)
+const validDay = isDay(lastDay)
 if (lastDay && !validDay) console.warn(`PLACEX: promo.lastDay "${lastDay}" no tiene el formato AAAA-MM-DD`)
+if (cycle?.enabled && !cycleOn) console.warn('PLACEX: promo.cycle.firstLastDay debe tener el formato AAAA-MM-DD')
 
-// Fin: medianoche de CDMX al terminar el último día.
-export const promoEndsAt = validDay ? parseZonedDate(`${shiftDay(lastDay, 1)}T00:00`, timeZone) : null
+// Medianoche de CDMX al terminar el día `day`.
+const midnightAfter = (day) => parseZonedDate(`${shiftDay(day, 1)}T00:00`, timeZone)
+
+// Fin de la promoción con fecha fija (sin ciclo).
+const fixedEndsAt = validDay ? midnightAfter(lastDay) : null
 
 // Fecha de hoy en CDMX como 'AAAA-MM-DD'.
 export const todayIn = (ms) =>
   new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms)
 
-// Etapa de la promoción en el instante `now`: 'last', 'dayBefore', 'earlier' o null.
-export function promoStage(now) {
-  if (promoEndsAt === null || now >= promoEndsAt) return null
+// true si la promoción puede seguir mostrando algo después de `now`.
+export const promoRunning = (now) => cycleOn || (fixedEndsAt !== null && now < fixedEndsAt)
+
+// Etapa en el instante `now` ('last', 'dayBefore', 'earlier' o null) y su fin.
+export function promoState(now) {
   const today = todayIn(now)
-  if (today === lastDay) return 'last'
-  if (today === shiftDay(lastDay, -1)) return 'dayBefore'
-  return 'earlier'
+  if (cycleOn) {
+    const n = daysBetween(cycle.firstLastDay, today)
+    if (n < 0) return { stage: null }
+    return n % 2 === 0 ? { stage: 'last', endsAt: midnightAfter(today) } : { stage: 'dayBefore' }
+  }
+  if (fixedEndsAt === null || now >= fixedEndsAt) return { stage: null }
+  if (today === lastDay) return { stage: 'last', endsAt: fixedEndsAt }
+  if (today === shiftDay(lastDay, -1)) return { stage: 'dayBefore' }
+  return { stage: 'earlier' }
 }
 
 export const promoEndDateText = () =>

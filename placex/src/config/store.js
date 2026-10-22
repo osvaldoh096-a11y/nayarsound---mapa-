@@ -61,7 +61,13 @@ export const store = {
   //   - antes de eso:      "Promoción por tiempo limitado" + fecha de fin
   //   - vacío o ya pasó:   no se muestra urgencia ni contador
   // Para una nueva promoción, cambia la fecha. El precio NO cambia al terminar.
+  //
+  // cycle: ciclo automático de 2 días que se repite sin fin. Si está activo,
+  //   ignora `lastDay`. `firstLastDay` es el primer "último día" (con contador);
+  //   desde ahí se alternan: "¡Solo hoy y mañana!" → "¡Último día!" → ...
+  //   Para apagarlo: enabled: false.
   promo: {
+    cycle: { enabled: true, firstLastDay: '2026-10-21' },
     lastDay: '',
     timeZone: 'America/Mexico_City',
     lastDayLabel: '¡Último día de promoción!',

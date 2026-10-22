@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { products } from '../config/products.js'
 import { store } from '../config/store.js'
-import { fetchClockOffset, formatPrice, formatRemaining, promoEndDateText, promoEndsAt, promoStage, uniformPrice } from '../lib.js'
+import { fetchClockOffset, formatPrice, formatRemaining, promoEndDateText, promoRunning, promoState, uniformPrice } from '../lib.js'
 
 // La etapa y el contador salen de la fecha fija de la configuración (no de la
 // visita), así que no se reinician al recargar ni al cambiar de dispositivo.
@@ -9,10 +9,10 @@ import { fetchClockOffset, formatPrice, formatRemaining, promoEndDateText, promo
 export function usePromo() {
   const [offset, setOffset] = useState(0)
   const [now, setNow] = useState(() => Date.now())
-  const pending = promoEndsAt !== null && now + offset < promoEndsAt
+  const pending = promoRunning(now + offset)
 
   useEffect(() => {
-    if (promoEndsAt === null || Date.now() >= promoEndsAt + 60000) return
+    if (!promoRunning(Date.now() - 60000)) return
     let cancelled = false
     fetchClockOffset().then((value) => !cancelled && setOffset(value))
     return () => {
@@ -27,8 +27,8 @@ export function usePromo() {
   }, [pending])
 
   const current = now + offset
-  const stage = promoStage(current)
-  return { stage, remaining: stage === 'last' ? formatRemaining(promoEndsAt - current) : null }
+  const { stage, endsAt } = promoState(current)
+  return { stage, remaining: stage === 'last' ? formatRemaining(endsAt - current) : null }
 }
 
 function Countdown({ remaining }) {
