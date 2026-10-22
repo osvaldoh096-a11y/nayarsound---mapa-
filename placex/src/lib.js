@@ -13,13 +13,6 @@ export function formatPrice(amount) {
   return `$${numberFormat.format(amount)} ${store.currency}`
 }
 
-export function productUrl(product) {
-  const base = store.siteUrl
-    ? store.siteUrl.replace(/\/+$/, '') + '/'
-    : window.location.origin + window.location.pathname
-  return `${base}#/producto/${product.id}`
-}
-
 // Ahorro por pieza frente al precio regular (0 si no hay precio tachado).
 export const savingsOf = (product) => Math.max(0, (product.compareAtPrice || 0) - product.price)
 export const discountPct = (product) =>
@@ -31,29 +24,18 @@ export const pricingText = (template, product, quantity = 1) =>
     .replaceAll('{ahorro}', formatPrice(savingsOf(product) * quantity))
     .replaceAll('{pct}', String(discountPct(product)))
 
-export function paymentMethodsText() {
-  return store.paymentMethods.map((m) => m.charAt(0).toLowerCase() + m.slice(1)).join(' o ')
-}
-
+// Mensaje breve para WhatsApp. *texto* = negritas en WhatsApp.
 export function buildOrderMessage(product, size, quantity) {
   const lines = [
-    `Hola, quiero pedir en ${store.name}:`,
-    `Producto: ${product.name} (${product.code})`,
-    `Talla: ${size}`,
-    `Cantidad: ${quantity}`,
+    'Hola, quiero este pedido 🛍️',
+    '',
+    `*Producto:* ${product.name} (${product.code})`,
+    `*Talla:* ${size} · *Cantidad:* ${quantity}`,
+    '',
+    `*Total: ${formatPrice(product.price * quantity)}*`,
   ]
-  if (savingsOf(product)) {
-    lines.push(`Precio regular: ${formatPrice(product.compareAtPrice)}`)
-    lines.push(`Precio de promoción: ${formatPrice(product.price)}`)
-  } else {
-    lines.push(`Precio unitario: ${formatPrice(product.price)}`)
-  }
-  lines.push(`Total: ${formatPrice(product.price * quantity)}`)
-  if (savingsOf(product)) lines.push(`Ahorro: ${formatPrice(savingsOf(product) * quantity)}`)
-  if (store.shippingNote) lines.push(`${store.shippingNote}.`)
-  if (store.paymentMethods.length) lines.push(`Métodos de pago disponibles: ${paymentMethodsText()}.`)
-  lines.push(store.whatsappClosing)
-  lines.push(`Producto: ${productUrl(product)}`)
+  if (store.shippingNote) lines.push(`🚚 ${store.shippingNote}`)
+  lines.push('', store.whatsappClosing)
   return lines.join('\n')
 }
 

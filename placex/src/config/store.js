@@ -13,11 +13,6 @@ export const store = {
   // Si queda vacío, WhatsApp se abre sin destinatario.
   whatsappNumber: '523112851465',
 
-  // URL pública de la tienda para el enlace del producto en el mensaje.
-  // Déjalo vacío para usar la dirección actual (p. ej. http://localhost:3000).
-  // Al publicar, pon aquí tu dominio: 'https://www.tudominio.com'
-  siteUrl: '',
-
   currency: 'MXN',
 
   // Texto de envío en catálogo, fichas y mensaje. Déjalo vacío ('') para ocultarlo.
@@ -41,7 +36,7 @@ export const store = {
   deliveryNote: 'Confirma tu entrega por WhatsApp',
 
   // Pregunta final del mensaje de WhatsApp.
-  whatsappClosing: '¿Me confirmas disponibilidad y fecha de entrega?',
+  whatsappClosing: '¿Me confirmas disponibilidad y entrega?',
 
   // Aviso de edad en el pie de página.
   ageNotice: 'Productos para personas mayores de 18 años.',
