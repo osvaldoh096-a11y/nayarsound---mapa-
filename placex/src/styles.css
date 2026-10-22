@@ -144,34 +144,33 @@ button {
 /* ---------- Promoción ---------- */
 .countdown {
   display: inline-flex;
-  gap: 6px;
+  align-items: center;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
-.countdown-unit {
+.countdown-part {
   display: inline-flex;
-  align-items: baseline;
-  gap: 1px;
+  align-items: center;
 }
-.countdown-unit strong {
-  font-weight: 600;
-}
-.countdown-unit small {
-  font-size: 0.75em;
-  opacity: 0.75;
-}
-.countdown {
-  gap: 8px;
-}
-.countdown .countdown-unit {
-  min-width: 52px;
-  justify-content: center;
-  padding: 6px 8px;
-  border: 1px solid rgba(236, 74, 85, 0.45);
+.countdown-digits {
+  display: inline-block;
+  width: 2.5ch;
+  padding: 6px 0;
+  text-align: center;
+  font-size: clamp(40px, 13vw, 60px);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(236, 74, 85, 0.55);
   border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.35);
 }
-.countdown strong {
-  font-size: 20px;
+.countdown-colon {
+  padding: 0 4px;
+  font-size: clamp(30px, 9vw, 44px);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent-text);
 }
 
 .promo-hero {
@@ -212,11 +211,42 @@ button {
   line-height: 1.15;
   letter-spacing: 0.04em;
 }
-.promo-subtitle {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.4;
+.promo-hero.is-urgent {
+  padding: 16px 16px 14px;
+  border-color: rgba(236, 74, 85, 0.7);
+  background: radial-gradient(140% 120% at 50% 0%, rgba(184, 21, 31, 0.45), transparent 65%), #050303;
+  text-align: center;
+}
+.promo-hero.is-urgent::after {
+  display: none;
+}
+.promo-headline {
+  margin: 0 0 12px;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: clamp(24px, 7.4vw, 38px);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 2px 18px rgba(212, 42, 54, 0.55);
+}
+.promo-ends {
+  margin: -4px 0 10px;
+  color: #ffd2d6;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.promo-offer {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: clamp(20px, 6vw, 28px);
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--accent-text);
 }
 .promo-support {
   margin: 0;
@@ -258,18 +288,29 @@ button {
   color: var(--muted);
 }
 .promo-timer {
-  margin-top: 14px;
+  position: relative;
+  z-index: 1;
+  margin: 0 0 12px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: 6px;
 }
 .promo-timer-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #ffd2d6;
+}
+.is-urgent .promo-actions {
+  justify-content: center;
+  margin-top: 12px;
+}
+.is-urgent .btn-hero {
+  width: 100%;
+  max-width: 320px;
+  min-height: 48px;
 }
 
 .payment-methods {

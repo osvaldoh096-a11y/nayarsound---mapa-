@@ -1,36 +1,43 @@
 import { useEffect, useState } from 'react'
 import { products } from '../config/products.js'
 import { store } from '../config/store.js'
-import { formatPrice, promoEndsAt, promoLabel, splitRemaining, uniformPrice } from '../lib.js'
+import { fetchClockOffset, formatPrice, formatRemaining, promoEndDateText, promoEndsAt, promoStage, uniformPrice } from '../lib.js'
 
-// La cuenta regresiva depende solo de la fecha configurada (no de la visita),
-// así que no se reinicia al recargar ni al cambiar de dispositivo.
+// La etapa y el contador salen de la fecha fija de la configuración (no de la
+// visita), así que no se reinician al recargar ni al cambiar de dispositivo.
+// La hora se corrige con la del servidor.
 export function usePromo() {
+  const [offset, setOffset] = useState(0)
   const [now, setNow] = useState(() => Date.now())
-  const active = promoEndsAt !== null && now < promoEndsAt
+  const pending = promoEndsAt !== null && now + offset < promoEndsAt
 
   useEffect(() => {
-    if (!active) return
+    if (promoEndsAt === null || Date.now() >= promoEndsAt + 60000) return
+    let cancelled = false
+    fetchClockOffset().then((value) => !cancelled && setOffset(value))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!pending) return
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
-  }, [active])
+  }, [pending])
 
-  return active
-    ? { active, remaining: splitRemaining(promoEndsAt - now), label: promoLabel(now) }
-    : { active: false }
+  const current = now + offset
+  const stage = promoStage(current)
+  return { stage, remaining: stage === 'last' ? formatRemaining(promoEndsAt - current) : null }
 }
 
-const pad = (n) => String(n).padStart(2, '0')
-
 function Countdown({ remaining }) {
-  const { days, hours, minutes, seconds } = remaining
-  const units = [...(days > 0 ? [[days, 'd']] : []), [hours, 'h'], [minutes, 'm'], [seconds, 's']]
   return (
-    <span className="countdown" data-testid="countdown" role="timer">
-      {units.map(([value, unit]) => (
-        <span className="countdown-unit" key={unit}>
-          <strong>{unit === 'd' ? value : pad(value)}</strong>
-          <small>{unit}</small>
+    <span className="countdown" data-testid="countdown" role="timer" aria-live="off">
+      {remaining.split(':').map((part, i) => (
+        <span key={i} className="countdown-part">
+          {i > 0 && <span className="countdown-colon" aria-hidden="true">:</span>}
+          <strong className="countdown-digits">{part}</strong>
         </span>
       ))}
     </span>
@@ -74,31 +81,42 @@ export function Marquee() {
   )
 }
 
+const STAGE_LABEL = { last: 'lastDayLabel', dayBefore: 'dayBeforeLabel', earlier: 'earlierLabel' }
+
 // Portada breve del catálogo.
 export function PromoHero({ promo, onCta }) {
-  const { title, subtitle, support, cta } = store.hero
-  const sub = withPrice(subtitle)
+  const { title, support, cta } = store.hero
+  const { timerLabel, offer } = store.promo
+  const offerText = withPrice(offer)
+  const { stage } = promo
   return (
-    <section className="promo-hero" aria-labelledby="hero-title">
-      {promo.active ? (
-        <p className="promo-kicker" data-testid="promo-label">{promo.label}</p>
+    <section className={`promo-hero${stage ? ' is-urgent' : ''}`} aria-labelledby="hero-title">
+      {stage ? (
+        <h2 className="promo-headline" id="hero-title" data-testid="promo-label">
+          {store.promo[STAGE_LABEL[stage]]}
+        </h2>
       ) : (
-        <p className="promo-kicker" data-testid="promo-fallback">{store.promo.fallbackLabel}</p>
+        <h2 className="promo-title" id="hero-title">
+          {title}
+        </h2>
       )}
-      <h2 className="promo-title" id="hero-title">{title}</h2>
-      {sub && <p className="promo-subtitle">{sub}</p>}
-      {support && <p className="promo-support">{support}</p>}
-      {promo.active && (
+
+      {stage === 'last' && (
         <div className="promo-timer">
-          <span className="promo-timer-label">Termina en</span>
+          <span className="promo-timer-label">{timerLabel}</span>
           <Countdown remaining={promo.remaining} />
         </div>
       )}
+      {stage === 'dayBefore' && <p className="promo-ends">Termina mañana a medianoche</p>}
+      {stage === 'earlier' && <p className="promo-ends">Termina el {promoEndDateText()} a medianoche</p>}
+
+      {offerText && <p className="promo-offer">{offerText}</p>}
+      {!stage && support && <p className="promo-support">{support}</p>}
+
       <div className="promo-actions">
         <button type="button" className="btn-hero" onClick={onCta}>
           {cta}
         </button>
-        {store.paymentSummary && <span className="promo-pay">{store.paymentSummary}</span>}
       </div>
     </section>
   )

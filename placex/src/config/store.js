@@ -46,23 +46,30 @@ export const store = {
   marquee: ['Envío gratis a toda la República', 'Envíos rápidos', 'Todos los conjuntos a {precio} MXN'],
   hero: {
     title: 'Tu próximo look atrevido, a un clic.',
-    subtitle: 'Conjuntos a {precio} con envío gratis a toda la República.',
     support: 'Consulta por WhatsApp cuándo llega a tu código postal.',
     cta: 'Ver conjuntos',
   },
 
   // ---------- PROMOCIÓN ----------
-  // endsAt: fecha y hora REAL en que termina la promoción, en hora de
-  // Ciudad de México, con el formato 'AAAA-MM-DDTHH:MM'.
-  //   Ejemplo: '2026-10-31T23:59'
-  // Mientras esté vacío (''), o cuando la fecha ya pasó, el temporizador
-  // y el mensaje de urgencia se ocultan y se muestra `fallbackLabel`.
-  // Al terminar la promoción el precio NO cambia.
+  // lastDay: ÚLTIMO día REAL de la promoción, formato 'AAAA-MM-DD'.
+  //   La promoción termina a la medianoche (00:00) de Ciudad de México
+  //   al terminar ese día. Ejemplo: '2026-10-31'
+  //
+  // Lo que se muestra se calcula con esa fecha, igual para todas las personas:
+  //   - el día anterior:   "¡Solo hoy y mañana!"
+  //   - el último día:     "¡Último día de promoción!" + contador hasta medianoche
+  //   - antes de eso:      "Promoción por tiempo limitado" + fecha de fin
+  //   - vacío o ya pasó:   no se muestra urgencia ni contador
+  // Para una nueva promoción, cambia la fecha. El precio NO cambia al terminar.
   promo: {
-    endsAt: '',
+    lastDay: '',
     timeZone: 'America/Mexico_City',
-    fallbackLabel: 'Precio de lanzamiento',
-    // Se usa solo si la promoción termina el mismo día (hora de CDMX).
-    todayLabel: 'Solo por hoy',
+    lastDayLabel: '¡Último día de promoción!',
+    dayBeforeLabel: '¡Solo hoy y mañana!',
+    earlierLabel: 'Promoción por tiempo limitado',
+    timerLabel: 'Tiempo de la promoción',
+    // Oferta destacada; {precio} se reemplaza por el precio del catálogo.
+    offer: '{precio} + envío gratis',
   },
+
 }

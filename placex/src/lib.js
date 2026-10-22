@@ -86,36 +86,60 @@ export function parseZonedDate(value, timeZone) {
   return utc
 }
 
-export const promoEndsAt = parseZonedDate(store.promo.endsAt, store.promo.timeZone)
+const { lastDay, timeZone } = store.promo
 
-if (store.promo.endsAt && promoEndsAt === null) {
-  console.warn(`PLACEX: promo.endsAt "${store.promo.endsAt}" no tiene el formato AAAA-MM-DDTHH:MM`)
+// Fecha 'AAAA-MM-DD' desplazada `days` días (aritmética de calendario, sin horas).
+const shiftDay = (day, days) => {
+  const d = new Date(`${day}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
 }
 
-const dayKey = (ms, timeZone) =>
+const validDay = /^\d{4}-\d{2}-\d{2}$/.test(lastDay || '')
+if (lastDay && !validDay) console.warn(`PLACEX: promo.lastDay "${lastDay}" no tiene el formato AAAA-MM-DD`)
+
+// Fin: medianoche de CDMX al terminar el último día.
+export const promoEndsAt = validDay ? parseZonedDate(`${shiftDay(lastDay, 1)}T00:00`, timeZone) : null
+
+// Fecha de hoy en CDMX como 'AAAA-MM-DD'.
+export const todayIn = (ms) =>
   new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms)
 
-// Etiqueta de urgencia: "Solo por hoy" únicamente si termina hoy (hora de CDMX).
-export function promoLabel(now) {
-  const { timeZone, todayLabel } = store.promo
-  if (dayKey(now, timeZone) === dayKey(promoEndsAt, timeZone)) return todayLabel
-  const date = new Intl.DateTimeFormat('es-MX', {
-    timeZone,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(promoEndsAt)
-  return `Termina el ${date}`
+// Etapa de la promoción en el instante `now`: 'last', 'dayBefore', 'earlier' o null.
+export function promoStage(now) {
+  if (promoEndsAt === null || now >= promoEndsAt) return null
+  const today = todayIn(now)
+  if (today === lastDay) return 'last'
+  if (today === shiftDay(lastDay, -1)) return 'dayBefore'
+  return 'earlier'
 }
 
-export function splitRemaining(ms) {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  return {
-    days: Math.floor(total / 86400),
-    hours: Math.floor((total % 86400) / 3600),
-    minutes: Math.floor((total % 3600) / 60),
-    seconds: total % 60,
+export const promoEndDateText = () =>
+  validDay
+    ? new Intl.DateTimeFormat('es-MX', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }).format(
+        new Date(`${lastDay}T12:00:00Z`)
+      )
+    : ''
+
+// Diferencia entre la hora del servidor y la del dispositivo, para que el
+// contador sea igual aunque el reloj del celular esté adelantado o atrasado.
+export async function fetchClockOffset() {
+  try {
+    const sent = Date.now()
+    const res = await fetch(window.location.pathname, { method: 'HEAD', cache: 'no-store' })
+    const received = Date.now()
+    const server = Date.parse(res.headers.get('date'))
+    if (Number.isNaN(server)) return 0
+    // El encabezado Date tiene resolución de 1 s: se toma la mitad del segundo.
+    return server + 500 - (sent + received) / 2
+  } catch {
+    return 0
   }
+}
+
+// Tiempo restante como HH:MM:SS (las horas pueden pasar de 24).
+export function formatRemaining(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  const pad = (n) => String(n).padStart(2, '0')
+  return [Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60].map(pad).join(':')
 }

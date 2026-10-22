@@ -18,7 +18,7 @@ npm run dev      # http://localhost:3000
 | Productos: nombre, código, precio, descripción, qué incluye, tallas, disponibilidad, medidas | `src/config/products.js` |
 | Fotos | Guárdalas en `public/products/` y ponlas en `images` del producto, p. ej. `'/products/enfermera-1.jpg'` |
 | Número de WhatsApp, URL pública, envío, formas de pago, textos generales | `src/config/store.js` |
-| Fin de la promoción (temporizador), hora de Ciudad de México | `promo.endsAt` en `src/config/store.js`, formato `'2026-10-31T23:59'` |
+| Promoción (último día real, hora de Ciudad de México) | `promo.lastDay` en `src/config/store.js`, formato `'2026-10-31'` |
 | Logotipo | `public/brand/` |
 | Colores y estilos | `src/styles.css` (variables al inicio) |
 
@@ -39,4 +39,4 @@ y sube los cambios de `placex/` y `tienda/` a la rama `main`.
 - Número de WhatsApp Business en `store.whatsappNumber`.
 - Medidas pendientes ("Por confirmar") de cada producto.
 - Dominio en `store.siteUrl` para que el enlace del mensaje apunte a la tienda publicada.
-- Fecha real de fin de la promoción en `promo.endsAt` (vacío = temporizador oculto y "Precio de lanzamiento").
+- Último día real de la promoción en `promo.lastDay` (vacío = sin urgencia ni contador).
