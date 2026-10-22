@@ -15,6 +15,7 @@
 //    description  → texto de la ficha
 //    color        → (opcional) color o colores de la prenda
 //    material     → (opcional) material, solo si está confirmado
+//    details      → (opcional) lista de detalles de diseño
 //    includes     → lista de piezas que incluye
 //    note         → (opcional) aclaración visible bajo "Incluye"
 //    sizes        → tallas: { label, available }  (available: false = no se puede elegir)
@@ -110,5 +111,38 @@ export const products = [
     sizes: sizes(['Unitalla']),
     sizeNote: 'El proveedor recomienda un peso de 40–65 kg. Es orientativo y no garantiza el ajuste.',
     measurements: null,
+  },
+  {
+    id: 'babydoll-corse',
+    code: 'PX-004',
+    name: 'Babydoll Corsé Rojo y Negro',
+    price: PRICE,
+    images: [
+      '/products/babydoll-1.webp',
+      {
+        video: '/products/babydoll-video.mp4',
+        webm: '/products/babydoll-video.webm',
+        poster: '/products/babydoll-video-poster.webp',
+      },
+      '/products/babydoll-2.webp',
+      { src: '/products/babydoll-tallas.webp', fit: 'contain' },
+    ],
+    description:
+      'Un look atrevido con acabado satinado, encaje y lazos rojos. Su diseño tipo corsé con cordones laterales ajustables y falda corta de tul es ideal para sorprender en una noche especial.',
+    color: 'Negro y rojo',
+    details: ['Cordones laterales ajustables', 'Escote con encaje', 'Falda con volantes'],
+    includes: ['Vestido de lencería'],
+    note: 'No incluye medias ni accesorios.',
+    sizes: sizes(),
+    // Tabla del proveedor, transcrita tal cual (la tabla no indica unidades).
+    measurements: {
+      columns: ['Largo (sin tirantes)', 'Pecho superior', 'Pecho inferior', 'Cintura'],
+      rows: [
+        { size: 'S', values: ['17', '66–82', '66', '64–80'] },
+        { size: 'M', values: ['18', '70–86', '70', '68–84'] },
+        { size: 'L', values: ['19', '74–90', '74', '72–88'] },
+        { size: 'XL', values: ['20', '78–94', '78', '76–92'] },
+      ],
+    },
   },
 ]

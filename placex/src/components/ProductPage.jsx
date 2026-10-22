@@ -145,6 +145,17 @@ export default function ProductPage({ product }) {
             </p>
           </div>
 
+          {product.details?.length > 0 && (
+            <section className="detail-section">
+              <h2 className="detail-title">Detalles</h2>
+              <ul className="includes">
+                {product.details.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {product.includes?.length > 0 && (
             <section className="detail-section">
               <h2 className="detail-title">Incluye</h2>
