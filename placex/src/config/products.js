@@ -9,6 +9,8 @@
 //    images       → rutas de fotos. Guarda las fotos en  public/products/
 //                   y escribe '/products/archivo.jpg'. Si la lista está vacía
 //                   se muestran espacios "FOTO PROVISIONAL".
+//                   También admite videos: { video: '/products/video.mp4', poster: '/products/portada.webp' }
+//                   La primera FOTO de la lista es la portada del catálogo.
 //    description  → texto de la ficha
 //    includes     → lista de piezas que incluye
 //    sizes        → tallas: { label, available }  (available: false = no se puede elegir)
@@ -16,7 +18,7 @@
 //                   Usa null en un valor que aún no tengas: se muestra "Por confirmar".
 //    provisional  → true muestra la etiqueta "Provisional" (quítalo con datos reales)
 //
-//  Los 3 productos siguientes son DE DEMOSTRACIÓN: no tienen fotos, medidas
+//  PX-001 tiene datos reales. PX-002 y PX-003 son DE DEMOSTRACIÓN: no tienen fotos, medidas
 //  ni materiales reales. Reemplázalos antes de publicar.
 // ============================================================
 
@@ -38,7 +40,15 @@ export const products = [
     code: 'PX-001',
     name: 'Conjunto Colegiala',
     price: PRICE,
-    images: ['/products/colegiala-1.webp', '/products/colegiala-2.webp'],
+    images: [
+      '/products/colegiala-1.webp',
+      {
+        video: '/products/colegiala-video.mp4',
+        webm: '/products/colegiala-video.webm',
+        poster: '/products/colegiala-video-poster.webp',
+      },
+      '/products/colegiala-2.webp',
+    ],
     description:
       'Top de encaje blanco con lazo frontal y minifalda de cuadros rojos. Un conjunto atrevido para sorprender en una noche especial.',
     includes: ['Top', 'Minifalda', 'Tanga'],

@@ -483,6 +483,13 @@ main {
   height: 100%;
   object-fit: cover;
 }
+.gallery-slide > video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
 .gallery-dots {
   display: flex;
   justify-content: center;
