@@ -2,7 +2,6 @@ import { useRef, useState } from 'react'
 import { store } from '../config/store.js'
 import { buildOrderMessage, formatPrice, whatsappLink } from '../lib.js'
 import Gallery from './Gallery.jsx'
-import MeasurementsTable from './MeasurementsTable.jsx'
 
 export default function ProductPage({ product }) {
   const availableSizes = product.sizes.filter((s) => s.available)
@@ -165,13 +164,6 @@ export default function ProductPage({ product }) {
                 ))}
               </ul>
               {product.note && <p className="product-note">{product.note}</p>}
-            </section>
-          )}
-
-          {product.measurements?.rows?.length > 0 && (
-            <section className="detail-section">
-              <h2 className="detail-title">Medidas</h2>
-              <MeasurementsTable measurements={product.measurements} />
             </section>
           )}
 

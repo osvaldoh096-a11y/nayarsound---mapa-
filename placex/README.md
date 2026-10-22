@@ -37,6 +37,5 @@ y sube los cambios de `placex/` y `tienda/` a la rama `main`.
 ## Antes de publicar
 
 - Número de WhatsApp Business en `store.whatsappNumber`.
-- Medidas pendientes ("Por confirmar") de cada producto.
 - Dominio en `store.siteUrl` para que el enlace del mensaje apunte a la tienda publicada.
 - Promoción: ciclo automático de 2 días en `promo.cycle` (enabled: false para apagarlo) o último día fijo en `promo.lastDay`.

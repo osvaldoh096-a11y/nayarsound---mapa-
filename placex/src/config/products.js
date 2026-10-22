@@ -20,8 +20,7 @@
 //    note         → (opcional) aclaración visible bajo "Incluye"
 //    sizes        → tallas: { label, available }  (available: false = no se puede elegir)
 //    sizeNote     → (opcional) aclaración bajo el selector de talla
-//    measurements → tabla de medidas: columnas y una fila por talla (null = sin tabla).
-//                   Usa null en un valor que aún no tengas: se muestra "Por confirmar".
+//                   (las tablas de tallas van como foto en `images`)
 //    provisional  → true muestra la etiqueta "Provisional" (quítalo con datos reales)
 //
 // ============================================================
@@ -32,11 +31,6 @@ const PRICE = 299
 const SIZES = ['S', 'M', 'L', 'XL']
 
 const sizes = (labels = SIZES) => labels.map((label) => ({ label, available: true }))
-
-const pendingMeasurements = (labels = SIZES) => ({
-  columns: ['Busto (cm)', 'Cintura (cm)', 'Cadera (cm)'],
-  rows: labels.map((size) => ({ size, values: [null, null, null] })),
-})
 
 export const products = [
   {
@@ -58,16 +52,6 @@ export const products = [
       'Top de encaje blanco con lazo frontal y minifalda de cuadros rojos. Un conjunto atrevido para sorprender en una noche especial.',
     includes: ['Top', 'Minifalda', 'Tanga'],
     sizes: sizes(),
-    // Medidas de la tabla del proveedor. La talla S no viene en la tabla.
-    measurements: {
-      columns: ['Pecho (cm)', 'Cintura (cm)'],
-      rows: [
-        { size: 'S', values: [null, null] },
-        { size: 'M', values: [89, 70] },
-        { size: 'L', values: [93, 74] },
-        { size: 'XL', values: [98, 78] },
-      ],
-    },
   },
   {
     id: 'conjunto-caperucita',
@@ -91,7 +75,6 @@ export const products = [
     // Las fotos muestran piezas que no vienen en el paquete.
     note: 'La capa y la diadema que aparecen en las fotos no están incluidas.',
     sizes: sizes(['M', 'L', 'XL', '2XL']),
-    measurements: pendingMeasurements(['M', 'L', 'XL', '2XL']),
   },
   {
     id: 'conjunto-mucama',
@@ -110,7 +93,6 @@ export const products = [
     includes: ['Vestido de encaje', 'Diadema', 'Medias'],
     sizes: sizes(['Unitalla']),
     sizeNote: 'El proveedor recomienda un peso de 40–65 kg. Es orientativo y no garantiza el ajuste.',
-    measurements: null,
   },
   {
     id: 'babydoll-corse',
@@ -134,15 +116,5 @@ export const products = [
     includes: ['Vestido de lencería'],
     note: 'No incluye medias ni accesorios.',
     sizes: sizes(),
-    // Tabla del proveedor, transcrita tal cual (la tabla no indica unidades).
-    measurements: {
-      columns: ['Largo (sin tirantes)', 'Pecho superior', 'Pecho inferior', 'Cintura'],
-      rows: [
-        { size: 'S', values: ['17', '66–82', '66', '64–80'] },
-        { size: 'M', values: ['18', '70–86', '70', '68–84'] },
-        { size: 'L', values: ['19', '74–90', '74', '72–88'] },
-        { size: 'XL', values: ['20', '78–94', '78', '76–92'] },
-      ],
-    },
   },
 ]

@@ -905,37 +905,6 @@ main {
   background: var(--accent);
 }
 
-.table-scroll {
-  overflow-x: auto;
-}
-.measurements table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.measurements th,
-.measurements td {
-  border-bottom: 1px solid var(--line);
-  padding: 10px 8px;
-  text-align: left;
-  white-space: nowrap;
-}
-.measurements thead th {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.measurements tbody th {
-  font-weight: 600;
-}
-.measurements td.is-pending {
-  color: var(--muted);
-  font-style: italic;
-  font-size: 13px;
-}
-
 .btn-outline {
   display: flex;
   align-items: center;
