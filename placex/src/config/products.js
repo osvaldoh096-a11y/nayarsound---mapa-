@@ -13,14 +13,16 @@
 //                   y fotos completas sin recortar (p. ej. tablas): { src: '/products/tabla.webp', fit: 'contain' }
 //                   La primera FOTO de la lista es la portada del catálogo.
 //    description  → texto de la ficha
+//    color        → (opcional) color o colores de la prenda
 //    includes     → lista de piezas que incluye
+//    note         → (opcional) aclaración visible bajo "Incluye"
 //    sizes        → tallas: { label, available }  (available: false = no se puede elegir)
 //    measurements → tabla de medidas: columnas y una fila por talla.
 //                   Usa null en un valor que aún no tengas: se muestra "Por confirmar".
 //    provisional  → true muestra la etiqueta "Provisional" (quítalo con datos reales)
 //
-//  PX-001 tiene datos reales. PX-002 y PX-003 son DE DEMOSTRACIÓN: no tienen fotos, medidas
-//  ni materiales reales. Reemplázalos antes de publicar.
+//  PX-001 y PX-002 tienen datos reales. PX-003 es DE DEMOSTRACIÓN: no tiene fotos, medidas
+//  ni materiales reales. Reemplázalo antes de publicar.
 // ============================================================
 
 // Precio y tallas comunes. Puedes cambiar el precio o las tallas de un
@@ -67,17 +69,28 @@ export const products = [
     },
   },
   {
-    id: 'conjunto-oficial',
+    id: 'conjunto-caperucita',
     code: 'PX-002',
-    name: 'Conjunto Oficial',
+    name: 'Conjunto Caperucita Roja',
     price: PRICE,
-    images: [],
+    images: [
+      '/products/caperucita-1.webp',
+      {
+        video: '/products/caperucita-video.mp4',
+        webm: '/products/caperucita-video.webm',
+        poster: '/products/caperucita-video-poster.webp',
+      },
+      '/products/caperucita-2.webp',
+      '/products/caperucita-3.webp',
+    ],
     description:
-      'Producto de demostración. Sustituye este texto por la descripción real cuando tengas la prenda.',
-    includes: ['Pieza 1 (por confirmar)', 'Pieza 2 (por confirmar)'],
-    sizes: sizes(),
-    measurements: pendingMeasurements(),
-    provisional: true,
+      'Dale un giro atrevido al cuento. Top con lazo y minifalda con volantes de encaje en rojo, negro y blanco. Ideal para una noche especial o una fiesta temática.',
+    color: 'Rojo, negro y blanco',
+    includes: ['Top', 'Minifalda', 'Cinta para el cuello'],
+    // Las fotos muestran piezas que no vienen en el paquete.
+    note: 'La capa y la diadema que aparecen en las fotos no están incluidas.',
+    sizes: sizes(['M', 'L', 'XL', '2XL']),
+    measurements: pendingMeasurements(['M', 'L', 'XL', '2XL']),
   },
   {
     id: 'conjunto-diablita',

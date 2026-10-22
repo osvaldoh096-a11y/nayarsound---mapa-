@@ -59,6 +59,11 @@ export default function ProductPage({ product }) {
           </p>
 
           <p className="product-description">{product.description}</p>
+          {product.color && (
+            <p className="product-color">
+              <span className="field-label">Color</span> {product.color}
+            </p>
+          )}
 
           <fieldset
             className={`field sizes${sizeError ? ' has-error' : ''}`}
@@ -142,6 +147,7 @@ export default function ProductPage({ product }) {
                   <li key={item}>{item}</li>
                 ))}
               </ul>
+              {product.note && <p className="product-note">{product.note}</p>}
             </section>
           )}
 

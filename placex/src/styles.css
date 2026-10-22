@@ -605,6 +605,25 @@ main {
   color: #d8d0cd;
   margin: 0 0 22px;
 }
+.product-description:has(+ .product-color) {
+  margin-bottom: 12px;
+}
+.product-color {
+  margin: 0 0 22px;
+  font-size: 15px;
+}
+.product-color .field-label {
+  display: inline;
+  margin: 0 6px 0 0;
+}
+.product-note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--surface);
+  font-size: 13px;
+  color: #d8d0cd;
+}
 
 .field {
   border: 0;
