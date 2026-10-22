@@ -54,8 +54,8 @@ export default function ProductPage({ product }) {
           <p className="product-code">{product.code}</p>
           <h1 className="product-title">{product.name}</h1>
           <p className="product-price">
-            {formatPrice(product.price)}
-            {store.shippingIncluded && <span className="price-note">Envío incluido</span>}
+            <span data-testid="unit-price">{formatPrice(product.price)}</span>
+            {store.shippingNote && <span className="price-note">{store.shippingNote}</span>}
           </p>
 
           <p className="product-description">{product.description}</p>
@@ -118,9 +118,19 @@ export default function ProductPage({ product }) {
               <WhatsAppIcon />
               {soldOut ? 'Sin tallas disponibles' : 'Pedir por WhatsApp'}
             </button>
+            {store.paymentMethods.length > 0 && (
+              <div className="payment-methods" data-testid="payment-methods">
+                <span className="payment-title">Formas de pago</span>
+                <ul>
+                  {store.paymentMethods.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p className="fine-print">
               Se abrirá WhatsApp con tu pedido escrito para que lo envíes. Tu pedido queda confirmado cuando te
-              respondamos con disponibilidad, entrega y datos de pago. {store.deliveryNote}.
+              respondamos con disponibilidad, entrega y datos para pagar. {store.deliveryNote}.
             </p>
           </div>
 

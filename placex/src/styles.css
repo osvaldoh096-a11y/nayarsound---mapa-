@@ -76,13 +76,170 @@ button {
 .dev-warning code {
   font-size: 12px;
 }
-.announcement {
-  background: var(--accent-strong);
+/* ---------- Promoción ---------- */
+.promo-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  padding: 7px var(--gutter);
+  background: linear-gradient(90deg, #5e0a12, var(--accent-strong) 50%, #5e0a12);
   color: #fff;
-  font-size: 13px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  letter-spacing: 0.06em;
   text-align: center;
-  padding: 8px var(--gutter);
+  line-height: 1.35;
+}
+.promo-strip-text strong {
+  font-weight: 600;
+}
+.promo-strip-sep::before {
+  content: '·';
+  margin: 0 8px;
+  opacity: 0.7;
+}
+.promo-strip-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.promo-strip-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.countdown {
+  display: inline-flex;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.countdown-unit {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+}
+.countdown-unit strong {
+  font-weight: 600;
+}
+.countdown-unit small {
+  font-size: 0.75em;
+  opacity: 0.75;
+}
+.countdown:not(.is-compact) {
+  gap: 8px;
+}
+.countdown:not(.is-compact) .countdown-unit {
+  min-width: 52px;
+  justify-content: center;
+  padding: 6px 8px;
+  border: 1px solid rgba(236, 74, 85, 0.45);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.35);
+}
+.countdown:not(.is-compact) strong {
+  font-size: 20px;
+}
+
+.promo-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 22px;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(212, 42, 54, 0.35);
+  border-radius: var(--radius);
+  background: radial-gradient(130% 120% at 100% 0%, rgba(184, 21, 31, 0.32), transparent 60%), var(--surface);
+  animation: rise 0.45s ease both;
+}
+.promo-hero::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  bottom: -26px;
+  width: 120px;
+  height: 120px;
+  background: url('/brand/placex-x.webp') center / contain no-repeat;
+  opacity: 0.18;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.promo-kicker {
+  margin: 0 0 6px;
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.promo-title {
+  margin: 0 0 10px;
+  font-family: var(--font-brand);
+  font-weight: 400;
+  font-size: clamp(22px, 6.4vw, 34px);
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+}
+.promo-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.promo-points li {
+  padding: 5px 10px;
+  border: 1px solid #4a3d40;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.promo-timer {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.promo-timer-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.payment-methods {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.payment-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.payment-methods ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.payment-methods li {
+  padding: 5px 10px;
+  border: 1px solid #4a3d40;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* ---------- Encabezado ---------- */

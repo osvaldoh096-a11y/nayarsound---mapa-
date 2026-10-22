@@ -6,6 +6,7 @@ import Header from './components/Header.jsx'
 import Catalog from './components/Catalog.jsx'
 import ProductPage from './components/ProductPage.jsx'
 import Footer from './components/Footer.jsx'
+import { PromoStrip, usePromo } from './components/Promo.jsx'
 
 function parseRoute() {
   const match = window.location.hash.match(/^#\/producto\/([^/?#]+)/)
@@ -14,6 +15,7 @@ function parseRoute() {
 
 export default function App() {
   const [route, setRoute] = useState(parseRoute)
+  const promo = usePromo()
 
   useEffect(() => {
     const onChange = () => setRoute(parseRoute())
@@ -39,7 +41,7 @@ export default function App() {
           Pendiente: configura tu número de WhatsApp en <code>src/config/store.js</code>
         </div>
       )}
-      {store.announcement && <div className="announcement">{store.announcement}</div>}
+      <PromoStrip promo={promo} />
       <Header compact={route.view === 'product'} />
       <main>
         {route.view === 'product' && product ? (
@@ -50,7 +52,7 @@ export default function App() {
             <a className="btn-outline" href="#/">Ver catálogo</a>
           </div>
         ) : (
-          <Catalog products={products} />
+          <Catalog products={products} promo={promo} />
         )}
       </main>
       <Footer />

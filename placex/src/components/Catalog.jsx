@@ -2,10 +2,11 @@ import { useEffect } from 'react'
 import { store } from '../config/store.js'
 import { formatPrice } from '../lib.js'
 import PhotoPlaceholder from './PhotoPlaceholder.jsx'
+import { PromoHero } from './Promo.jsx'
 
 const SCROLL_KEY = 'placex-catalog-scroll'
 
-export default function Catalog({ products }) {
+export default function Catalog({ products, promo }) {
   useEffect(() => {
     try {
       const y = Number(sessionStorage.getItem(SCROLL_KEY))
@@ -22,9 +23,10 @@ export default function Catalog({ products }) {
 
   return (
     <section className="catalog" aria-labelledby="catalog-title">
+      <PromoHero promo={promo} />
       <div className="catalog-head">
         <h1 id="catalog-title" className="section-title">Colección</h1>
-        {store.shippingIncluded && <p className="catalog-note">Precios con envío incluido</p>}
+        {store.shippingNote && <p className="catalog-note">{store.shippingNote}</p>}
       </div>
       <ul className="product-grid">
         {products.slice(0, 5).map((product, i) => (
@@ -45,7 +47,7 @@ export default function Catalog({ products }) {
               </div>
               <div className="product-card-body">
                 <h2 className="product-card-name">{product.name}</h2>
-                <p className="product-card-price">{formatPrice(product.price)}</p>
+                <p className="product-card-price" data-testid="card-price">{formatPrice(product.price)}</p>
                 <span className="product-card-cta">Ver detalles</span>
               </div>
             </a>
