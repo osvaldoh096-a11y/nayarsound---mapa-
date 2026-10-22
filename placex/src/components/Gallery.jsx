@@ -7,6 +7,7 @@ const PLACEHOLDER_COUNT = 3
 // Cada elemento es una ruta de foto ('/products/foto.webp') o un video
 // ({ video: '/products/video.mp4', webm: '/products/video.webm', poster: '/products/portada.webp' }).
 // `webm` es opcional; si existe se ofrece primero.
+// Una foto que no debe recortarse (p. ej. una tabla) va como { src, fit: 'contain' }.
 export default function Gallery({ images, name }) {
   const trackRef = useRef(null)
   const videoRefs = useRef({})
@@ -37,7 +38,10 @@ export default function Gallery({ images, name }) {
     <div className="gallery">
       <div className="gallery-track" ref={trackRef} onScroll={onScroll} aria-label={`Fotos de ${name}`}>
         {slides.map((item, i) => (
-          <div className={`gallery-slide${item?.video ? ' is-video' : ''}`} key={i}>
+          <div
+            className={`gallery-slide${item?.video ? ' is-video' : ''}${item?.fit === 'contain' ? ' is-contain' : ''}`}
+            key={i}
+          >
             {item?.video ? (
               <video
                 ref={(el) => (videoRefs.current[i] = el)}
@@ -52,7 +56,7 @@ export default function Gallery({ images, name }) {
                 <source src={assetUrl(item.video)} type="video/mp4" />
               </video>
             ) : item ? (
-              <img src={assetUrl(item)} alt={`${name} — foto ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
+              <img src={assetUrl(item.src || item)} alt={`${name} — foto ${i + 1}`} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
             ) : (
               <PhotoPlaceholder index={i} total={slides.length} />
             )}

@@ -10,6 +10,7 @@
 //                   y escribe '/products/archivo.jpg'. Si la lista está vacía
 //                   se muestran espacios "FOTO PROVISIONAL".
 //                   También admite videos: { video: '/products/video.mp4', poster: '/products/portada.webp' }
+//                   y fotos completas sin recortar (p. ej. tablas): { src: '/products/tabla.webp', fit: 'contain' }
 //                   La primera FOTO de la lista es la portada del catálogo.
 //    description  → texto de la ficha
 //    includes     → lista de piezas que incluye
@@ -47,7 +48,8 @@ export const products = [
         webm: '/products/colegiala-video.webm',
         poster: '/products/colegiala-video-poster.webp',
       },
-      '/products/colegiala-2.webp',
+      '/products/colegiala-3.webp',
+      { src: '/products/colegiala-tallas.webp', fit: 'contain' },
     ],
     description:
       'Top de encaje blanco con lazo frontal y minifalda de cuadros rojos. Un conjunto atrevido para sorprender en una noche especial.',

@@ -483,6 +483,15 @@ main {
   height: 100%;
   object-fit: cover;
 }
+.gallery-slide.is-contain {
+  background: #fff;
+  display: flex;
+  align-items: center;
+}
+.gallery-slide.is-contain > img {
+  height: auto;
+  object-fit: contain;
+}
 .gallery-slide > video {
   width: 100%;
   height: 100%;

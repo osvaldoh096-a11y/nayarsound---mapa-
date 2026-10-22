@@ -30,14 +30,14 @@ export default function Catalog({ products, promo }) {
         </div>
         <ul className="product-grid">
           {products.slice(0, 5).map((product, i) => {
-            const cover = product.images.find((item) => typeof item === 'string')
+            const cover = product.images.find((item) => typeof item === 'string' || (item?.src && item.fit !== 'contain'))
           return (
             <li key={product.id} style={{ '--i': i }}>
               <a href={`#/producto/${product.id}`} className="product-card" onClick={rememberScroll}>
                 <div className="product-card-media">
                   {cover ? (
                     <img
-                      src={assetUrl(cover)}
+                      src={assetUrl(cover.src || cover)}
                       alt={product.name}
                       loading={i < 2 ? 'eager' : 'lazy'}
                       decoding="async"
