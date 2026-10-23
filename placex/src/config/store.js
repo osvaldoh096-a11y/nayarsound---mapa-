@@ -41,6 +41,18 @@ export const store = {
   // Aviso de edad en el pie de página.
   ageNotice: 'Productos para personas mayores de 18 años.',
 
+  // Preguntas frecuentes (al final del catálogo, desplegables). Cortas.
+  faq: [
+    { q: '¿Cómo pido?', a: 'Elige tu talla y toca "Pedir por WhatsApp".' },
+    { q: '¿Cómo pago?', a: 'Transferencia u OXXO. Te pasamos los datos por WhatsApp.' },
+    { q: '¿El envío cuesta?', a: 'No, es gratis a toda la República.' },
+    { q: '¿Cuánto tarda?', a: '1 a 2 días hábiles.' },
+    {
+      q: '¿Mi compra es privada?',
+      a: 'Sí. Sin cuentas ni registros: tu compra no queda en el historial de ninguna app de compras. Tus datos solo se usan para entregarte.',
+    },
+  ],
+
   // ---------- BARRA SUPERIOR Y PORTADA ----------
   // {precio} se reemplaza por el precio común del catálogo (p. ej. $299).
   // Si los productos tienen precios distintos, los textos con {precio} se ocultan.

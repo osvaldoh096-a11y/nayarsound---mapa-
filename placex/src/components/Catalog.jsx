@@ -3,6 +3,7 @@ import { store } from '../config/store.js'
 import { assetUrl, formatPrice, pricingText, savingsOf } from '../lib.js'
 import PhotoPlaceholder from './PhotoPlaceholder.jsx'
 import { PromoHero } from './Promo.jsx'
+import Faq from './Faq.jsx'
 
 const SCROLL_KEY = 'placex-catalog-scroll'
 
@@ -70,6 +71,7 @@ export default function Catalog({ products, promo }) {
           )
         })}
       </ul>
+      <Faq />
     </section>
   )
 }
