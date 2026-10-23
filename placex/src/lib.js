@@ -27,7 +27,7 @@ export const pricingText = (template, product, quantity = 1) =>
 // Mensaje breve para WhatsApp. *texto* = negritas en WhatsApp.
 export function buildOrderMessage(product, size, quantity) {
   const lines = [
-    'Hola, quiero este pedido 🛍️',
+    `Hola, quiero aprovechar la promoción de *${store.name}* 🛍️`,
     '',
     `*Producto:* ${product.name} (${product.code})`,
     `*Talla:* ${size} · *Cantidad:* ${quantity}`,
@@ -39,9 +39,13 @@ export function buildOrderMessage(product, size, quantity) {
   return lines.join('\n')
 }
 
+// Se usa api.whatsapp.com/send directamente: el enlace corto wa.me redirige y en
+// esa redirección se dañan los emojis (aparecen como "�"). El texto se codifica
+// una sola vez con encodeURIComponent (UTF-8).
 export function whatsappLink(message) {
   const number = String(store.whatsappNumber || '').replace(/\D/g, '')
-  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+  const phone = number ? `phone=${number}&` : ''
+  return `https://api.whatsapp.com/send?${phone}text=${encodeURIComponent(message)}`
 }
 
 export const whatsappConfigured = () =>
