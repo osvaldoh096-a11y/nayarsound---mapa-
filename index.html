@@ -47,11 +47,38 @@
 
   .row-top{
     display:flex;
+    flex-wrap:wrap;
     align-items:center;
     justify-content:space-between;
-    gap:16px;
+    gap:10px 16px;
     padding:14px 20px 10px;
   }
+
+  /* navegación entre módulos: Mapa (público) / Dashboard (privado, Apps Script) */
+  .brand-nav{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  .app-nav a{
+    color:var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.06em;
+    padding:7px 12px;
+    text-decoration:none;
+    border-right:1px solid var(--line);
+    white-space:nowrap;
+    transition:background 0.15s ease, color 0.15s ease;
+  }
+  .app-nav a:last-child{ border-right:none; }
+  .app-nav a:hover{ color:var(--text); }
+  .app-nav a.active{
+    background:rgba(0,224,255,0.12);
+    color:var(--cyan);
+  }
+  .app-nav a[aria-disabled="true"]{ cursor:not-allowed; opacity:0.55; }
 
   .brand{
     font-family:'Space Grotesk', sans-serif;
@@ -289,7 +316,13 @@
 <div id="app">
   <header>
     <div class="row-top">
-      <div class="brand">NAYAR<span>SOUND</span></div>
+      <div class="brand-nav">
+        <div class="brand">NAYAR<span>SOUND</span></div>
+        <nav class="segmented app-nav" aria-label="Secciones">
+          <a href="./" class="active" aria-current="page">MAPA</a>
+          <a href="#" id="dashboardLink">DASHBOARD</a>
+        </nav>
+      </div>
       <div class="counter">
         <span class="counter-label" id="counterLabel">EVENTOS REGISTRADOS:</span>
         <span class="counter-value" id="counterValue">—</span>
@@ -335,6 +368,10 @@
   var FECHA_COL_IDX = 2;  // E (FECHA) está 2 columnas después de C — solo se usa para filtrar, nunca se muestra
   var COORD_COL_IDX = 14; // Q está 14 columnas después de C
   var REFRESH_MS  = 5 * 60 * 1000;
+  // Dashboard financiero: aplicación web PRIVADA de Apps Script (acceso «Solo yo»).
+  // Pega aquí su URL /exec cuando la publiques (ver dashboard/README.md).
+  // La URL no da acceso por sí sola: Google pide iniciar sesión con la cuenta dueña.
+  var DASHBOARD_URL = '';
 
   var statusEl  = document.getElementById('status');
   var counterEl = document.getElementById('counterValue');
@@ -342,6 +379,18 @@
   var quadrantOverlayEl = document.getElementById('quadrantOverlay');
   var outOfZoneEl = document.getElementById('outOfZoneLabel');
   function setStatus(msg){ statusEl.textContent = msg; }
+
+  var dashboardLink = document.getElementById('dashboardLink');
+  if (DASHBOARD_URL){
+    dashboardLink.href = DASHBOARD_URL;
+  } else {
+    dashboardLink.setAttribute('aria-disabled', 'true');
+    dashboardLink.title = 'El dashboard privado aún no está publicado';
+    dashboardLink.addEventListener('click', function(ev){
+      ev.preventDefault();
+      setStatus('Dashboard aún no publicado');
+    });
+  }
 
   // ================= MAPA BASE (100% gratis, sin API key) =================
   var map = L.map('map', {

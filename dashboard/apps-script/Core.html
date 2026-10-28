@@ -1,0 +1,637 @@
+<script>
+/*
+ * NayarSound · Dashboard — lógica de indicadores (sin dependencias del navegador).
+ *
+ * Replica las reglas del archivo «🐯NAYARSOUND - PERSONAL». Cada regla indica
+ * la fórmula de origen. Nada aquí inventa datos: si un cálculo no tiene base
+ * (por ejemplo, un divisor en cero), devuelve null y la interfaz muestra
+ * «No disponible».
+ */
+var NSCore = (function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // Reglas del archivo
+  // ---------------------------------------------------------------------------
+  var RULES = {
+    // ANALISIS!E «GENERADO»: en GUADALAJARA, desde febrero de 2026, la gasolina
+    // cobrada (GAS A COBRAR) se suma al ingreso del evento.
+    gasRevenue: { city: 'GUADALAJARA', fromMonth: '2026-02' },
+    // ANALISIS!M «GAN. OPERATIVA PERSONAL»: cambio de reparto en noviembre de 2025.
+    personalCutoverMonth: '2025-11',
+    ownSound: 'OSVALDO',
+    // Columna «STOCK/ OPERACION». El archivo usa SUMIFS: coincidencia exacta
+    // (sin distinguir mayúsculas, pero sí espacios).
+    categories: { 'PUBLICIDAD': 'ads', 'OPERACION': 'operacion', 'AT. CLIENTE': 'atCliente', 'STOCK': 'stock' }
+  };
+
+  var SERIES_SLOTS = 8;
+  var CITY_DISPLAY = { LEON: 'León', QUERETARO: 'Querétaro' };
+  var MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+    'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  var WEEKDAYS_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+  function num(v) { return typeof v === 'number' && isFinite(v) ? v : 0; }
+  function upper(v) { return String(v == null ? '' : v).toUpperCase(); }
+  function copy(o) { var r = {}; for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) r[k] = o[k]; return r; }
+
+  /** ANALISIS!M: proporción de la ganancia operativa que corresponde a Osvaldo. */
+  function personalFactor(city, month) {
+    if (city === 'GUADALAJARA') return month < RULES.personalCutoverMonth ? 0.5 : 1;
+    if (city === 'TEPIC') return month < RULES.personalCutoverMonth ? 1 : 0.5;
+    return 1;
+  }
+
+  /** ANALISIS!M, TEPIC desde nov 2025: + SUMIFS(GANANCIA 2; SONIDO DE="OSVALDO"; CIUDAD="TEPIC"; MES)/2 */
+  function tepicOwnSoundBonus(e) {
+    if (e.city === 'TEPIC' && e.month >= RULES.personalCutoverMonth && e.sonido === RULES.ownSound) {
+      return num(e.ganancia2) / 2;
+    }
+    return 0;
+  }
+
+  /** ANALISIS!E: ¿la gasolina cuenta como ingreso en esta ciudad y mes? */
+  function gasCountsAsRevenue(city, month) {
+    return city === RULES.gasRevenue.city && month >= RULES.gasRevenue.fromMonth;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Preparación: deriva los campos de cada fila una sola vez
+  // ---------------------------------------------------------------------------
+  function prepare(payload) {
+    var cityMonths = {};
+    var firstEvent = {};
+    var firstExpense = {};
+    var seen = function (map, city, date) {
+      if (!city) return;
+      if (!map[city] || date < map[city]) map[city] = date;
+    };
+
+    var events = payload.events.map(function (raw) {
+      var e = copy(raw);
+      e.month = e.date.slice(0, 7);
+      // ANALISIS!A:C toma cada (ciudad, mes) que aparece en la agenda, realizado o no.
+      cityMonths[e.city + '|' + e.month] = true;
+      seen(firstEvent, e.city, e.date);
+      e.gasIncluded = gasCountsAsRevenue(e.city, e.month);
+      e.realized = e.realizado === true;
+      e.pending = e.realizado === false;
+      // ANALISIS!E y F: solo eventos con REALIZADO = "SI".
+      e.revenue = e.realized ? num(e.total) + (e.gasIncluded ? num(e.gas) : 0) : 0;
+      e.djCost = e.realized ? num(e.djPay) : 0;
+      e.operating = e.revenue - e.djCost;
+      e.factor = personalFactor(e.city, e.month);
+      e.bonus = tepicOwnSoundBonus(e);
+      e.personal = e.factor * e.operating + e.bonus;
+      // AGENDA Y VENTAS!I2: lo que se cobra al cliente en el evento = TOTAL − ANTICIPO + GAS.
+      e.saldo = e.pending ? num(e.total) - num(e.anticipo) + num(e.gas) : 0;
+      // AGENDA Y VENTAS!S «PAGADO» = DEUDOR: el DJ cobró y aún no entrega el dinero.
+      e.djOwes = e.realized && e.pagado === 'DEUDOR';
+      return e;
+    });
+
+    var expenses = payload.expenses.map(function (raw) {
+      var x = copy(raw);
+      x.month = x.date.slice(0, 7);
+      seen(firstExpense, x.city, x.date);
+      var exact = upper(x.category);
+      x.kind = RULES.categories[exact] || null;
+      x.kindIfTrimmed = x.kind ? null : (RULES.categories[exact.trim()] || null);
+      x.counted = false;
+      x.excludedReason = null;
+      if (!x.kind) {
+        x.excludedReason = x.kindIfTrimmed
+          ? 'La categoría «' + x.category + '» tiene espacios extra; las fórmulas del archivo (SUMIFS) no la suman.'
+          : 'Categoría no reconocida: «' + x.category + '».';
+      } else if (x.kind !== 'stock') {
+        if (!x.city) {
+          x.excludedReason = 'Sin ciudad; el archivo no lo asigna a ninguna ciudad.';
+        } else if (cityMonths[x.city + '|' + x.month]) {
+          x.counted = true;
+        } else {
+          x.excludedReason = 'No hay eventos de ' + cityName(x.city) + ' en ' + monthLabel(x.month, true) +
+            '; la hoja ANALISIS solo suma gastos de ciudades y meses con agenda.';
+        }
+      }
+      x.factor = personalFactor(x.city, x.month);
+      x.operating = x.counted ? -num(x.total) : 0;
+      x.personal = x.counted ? -x.factor * num(x.total) : 0;
+      return x;
+    });
+
+    // Ciudades detectadas en los datos: primero las que tienen agenda, por fecha de
+    // su primer evento; después las que solo tienen gastos. El color sigue a la
+    // ciudad (no a su posición en un filtro): una ciudad nueva toma el siguiente color.
+    var sortKey = function (c) { return (firstEvent[c] ? '0' + firstEvent[c] : '1' + firstExpense[c]) + c; };
+    var cities = Object.keys(firstEvent)
+      .concat(Object.keys(firstExpense).filter(function (c) { return !firstEvent[c]; }))
+      .sort(function (a, b) { return sortKey(a) < sortKey(b) ? -1 : 1; })
+      .map(function (key, i) {
+        return { key: key, name: cityName(key), slot: i < SERIES_SLOTS ? i + 1 : null, since: firstEvent[key] || firstExpense[key] };
+      });
+
+    return {
+      today: payload.today,
+      generatedAt: payload.generatedAt,
+      events: events,
+      expenses: expenses,
+      cities: cities,
+      cityMonths: cityMonths,
+      analysis: payload.analysis || null,
+      analysisError: payload.analysisError || null,
+      issues: payload.issues || [],
+      sources: payload.sources || {},
+      spreadsheetName: payload.spreadsheetName || ''
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fechas y periodos
+  // ---------------------------------------------------------------------------
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function isoFromUTC(d) { return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); }
+  function toUTC(iso) { return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))); }
+  function addDays(iso, n) { var d = toUTC(iso); d.setUTCDate(d.getUTCDate() + n); return isoFromUTC(d); }
+  function diffDays(a, b) { return Math.round((toUTC(b) - toUTC(a)) / 86400000); }
+  function lastDayOfMonth(y, m) { return isoFromUTC(new Date(Date.UTC(y, m, 0))); }
+  function isValidIso(s) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return false;
+    return isoFromUTC(toUTC(s)) === s;
+  }
+
+  /**
+   * period: {type: 'month'|'year'|'all'|'custom', from, to}
+   * Devuelve {from, to, label, type, error}. from/to son null en «Histórico».
+   */
+  function periodRange(period, today) {
+    var y = +today.slice(0, 4);
+    var m = +today.slice(5, 7);
+    var type = period && period.type || 'year';
+    if (type === 'month') {
+      return { type: type, from: y + '-' + pad(m) + '-01', to: lastDayOfMonth(y, m), label: capitalize(MONTHS[m - 1]) + ' ' + y };
+    }
+    if (type === 'year') {
+      return { type: type, from: y + '-01-01', to: y + '-12-31', label: 'Año ' + y };
+    }
+    if (type === 'custom') {
+      var from = period.from, to = period.to;
+      if (!isValidIso(from) || !isValidIso(to)) {
+        return { type: type, from: null, to: null, label: 'Rango personalizado', error: 'Elige una fecha inicial y una final.' };
+      }
+      if (from > to) {
+        return { type: type, from: null, to: null, label: 'Rango personalizado', error: 'La fecha inicial es posterior a la final.' };
+      }
+      return { type: type, from: from, to: to, label: formatDate(from) + ' – ' + formatDate(to) };
+    }
+    return { type: 'all', from: null, to: null, label: 'Histórico' };
+  }
+
+  function inRange(date, range) {
+    return (!range.from || date >= range.from) && (!range.to || date <= range.to);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Agregados
+  // ---------------------------------------------------------------------------
+  function emptyTotals() {
+    return {
+      realizedCount: 0, upcomingCount: 0, unknownStatusCount: 0,
+      revenue: 0, gasRevenue: 0, djCost: 0, ads: 0, operacion: 0, atCliente: 0,
+      operating: 0, personal: 0, bonus: 0,
+      saldo: 0, anticiposPendientes: 0, contratadoPendiente: 0,
+      djOwed: 0, djOwedCount: 0, djOwedSinPago: 0,
+      adsExcluded: 0, adsExcludedCount: 0, excludedCount: 0,
+      equipment: 0, equipmentCount: 0
+    };
+  }
+
+  function addEvent(t, e) {
+    if (e.realized) {
+      t.realizedCount++;
+      t.revenue += e.revenue;
+      if (e.gasIncluded) t.gasRevenue += num(e.gas);
+      t.djCost += e.djCost;
+    } else if (e.pending) {
+      t.upcomingCount++;
+      t.saldo += e.saldo;
+      t.anticiposPendientes += num(e.anticipo);
+      t.contratadoPendiente += num(e.total) + num(e.gas);
+    } else {
+      t.unknownStatusCount++;
+    }
+    if (e.djOwes) {
+      t.djOwedCount++;
+      // AGENDA Y VENTAS!I2 «TOTAL A ENVIAR»: solo filas con pago al DJ registrado.
+      if (num(e.djPay) > 0) t.djOwed += num(e.entregar);
+      else t.djOwedSinPago++;
+    }
+    t.operating += e.operating;
+    t.personal += e.personal;
+    t.bonus += e.bonus;
+  }
+
+  function addExpense(t, x) {
+    if (x.counted) {
+      t[x.kind] += num(x.total);
+      t.operating += x.operating;
+      t.personal += x.personal;
+    } else if (x.kind !== 'stock') {
+      t.excludedCount++;
+      if ((x.kind || x.kindIfTrimmed) === 'ads') {
+        t.adsExcluded += num(x.total);
+        t.adsExcludedCount++;
+      }
+    }
+    if (x.kind === 'stock') {
+      t.equipment += num(x.total);
+      t.equipmentCount++;
+    }
+  }
+
+  function finish(t) {
+    t.margin = t.revenue ? t.operating / t.revenue : null;
+    t.personalPerEvent = t.realizedCount ? t.personal / t.realizedCount : null;
+    // DATA!AT «$1 EN ADS, VENDE» = GENERADO / ADS; DATA!AU «$1 EN ADS NETO» = GANANCIA OPERATIVA / ADS.
+    t.salesPerAd = t.ads > 0 ? t.revenue / t.ads : null;
+    t.profitPerAd = t.ads > 0 ? t.operating / t.ads : null;
+    return t;
+  }
+
+  function aggregate(events, expenses) {
+    var t = emptyTotals();
+    events.forEach(function (e) { addEvent(t, e); });
+    expenses.forEach(function (x) { addExpense(t, x); });
+    return finish(t);
+  }
+
+  /** Filas que pasan los filtros globales (ciudad + periodo). */
+  function select(model, filters) {
+    var range = periodRange(filters.period, model.today);
+    var cityOk = function (c) { return !filters.city || filters.city === 'ALL' || c === filters.city; };
+    if (range.error) return { range: range, events: [], expenses: [], cityOk: cityOk };
+    return {
+      range: range,
+      cityOk: cityOk,
+      events: model.events.filter(function (e) { return cityOk(e.city) && inRange(e.date, range); }),
+      expenses: model.expenses.filter(function (x) { return cityOk(x.city) && inRange(x.date, range); })
+    };
+  }
+
+  function summarize(model, filters) {
+    var sel = select(model, filters);
+    var byCity = model.cities
+      .filter(function (c) { return sel.cityOk(c.key); })
+      .map(function (c) {
+        var t = aggregate(
+          sel.events.filter(function (e) { return e.city === c.key; }),
+          sel.expenses.filter(function (x) { return x.city === c.key; })
+        );
+        t.city = c;
+        return t;
+      });
+    // Histórico de la ciudad elegida (sin filtro de periodo).
+    var hist = select(model, { city: filters.city, period: { type: 'all' } });
+    return {
+      range: sel.range,
+      events: sel.events,
+      expenses: sel.expenses,
+      totals: aggregate(sel.events, sel.expenses),
+      byCity: byCity,
+      history: aggregate(hist.events, hist.expenses),
+      historySince: minDate(hist.events, hist.expenses),
+      buckets: makeBuckets(model, sel)
+    };
+  }
+
+  function minDate(events, expenses) {
+    var d = null;
+    events.forEach(function (e) { if (!d || e.date < d) d = e.date; });
+    expenses.forEach(function (x) { if (!d || x.date < d) d = x.date; });
+    return d;
+  }
+  function maxDate(events, expenses) {
+    var d = null;
+    events.forEach(function (e) { if (!d || e.date > d) d = e.date; });
+    expenses.forEach(function (x) { if (!d || x.date > d) d = x.date; });
+    return d;
+  }
+
+  /**
+   * Agrupa el periodo en meses (o en semanas si dura 45 días o menos).
+   * Cada grupo trae el total y el desglose por ciudad.
+   */
+  function makeBuckets(model, sel) {
+    var from = sel.range.from || minDate(sel.events, sel.expenses);
+    var to = sel.range.to || maxDate(sel.events, sel.expenses);
+    if (!from || !to) return { granularity: 'month', list: [] };
+    var granularity = diffDays(from, to) <= 45 ? 'week' : 'month';
+    var list = [];
+    if (granularity === 'month') {
+      var y = +from.slice(0, 4), m = +from.slice(5, 7);
+      var endKey = to.slice(0, 7);
+      for (;;) {
+        var key = y + '-' + pad(m);
+        list.push({ key: key, from: key + '-01', to: lastDayOfMonth(y, m), label: monthLabel(key, true), shortLabel: monthShort(key) });
+        if (key >= endKey) break;
+        m++; if (m > 12) { m = 1; y++; }
+      }
+      list[0].from = list[0].from < from ? from : list[0].from;
+    } else {
+      // Semanas de lunes a domingo, recortadas al periodo.
+      var start = from;
+      var weekday = toUTC(start).getUTCDay();
+      var weekEnd = addDays(start, (7 - weekday) % 7);
+      while (start <= to) {
+        var end = weekEnd > to ? to : weekEnd;
+        list.push({ key: start, from: start, to: end, label: formatDate(start) + ' – ' + formatDate(end), shortLabel: shortDay(start) });
+        start = addDays(end, 1);
+        weekEnd = addDays(start, 6);
+      }
+    }
+    var cityKeys = model.cities.filter(function (c) { return sel.cityOk(c.key); }).map(function (c) { return c.key; });
+    list.forEach(function (b) {
+      var evs = sel.events.filter(function (e) { return e.date >= b.from && e.date <= b.to; });
+      var exs = sel.expenses.filter(function (x) { return x.date >= b.from && x.date <= b.to; });
+      b.events = evs;
+      b.expenses = exs;
+      b.totals = aggregate(evs, exs);
+      b.byCity = {};
+      cityKeys.forEach(function (k) {
+        b.byCity[k] = aggregate(
+          evs.filter(function (e) { return e.city === k; }),
+          exs.filter(function (x) { return x.city === k; })
+        );
+      });
+      b.isFuture = b.from > model.today;
+      b.isCurrent = b.from <= model.today && b.to >= model.today;
+    });
+    return { granularity: granularity, list: list };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inversión en equipo (hoja STOCK OPERACION, filas con categoría STOCK)
+  // ---------------------------------------------------------------------------
+  function equipment(model, filters) {
+    var sel = select(model, filters);
+    var rows = sel.expenses.filter(function (x) { return x.kind === 'stock'; });
+    var owners = {};
+    rows.forEach(function (x) {
+      var o = owners[x.owner || 'SIN DUEÑO'] || (owners[x.owner || 'SIN DUEÑO'] = { owner: x.owner || 'SIN DUEÑO', total: 0, sold: 0, soldCount: 0, lost: 0, count: 0 });
+      o.total += num(x.total);
+      o.count++;
+      if (x.status === 'VENDIDO') { o.sold += num(x.salePrice); o.soldCount++; }
+      if (x.status === 'PERDIDO') o.lost += num(x.total);
+    });
+    var list = Object.keys(owners).sort().map(function (k) { return owners[k]; });
+    // STOCK OPERACION!V6 «TOTAL INVERTIDO OSVALDO» = M6 + (P6 + S6) / 2, donde
+    // M6 = equipo de OSVALDO − precio de venta de lo VENDIDO; P6, S6 = equipo de JORGE y PAUL.
+    var get = function (k) { return owners[k] || { total: 0, sold: 0 }; };
+    var own = get('OSVALDO').total - get('OSVALDO').sold;
+    var partners = get('JORGE').total + get('PAUL').total;
+    return {
+      rows: rows,
+      owners: list,
+      total: rows.reduce(function (s, x) { return s + num(x.total); }, 0),
+      osvaldoNet: own,
+      osvaldoWithPartners: own + partners / 2
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recordatorios (mismas condiciones que las fórmulas de aviso del archivo)
+  // ---------------------------------------------------------------------------
+  function reminders(model, filters) {
+    var sel = select(model, filters);
+    var cityOk = sel.cityOk;
+    var today = model.today;
+    var out = [];
+
+    // AMAL AGENDA!J2 «RECORDATORIOS»: eventos de hoy y los próximos 3 días.
+    var soonEnd = addDays(today, 3);
+    var soon = model.events.filter(function (e) { return cityOk(e.city) && e.date >= today && e.date <= soonEnd && !e.realized; })
+      .sort(byDate);
+    out.push({
+      id: 'soon', severity: soon.length ? 'info' : 'good',
+      title: soon.length ? soon.length + (soon.length === 1 ? ' evento' : ' eventos') + ' entre hoy y ' + formatDate(soonEnd) : 'Sin eventos en los próximos 3 días',
+      source: 'AMAL AGENDA!J2 (RECORDATORIOS)', events: soon
+    });
+
+    // AGENDA Y VENTAS!S = DEUDOR (y DATA!E3 «EVENTOS SIN PAGAR»).
+    var owed = model.events.filter(function (e) { return cityOk(e.city) && e.djOwes; }).sort(byDate);
+    out.push({
+      id: 'djOwed', severity: owed.length ? 'warning' : 'good',
+      title: owed.length ? owed.length + (owed.length === 1 ? ' evento realizado sin entrega del DJ' : ' eventos realizados sin entrega del DJ') : 'Todos los DJs han entregado',
+      source: 'AGENDA Y VENTAS!S (PAGADO) · DATA!E3', events: owed
+    });
+
+    // AMAL AGENDA!D9:D10: eventos por realizar sin DJ o con DJ «BUSCAR».
+    var noDj = model.events.filter(function (e) {
+      return cityOk(e.city) && e.pending && (!e.dj || upper(e.dj) === 'BUSCAR');
+    }).sort(byDate);
+    out.push({
+      id: 'noDj', severity: noDj.length ? 'warning' : 'good',
+      title: noDj.length ? noDj.length + (noDj.length === 1 ? ' evento próximo sin DJ asignado' : ' eventos próximos sin DJ asignado') : 'Todos los eventos próximos tienen DJ',
+      source: 'AMAL AGENDA!D9:D10 (BUSCAR / VACÍO)', events: noDj
+    });
+
+    // AGENDA Y VENTAS!L11: eventos realizados sin pago al DJ registrado.
+    var noPay = model.events.filter(function (e) {
+      return cityOk(e.city) && e.realized && (e.djPay === null || e.djPay === undefined);
+    }).sort(byDate);
+    out.push({
+      id: 'noPay', severity: noPay.length ? 'warning' : 'good',
+      title: noPay.length ? noPay.length + (noPay.length === 1 ? ' evento realizado sin pago al DJ registrado' : ' eventos realizados sin pago al DJ registrado') : 'Todos los eventos realizados tienen pago al DJ',
+      source: 'AGENDA Y VENTAS!L11', events: noPay
+    });
+
+    // DASHBOARD!C16: «⚠️ FALTA AT CLIENTE» en meses cerrados sin ese gasto.
+    var currentMonth = today.slice(0, 7);
+    var months = {};
+    sel.events.forEach(function (e) { if (e.realized && e.month < currentMonth) months[e.month] = 0; });
+    sel.expenses.forEach(function (x) {
+      if (x.kind === 'atCliente' && months[x.month] !== undefined) months[x.month] += num(x.total);
+    });
+    var missing = Object.keys(months).filter(function (k) { return months[k] === 0; }).sort();
+    out.push({
+      id: 'atCliente', severity: missing.length ? 'warning' : 'good',
+      title: missing.length ? 'Falta registrar atención al cliente en ' + missing.length + (missing.length === 1 ? ' mes cerrado' : ' meses cerrados') : 'Atención al cliente registrada en los meses cerrados del periodo',
+      source: 'DASHBOARD!C16 (⚠️ FALTA AT CLIENTE)', months: missing
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Verificación contra la hoja ANALISIS del archivo
+  // ---------------------------------------------------------------------------
+  var VERIFY_FIELDS = [
+    { key: 'realizados', label: 'Eventos realizados', count: true },
+    { key: 'generado', label: 'Ingresos generados' },
+    { key: 'dj', label: 'Pago a DJs' },
+    { key: 'ads', label: 'Publicidad' },
+    { key: 'operacion', label: 'Operación' },
+    { key: 'atCliente', label: 'Atención al cliente' },
+    { key: 'operativa', label: 'Ganancia operativa' },
+    { key: 'personal', label: 'Ganancia personal' }
+  ];
+
+  function cityMonthMetrics(model) {
+    var map = {};
+    var get = function (k) { return map[k] || (map[k] = emptyTotals()); };
+    model.events.forEach(function (e) { addEvent(get(e.city + '|' + e.month), e); });
+    model.expenses.forEach(function (x) { if (x.counted) addExpense(get(x.city + '|' + x.month), x); });
+    return map;
+  }
+
+  function pickVerify(t) {
+    return {
+      realizados: t.realizedCount, generado: t.revenue, dj: t.djCost, ads: t.ads,
+      operacion: t.operacion, atCliente: t.atCliente, operativa: t.operating, personal: t.personal
+    };
+  }
+
+  function verify(model) {
+    if (!model.analysis) return { available: false, reason: model.analysisError || 'No disponible.' };
+    var mine = cityMonthMetrics(model);
+    var rows = [];
+    var mismatches = [];
+    var totals = {};
+    VERIFY_FIELDS.forEach(function (f) { totals[f.key] = { mine: 0, file: 0 }; });
+    var seenKeys = {};
+    model.analysis.forEach(function (a) {
+      var key = a.city + '|' + a.month;
+      seenKeys[key] = true;
+      var m = pickVerify(mine[key] || emptyTotals());
+      VERIFY_FIELDS.forEach(function (f) {
+        var file = num(a[f.key]);
+        var ok = Math.abs(file - m[f.key]) < 0.01;
+        totals[f.key].mine += m[f.key];
+        totals[f.key].file += file;
+        if (!ok) mismatches.push({ city: a.city, month: a.month, field: f, mine: m[f.key], file: file });
+      });
+      rows.push({ city: a.city, month: a.month });
+    });
+    // Ciudad/mes con datos en el dashboard que no aparecen en ANALISIS.
+    Object.keys(mine).forEach(function (key) {
+      if (seenKeys[key]) return;
+      var m = pickVerify(mine[key]);
+      VERIFY_FIELDS.forEach(function (f) {
+        if (Math.abs(m[f.key]) >= 0.01) {
+          totals[f.key].mine += m[f.key];
+          mismatches.push({ city: key.split('|')[0], month: key.split('|')[1], field: f, mine: m[f.key], file: null });
+        }
+      });
+    });
+    return {
+      available: true,
+      fields: VERIFY_FIELDS,
+      rowCount: rows.length,
+      checks: rows.length * VERIFY_FIELDS.length,
+      mismatches: mismatches,
+      totals: VERIFY_FIELDS.map(function (f) {
+        var t = totals[f.key];
+        return { field: f, mine: t.mine, file: t.file, ok: Math.abs(t.mine - t.file) < 0.01 * Math.max(1, rows.length) };
+      })
+    };
+  }
+
+  /** Posibles duplicados: misma fecha, ciudad, DJ, sonido, cliente, total y anticipo. No se eliminan. */
+  function possibleDuplicates(model) {
+    var groups = {};
+    model.events.forEach(function (e) {
+      var k = [e.date, e.city, upper(e.dj), e.sonido, upper(e.client), num(e.total), num(e.anticipo)].join('|');
+      (groups[k] || (groups[k] = [])).push(e);
+    });
+    return Object.keys(groups).filter(function (k) { return groups[k].length > 1; })
+      .map(function (k) { return groups[k]; })
+      .sort(function (a, b) { return a[0].date < b[0].date ? -1 : 1; });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Formato (español de México)
+  // ---------------------------------------------------------------------------
+  var moneyFormatters = {};
+  function formatMoney(v, decimals) {
+    if (v === null || v === undefined || !isFinite(v)) return 'No disponible';
+    var d = decimals || 0;
+    var f = moneyFormatters[d] || (moneyFormatters[d] = new Intl.NumberFormat('es-MX', {
+      style: 'currency', currency: 'MXN', minimumFractionDigits: d, maximumFractionDigits: d
+    }));
+    var s = f.format(Math.abs(v) < 0.005 ? 0 : v);
+    return s.replace('MXN', '').trim();
+  }
+  var compactFormatter = null;
+  function formatMoneyCompact(v) {
+    if (v === null || v === undefined || !isFinite(v)) return 'No disponible';
+    compactFormatter = compactFormatter || new Intl.NumberFormat('es-MX', { notation: 'compact', maximumFractionDigits: 1 });
+    var s = compactFormatter.format(Math.abs(v));
+    return (v < 0 ? '−$' : '$') + s;
+  }
+  function formatNumber(v) {
+    if (v === null || v === undefined || !isFinite(v)) return 'No disponible';
+    return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(v);
+  }
+  function formatPercent(v) {
+    if (v === null || v === undefined || !isFinite(v)) return 'No disponible';
+    return new Intl.NumberFormat('es-MX', { style: 'percent', maximumFractionDigits: 0 }).format(v);
+  }
+  function formatRatio(v) {
+    if (v === null || v === undefined || !isFinite(v)) return 'No disponible';
+    return '$' + new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  }
+  function formatDate(iso) {
+    if (!iso) return '';
+    return +iso.slice(8, 10) + ' ' + MONTHS_SHORT[+iso.slice(5, 7) - 1] + ' ' + iso.slice(0, 4);
+  }
+  function formatDateWeekday(iso) {
+    if (!iso) return '';
+    return WEEKDAYS_SHORT[toUTC(iso).getUTCDay()] + ' ' + +iso.slice(8, 10) + ' ' + MONTHS_SHORT[+iso.slice(5, 7) - 1] + ' ' + iso.slice(0, 4);
+  }
+  function shortDay(iso) { return +iso.slice(8, 10) + ' ' + MONTHS_SHORT[+iso.slice(5, 7) - 1]; }
+  function monthLabel(month, long) {
+    var i = +month.slice(5, 7) - 1;
+    return (long ? MONTHS[i] : MONTHS_SHORT[i]) + ' ' + month.slice(0, 4);
+  }
+  function monthShort(month) {
+    var i = +month.slice(5, 7) - 1;
+    return MONTHS_SHORT[i] + (i === 0 ? ' ' + month.slice(2, 4) : '');
+  }
+  function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function cityName(key) {
+    if (!key) return 'Sin ciudad';
+    if (CITY_DISPLAY[key]) return CITY_DISPLAY[key];
+    return key.toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); });
+  }
+  function byDate(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.row - b.row; }
+
+  return {
+    RULES: RULES,
+    VERIFY_FIELDS: VERIFY_FIELDS,
+    prepare: prepare,
+    periodRange: periodRange,
+    select: select,
+    summarize: summarize,
+    aggregate: aggregate,
+    equipment: equipment,
+    reminders: reminders,
+    verify: verify,
+    possibleDuplicates: possibleDuplicates,
+    personalFactor: personalFactor,
+    gasCountsAsRevenue: gasCountsAsRevenue,
+    addDays: addDays,
+    formatMoney: formatMoney,
+    formatMoneyCompact: formatMoneyCompact,
+    formatNumber: formatNumber,
+    formatPercent: formatPercent,
+    formatRatio: formatRatio,
+    formatDate: formatDate,
+    formatDateWeekday: formatDateWeekday,
+    monthLabel: monthLabel,
+    cityName: cityName,
+    capitalize: capitalize,
+    byDate: byDate
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = NSCore;
+</script>
