@@ -64,10 +64,25 @@ function toDate(iso) {
   return new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)));
 }
 
+// Arriba de los encabezados, como en la hoja real: avisos y resúmenes de texto
+// intercalados con filas vacías (Google puede omitir esas filas vacías).
+function topRows(width, cells) {
+  const rows = [];
+  for (let i = 0; i < cells.length; i++) {
+    const row = new Array(width).fill('');
+    (cells[i] || []).forEach(([c, v]) => { row[c] = v; });
+    rows.push(row);
+  }
+  return rows;
+}
+
 function agendaValues(options) {
   const opts = options || {};
-  const rows = [];
-  for (let i = 0; i < 11; i++) rows.push(new Array(AGENDA_HEADER.length).fill(i === 1 ? 'RESUMEN DE PAGOS' : ''));
+  const rows = topRows(AGENDA_HEADER.length, [
+    [[8, 'RESUMEN DE PAGOS']], [[3, 'AMAL'], [4, 'TEPIC'], [5, 'GUADALAJARA']], [[3, 'Texto de resumen']],
+    [[4, 'Texto']], [[5, 'Texto']], [[5, 'Texto']], [[5, 'Texto']], [[5, 'Texto']], [],
+    [[3, 'HAY 1 VACIO ❌']], [[4, '✅ Fechas en orden'], [11, '✅ EN ORDEN'], [18, '❌ FALTAN 3 DE PAGAR']]
+  ]);
   rows.push(AGENDA_HEADER.slice());
   EVENTS.forEach((e, i) => {
     const [sonido, city, dj, date, type, client, total, anticipo, gas, djPay, g2, entregar, realizado, pagado] = e;
@@ -80,8 +95,12 @@ function agendaValues(options) {
 }
 
 function expenseValues() {
-  const rows = [];
-  for (let i = 0; i < 9; i++) rows.push(new Array(EXPENSE_HEADER.length + 1).fill(''));
+  const rows = topRows(EXPENSE_HEADER.length + 1, [
+    [[1, 'REGISTRO STOCK Y OPERACIONES']], [], [[3, 'JORGE'], [4, 'PAUL'], [5, 'OTROS']],
+    [[1, '% PUBLICIDAD TEPIC'], [3, 'Resumen de publicidad']], [],
+    [[1, 'MES'], [2, '26 sep 2026 – 26 oct 2026'], [7, 'MES']], [[1, 'TOTAL A PAGAR'], [2, 6616], [7, 'TOTAL A PAGAR'], [8, 3000]],
+    [], []
+  ]);
   rows.push([''].concat(EXPENSE_HEADER));
   EXPENSES.forEach((x, i) => {
     const [date, owner, city, category, product, total, status, sale] = x;

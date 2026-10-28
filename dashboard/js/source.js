@@ -6,8 +6,8 @@
  * con el enlace». No escribe nada en la hoja.
  *
  * Detalle importante de gviz: cada columna toma un solo tipo de dato (el más
- * frecuente) y los valores de otro tipo llegan vacíos. Por eso los
- * encabezados se leen como etiquetas (headers=1), que siempre llegan completos.
+ * frecuente) y los valores de otro tipo llegan vacíos. Por eso la fila de
+ * encabezados se pide sola (una fila no mezcla tipos) y aparte de los datos.
  */
 var NSSource = (function () {
   'use strict';
@@ -16,6 +16,7 @@ var NSSource = (function () {
   var SCAN_ROWS = 40;
   var MAX_ROWS = 5000;
   var MAX_COLUMN = 'AZ';
+  var SEARCH_ROWS = 12;
   var TIMEOUT_MS = 25000;
   var memory = '';
 
@@ -118,53 +119,71 @@ var NSSource = (function () {
    * rango más ancho que la hoja, las pide sin rango y usa el ancho real.
    */
   function scanTop(sheetName) {
+    var width = function (json) { return ((json.table && json.table.cols) || []).length; };
     return gviz(sheetName, { range: 'A1:' + MAX_COLUMN + SCAN_ROWS, headers: 0 }).then(function (json) {
-      return { json: json, lastColumn: MAX_COLUMN };
+      return { json: json, mode: 'rango A1:' + MAX_COLUMN + SCAN_ROWS, lastColumn: columnLetter(Math.max(0, width(json) - 1)) };
     }, function () {
       return gviz(sheetName, { tq: 'select * limit ' + SCAN_ROWS, headers: 0 }).then(function (json) {
-        var n = ((json.table && json.table.cols) || []).length;
-        return { json: json, lastColumn: columnLetter(Math.max(0, n - 1)) };
+        return { json: json, mode: 'consulta sin rango', lastColumn: columnLetter(Math.max(0, width(json) - 1)) };
       });
     });
   }
 
+  function isHeaderRow(row, columns, sheetName) {
+    try { NSSheet.extractTable([row], columns, sheetName); return true; } catch (e) { return false; }
+  }
+  function preview(row) {
+    return row.filter(function (v) { return v !== ''; }).slice(0, 8).map(String).join(', ') || '(vacía)';
+  }
+
   /**
-   * Lee una hoja completa: ubica la fila de encabezados en las primeras filas y
-   * vuelve a pedir desde ahí con headers=1, para recibir todos los encabezados.
+   * Lee una hoja completa sin depender de la posición exacta de las filas:
+   * 1) en las primeras filas busca la que más se parece a los encabezados;
+   * 2) lee esa fila sola (una fila = un tipo por celda, nada se pierde) y, si no
+   *    coincide, las siguientes (por si Google omitió filas vacías arriba);
+   * 3) pide los datos desde la fila siguiente a los encabezados.
    */
   function readSheet(sheetName, columns) {
     var expected = {};
     columns.forEach(function (c) { expected[NSSheet.normalizeHeader(c.header)] = true; });
     return scanTop(sheetName).then(function (scan) {
       var rows = rowsOf(scan.json);
+      var last = scan.lastColumn;
       var candidates = rows.map(function (row, i) {
         var seen = {};
         row.forEach(function (v) { var k = NSSheet.normalizeHeader(v); if (expected[k]) seen[k] = true; });
-        return { row: i, score: Object.keys(seen).length };
+        return { index: i, score: Object.keys(seen).length };
       }).filter(function (c) { return c.score > 0; })
-        .sort(function (a, b) { return b.score - a.score || a.row - b.row; })
-        .slice(0, 3);
+        .sort(function (a, b) { return b.score - a.score || a.index - b.index; })
+        .slice(0, 2);
+      var diag = 'Detalle técnico: «' + sheetName + '», ' + scan.mode + ', ' + rows.length + ' filas leídas, última columna ' + last;
       if (!candidates.length) {
-        return Promise.reject(new Error('No se encontraron los encabezados en la hoja «' + sheetName + '».'));
+        return Promise.reject(new Error('No se encontraron los encabezados en la hoja «' + sheetName + '». ' + diag + '.'));
       }
-      var tryCandidate = function (k) {
-        var start = candidates[k].row + 1;
-        return gviz(sheetName, { range: 'A' + start + ':' + scan.lastColumn + MAX_ROWS, headers: 1 }).then(function (json) {
-          var cols = (json.table && json.table.cols) || [];
-          var last = 0;
-          cols.forEach(function (c, i) { if (c && c.label) last = i; });
-          var labels = cols.slice(0, last + 1).map(function (c) { return c ? c.label : ''; });
-          var values = [labels].concat(rowsOf(json));
-          try {
-            NSSheet.extractTable(values, columns, sheetName);
-            return { name: sheetName, values: values, firstRow: start, lastColumn: columnLetter(last) };
-          } catch (err) {
-            if (k + 1 < candidates.length) return tryCandidate(k + 1);
-            throw err;
-          }
+      var readRow = function (r) {
+        return gviz(sheetName, { range: 'A' + r + ':' + last + r, headers: 0 })
+          .then(function (json) { return { r: r, row: rowsOf(json)[0] || [] }; }, function () { return { r: r, row: [] }; });
+      };
+      var locate = function (k) {
+        var base = candidates[k].index + 1;
+        return readRow(base).then(function (first) {
+          if (isHeaderRow(first.row, columns, sheetName)) return first;
+          var tries = [];
+          for (var r = base + 1; r <= base + SEARCH_ROWS; r++) tries.push(readRow(r));
+          return Promise.all(tries).then(function (found) {
+            for (var i = 0; i < found.length; i++) if (isHeaderRow(found[i].row, columns, sheetName)) return found[i];
+            if (k + 1 < candidates.length) return locate(k + 1);
+            throw new Error('No se encontraron los encabezados en la hoja «' + sheetName + '». ' + diag +
+              ', fila probable ' + base + ' (' + candidates[k].score + ' coincidencias), probadas ' + base + '–' + (base + SEARCH_ROWS) +
+              ', fila ' + base + ': ' + preview(first.row) + '.');
+          });
         });
       };
-      return tryCandidate(0);
+      return locate(0).then(function (header) {
+        return gviz(sheetName, { range: 'A' + (header.r + 1) + ':' + last + MAX_ROWS, headers: 0 }).then(function (json) {
+          return { name: sheetName, values: [header.row].concat(rowsOf(json)), firstRow: header.r };
+        });
+      });
     });
   }
 

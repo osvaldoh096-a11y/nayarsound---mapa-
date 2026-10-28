@@ -56,6 +56,8 @@ function markDates(values) {
 }
 
 // options.strictColumns: responde error si el rango pide columnas más allá de la hoja.
+// options.dropEmptyRows: omite las filas completamente vacías (posible comportamiento de gviz).
+// options.dropEmptyRowsFromTop: igual, pero solo en lecturas que empiezan en la fila 1.
 function respond(workbook, url, options) {
   const opts = options || {};
   const u = new URL(url);
@@ -86,7 +88,12 @@ function respond(workbook, url, options) {
   const width = Math.max(0, ...values.slice(r1, last + 1).map((r) => (r ? r.length : 0)));
   const cEnd = Math.min(c2, width - 1);
   const rows = [];
-  for (let r = r1; r <= last; r++) rows.push(((values[r] || []).slice(c1, cEnd + 1)));
+  for (let r = r1; r <= last; r++) {
+    const row = (values[r] || []).slice(c1, cEnd + 1);
+    const drop = opts.dropEmptyRows || (opts.dropEmptyRowsFromTop && r1 === 0);
+    if (drop && !row.some((c) => typeOf(c))) continue;
+    rows.push(row);
+  }
   const labelsRow = headers ? rows.shift() || [] : [];
   const cols = [];
   for (let c = 0; c <= cEnd - c1; c++) {
