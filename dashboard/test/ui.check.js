@@ -58,7 +58,7 @@ async function newPage(browser, workbook, today, options) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)|net::ERR/.test(m.text())) errors.push(m.text()); });
-  const state = { mode: 'ok', requests: 0, strictColumns: !!o.strictColumns };
+  const state = { mode: 'ok', requests: 0, strictColumns: !!o.strictColumns, dropEmptyRows: !!o.dropEmptyRows };
   const testConfig = "var NS_CONFIG = { spreadsheetId: '', mapUrl: '../', timezone: 'America/Mexico_City' };";
   await page.route('**/*', (route) => {
     const url = route.request().url();
@@ -67,7 +67,7 @@ async function newPage(browser, workbook, today, options) {
     if (url.includes('/gviz/tq')) {
       state.requests++;
       if (state.mode === 'fail') return route.abort();
-      return route.fulfill({ contentType: 'application/javascript', body: gvizSim.respond(workbook, url, { strictColumns: state.strictColumns }) });
+      return route.fulfill({ contentType: 'application/javascript', body: gvizSim.respond(workbook, url, { strictColumns: state.strictColumns, dropEmptyRows: state.dropEmptyRows }) });
     }
     return route.fulfill({ status: 204, body: '' });
   });
@@ -201,12 +201,18 @@ async function runFixture(browser) {
     if (shotsDir) await p2.page.screenshot({ path: path.join(shotsDir, 'error-inicial.png') });
   }
 
-  console.log('Google rechaza rangos más anchos que la hoja');
-  {
-    const s = await newPage(browser, workbook, '2026-03-25', { strictColumns: true });
+  console.log('Variantes de cómo responde Google');
+  for (const [label, variant] of [
+    ['rechaza rangos más anchos que la hoja', { strictColumns: true }],
+    ['omite las filas vacías', { dropEmptyRows: true }],
+    ['ambas cosas', { strictColumns: true, dropEmptyRows: true }]
+  ]) {
+    const s = await newPage(browser, workbook, '2026-03-25', variant);
     await s.page.goto(PAGE + '#hoja=' + SHEET_ID);
-    await s.page.waitForSelector('.kpi');
-    check(await kpi(s.page, 'Ingresos generados') === '$13,500', 'Lee la hoja con el ancho real cuando el rango ancho falla');
+    await s.page.waitForSelector('.kpi, #state h2:has-text("No se pudieron")');
+    check(await s.page.locator('.kpi').count() === 6 && await kpi(s.page, 'Ingresos generados') === '$13,500', 'Lee bien si Google ' + label);
+    await s.page.click('#tab-btn-fuentes');
+    check(/Coincide con la hoja ANALISIS/.test(await s.page.locator('#tab-fuentes').innerText()), '…y la verificación contra ANALISIS coincide');
     allErrors.push(...s.errors);
   }
 
@@ -227,11 +233,19 @@ async function runFixture(browser) {
 }
 
 async function runSnapshot(browser, file, today) {
-  console.log('Copia real de la hoja (los números no se imprimen)');
   const workbook = snapshotWorkbook(file);
   const sheet = loadSheet();
   const core = loadCore();
   const model = core.prepare(require('../tools/snapshot').payloadFromSnapshot(sheet, file, today).payload);
+  for (const [label, variant] of [['omite filas vacías y rechaza rangos anchos', { strictColumns: true, dropEmptyRows: true }]]) {
+    const v = await newPage(browser, workbook, today, variant);
+    await v.page.goto(PAGE + '#hoja=' + SHEET_ID);
+    await v.page.waitForSelector('.kpi, #state h2:has-text("No se pudieron")', { timeout: 30000 });
+    const t = core.summarize(model, { city: 'ALL', period: { type: 'year' } }).totals;
+    check(await v.page.locator('.kpi').count() === 6 && await kpi(v.page, 'Ganancia personal') === core.formatMoney(t.personal), 'Copia real, Google ' + label + ': mismos números');
+    if (await v.page.locator('.kpi').count() === 0) console.log('    ' + await v.page.locator('#state').innerText());
+  }
+  console.log('Copia real de la hoja (los números no se imprimen)');
   const { page, errors } = await newPage(browser, workbook, today);
   await page.goto(PAGE + '#hoja=' + SHEET_ID);
   await page.waitForSelector('.kpi', { timeout: 30000 });
