@@ -43,10 +43,10 @@ function readSnapshot(file) {
   return { sheetValues };
 }
 
-/** Arma el mismo objeto que devuelve getDashboardData() a partir del snapshot. */
-function payloadFromSnapshot(server, file, today) {
+/** Arma el mismo objeto que construye el dashboard a partir del snapshot. */
+function payloadFromSnapshot(sheet, file, today) {
   const snap = readSnapshot(file);
-  const payload = server.buildPayload({
+  const payload = sheet.buildPayload({
     agenda: snap.sheetValues('AGENDA Y VENTAS'),
     expenses: snap.sheetValues('STOCK OPERACION'),
     analysis: snap.sheetValues('ANALISIS')

@@ -1,4 +1,3 @@
-<script>
 /*
  * NayarSound · Dashboard — lógica de indicadores (sin dependencias del navegador).
  *
@@ -634,4 +633,3 @@ var NSCore = (function () {
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = NSCore;
-</script>

@@ -6,7 +6,7 @@
 //
 // Solo imprime totales agregados (sin clientes ni teléfonos). Guarda el
 // snapshot FUERA del repositorio: contiene datos privados.
-const { loadServer, loadCore } = require('../test/load');
+const { loadSheet, loadCore } = require('../test/load');
 const { payloadFromSnapshot } = require('./snapshot');
 
 const args = process.argv.slice(2);
@@ -19,9 +19,9 @@ const hoyIdx = args.indexOf('--hoy');
 const today = hoyIdx !== -1 ? args[hoyIdx + 1]
   : new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
 
-const server = loadServer();
+const sheet = loadSheet();
 const core = loadCore();
-const { payload, snap } = payloadFromSnapshot(server, file, today);
+const { payload, snap } = payloadFromSnapshot(sheet, file, today);
 const model = core.prepare(payload);
 const money = (v) => core.formatMoney(v, 2);
 let failures = 0;
@@ -57,7 +57,7 @@ if (data) {
     console.log(`  ${mark(ok)} ${label.padEnd(34)} dashboard ${fmt(mine).padStart(16)} · archivo ${file === undefined ? '—' : fmt(file).padStart(16)}`);
   };
   Object.keys(roa).forEach((label) => {
-    const city = label === 'TOTAL' ? 'ALL' : server.cityKey(label);
+    const city = label === 'TOTAL' ? 'ALL' : sheet.cityKey(label);
     const file = roa[label];
     const s = core.summarize(model, { city, period: { type: 'all' } }).totals;
     console.log(`\nDATA!AP:AU · ${label} (histórico)`);

@@ -100,9 +100,9 @@ function analysisValues() {
 
 const formatDate = (d) => d.toISOString().slice(0, 10);
 
-function payload(server, today, overrides) {
+function payload(sheet, today, overrides) {
   const o = overrides || {};
-  const p = server.buildPayload({
+  const p = sheet.buildPayload({
     agenda: { name: 'AGENDA Y VENTAS', values: o.agenda || agendaValues() },
     expenses: { name: 'STOCK OPERACION', values: o.expenses || expenseValues() },
     analysis: o.analysis === null ? null : { name: 'ANALISIS', values: o.analysis || analysisValues() }

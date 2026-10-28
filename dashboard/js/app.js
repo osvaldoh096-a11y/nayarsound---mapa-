@@ -1,8 +1,7 @@
-<script>
 /*
- * NayarSound · Dashboard — interfaz. Pide los datos al servidor de Apps Script
- * (google.script.run), aplica los filtros globales y dibuja tarjetas, gráficas,
- * tablas y desgloses. Todo el texto de datos se inserta con textContent.
+ * NayarSound · Dashboard — interfaz. Lee la hoja con NSSource, aplica los
+ * filtros globales y dibuja tarjetas, gráficas, tablas y desgloses. Todo el
+ * texto de datos se inserta con textContent.
  */
 (function () {
   'use strict';
@@ -19,6 +18,7 @@
     lastSuccess: null,
     loading: false,
     error: null,
+    needSheet: false,
     filters: { city: 'ALL', period: { type: 'year', from: '', to: '' } },
     tab: 'resumen',
     ui: { cityProfit: 'personal', adsMetric: 'sales' },
@@ -118,30 +118,45 @@
   var requestSeq = 0;
   function load() {
     if (state.loading) return;
+    if (!NSSource.sheetId()) {
+      state.needSheet = true;
+      renderChrome();
+      return;
+    }
+    state.needSheet = false;
     state.loading = true;
     renderChrome();
     var seq = ++requestSeq;
     var timer = setTimeout(function () {
       if (seq === requestSeq && state.loading) fail(new Error('La hoja tardó demasiado en responder. Intenta de nuevo.'));
     }, REQUEST_TIMEOUT_MS);
-    var run = window.google && window.google.script && window.google.script.run;
-    if (!run) {
+    NSSource.fetchTables().then(function (tables) {
       clearTimeout(timer);
-      fail(new Error('Esta página debe abrirse desde la aplicación web de Apps Script.'));
-      return;
-    }
-    run
-      .withSuccessHandler(function (json) { clearTimeout(timer); succeed(json); })
-      .withFailureHandler(function (err) { clearTimeout(timer); if (seq === requestSeq) fail(err); })
-      .getDashboardData();
+      if (seq === requestSeq) succeed(tables);
+    }, function (err) {
+      clearTimeout(timer);
+      if (seq === requestSeq) fail(err);
+    });
   }
 
-  function succeed(json) {
+  function todayInMexico() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: (window.NS_CONFIG || {}).timezone || 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    } catch (e) {
+      return localIso(new Date());
+    }
+  }
+
+  function succeed(tables) {
     var model;
     try {
-      model = C.prepare(typeof json === 'string' ? JSON.parse(json) : json);
+      var payload = NSSheet.buildPayload(tables, function (d) { return localIso(d); });
+      payload.today = todayInMexico();
+      payload.generatedAt = new Date().toISOString();
+      payload.spreadsheetName = tables.spreadsheetName || '';
+      model = C.prepare(payload);
     } catch (e) {
-      fail(new Error('Los datos recibidos no se pudieron interpretar: ' + e.message));
+      fail(e);
       return;
     }
     state.model = model;
@@ -170,6 +185,7 @@
     var stale = !!(state.error && state.model);
     status.classList.toggle('is-stale', stale);
     if (state.loading) status.textContent = state.model ? 'Actualizando…' : 'Cargando datos…';
+    else if (state.needSheet) status.textContent = 'Sin hoja conectada';
     else if (stale) status.textContent = 'Sin actualizar desde ' + stamp(state.lastSuccess);
     else if (state.error) status.textContent = 'Sin conexión con la hoja';
     else if (state.lastSuccess) status.textContent = 'Actualizado: ' + stamp(state.lastSuccess);
@@ -195,17 +211,52 @@
       if (state.loading) {
         st.appendChild(h('div', { 'class': 'spinner', 'aria-hidden': 'true' }));
         st.appendChild(h('h2', { text: 'Cargando datos de Google Sheets…' }));
-        st.appendChild(h('p', { text: 'Leyendo «AGENDA Y VENTAS» y «STOCK OPERACION».' }));
+        st.appendChild(h('p', { text: 'Leyendo «AGENDA Y VENTAS», «STOCK OPERACION» y «ANALISIS».' }));
+      } else if (state.needSheet) {
+        st.appendChild(sheetForm());
       } else if (state.error) {
         st.appendChild(h('h2', { text: 'No se pudieron cargar los datos' }));
         st.appendChild(h('p', { text: 'No se muestra ningún indicador para no confundir un error con valores en cero.' }));
         st.appendChild(h('p', { 'class': 'detail', text: state.error }));
         st.appendChild(h('button', { type: 'button', 'class': 'btn btn-primary', onclick: load, text: 'REINTENTAR' }));
+        st.appendChild(h('p', { style: 'margin-top:12px' }, [
+          h('button', { type: 'button', 'class': 'btn btn-link', onclick: changeSheet, text: 'Usar otra hoja' })
+        ]));
       }
     }
     st.hidden = !!state.model;
     $('content').hidden = !state.model;
     $('filters').hidden = !state.model;
+  }
+
+  function sheetForm() {
+    var input = h('input', { type: 'text', inputmode: 'url', autocomplete: 'off', id: 'sheetInput', 'class': 'sheet-input', placeholder: 'https://docs.google.com/spreadsheets/d/…', 'aria-label': 'Enlace de la hoja de Google Sheets' });
+    var msg = h('p', { 'class': 'detail', role: 'alert' });
+    var submit = function (ev) {
+      ev.preventDefault();
+      try {
+        NSSource.setSheet(input.value);
+      } catch (e) {
+        msg.textContent = e.message;
+        return;
+      }
+      load();
+    };
+    return h('form', { 'class': 'sheet-form', onsubmit: submit }, [
+      h('h2', { text: 'Conecta la hoja de NayarSound' }),
+      h('p', { text: 'Pega el enlace de la hoja «🐯NAYARSOUND - PERSONAL». Se guarda solo en este navegador; no queda en GitHub.' }),
+      input,
+      h('button', { type: 'submit', 'class': 'btn btn-primary', text: 'VER DASHBOARD' }),
+      msg
+    ]);
+  }
+
+  function changeSheet() {
+    NSSource.clearSheet();
+    state.model = null;
+    state.error = null;
+    state.needSheet = true;
+    renderChrome();
   }
 
   // ---------------------------------------------------------------------------
@@ -1012,7 +1063,7 @@
 
     var src = m.sources;
     var kvs = [
-      ['Archivo', m.spreadsheetName || '—'],
+      ['Archivo', m.spreadsheetName || 'Hoja de Google Sheets (enlace guardado en este navegador)'],
       ['Última actualización exitosa', state.lastSuccess ? stamp(state.lastSuccess) : '—'],
       ['Eventos leídos', number(m.events.length) + ' (encabezados en «' + (src.agenda ? src.agenda.sheet : '?') + '», fila ' + (src.agenda ? src.agenda.headerRow : '?') + ')'],
       ['Gastos y compras leídos', number(m.expenses.length) + ' (encabezados en «' + (src.expenses ? src.expenses.sheet : '?') + '», fila ' + (src.expenses ? src.expenses.headerRow : '?') + ')'],
@@ -1020,7 +1071,8 @@
     ];
     var dl = h('dl', { 'class': 'kv' });
     kvs.forEach(function (p) { dl.appendChild(h('dt', { text: p[0] })); dl.appendChild(h('dd', { text: p[1] })); });
-    panel.appendChild(card('Lectura', 'Solo lectura: el dashboard nunca modifica la hoja.', [dl]));
+    panel.appendChild(card('Lectura', 'Solo lectura: el dashboard nunca modifica la hoja.', [dl,
+      h('p', { style: 'margin-top:12px' }, [h('button', { type: 'button', 'class': 'btn', onclick: changeSheet, text: 'CAMBIAR HOJA' })])]));
   }
 
   function card(title, sub, children) {
@@ -1308,6 +1360,6 @@
 
   loadPrefs();
   bind();
+  NSSource.captureFromUrl();
   load();
 })();
-</script>

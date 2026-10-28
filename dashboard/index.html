@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-  <base target="_top">
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
   <title>NayarSound · Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <?!= include('Styles'); ?>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 <div class="app is-loading" id="app">
@@ -14,7 +16,7 @@
     <div class="row-top">
       <div class="brand">NAYAR<span>SOUND</span></div>
       <nav class="segmented" aria-label="Secciones">
-        <a href="<?= mapUrl ?>">MAPA</a>
+        <a href="../" id="mapLink">MAPA</a>
         <a class="active" aria-current="page">DASHBOARD</a>
       </nav>
       <div class="sync">
@@ -49,8 +51,7 @@
   <main>
     <div class="state" id="state">
       <div class="spinner" aria-hidden="true"></div>
-      <h2>Cargando datos de Google Sheets…</h2>
-      <p>Leyendo «AGENDA Y VENTAS» y «STOCK OPERACION».</p>
+      <h2>Cargando…</h2>
     </div>
     <div class="content" id="content" hidden>
       <div class="scope" id="scope"></div>
@@ -81,8 +82,11 @@
 </aside>
 <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
 
-<?!= include('Core'); ?>
-<?!= include('Charts'); ?>
-<?!= include('App'); ?>
+<script src="js/config.js"></script>
+<script src="js/sheet.js"></script>
+<script src="js/core.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/source.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

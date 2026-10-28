@@ -1,10 +1,10 @@
 {
   "name": "nayarsound-dashboard",
   "private": true,
-  "description": "Dashboard administrativo y financiero de NayarSound (Google Apps Script). Pruebas y herramientas locales.",
+  "description": "Dashboard administrativo y financiero de NayarSound (GitHub Pages + Google Sheets). Pruebas y herramientas locales.",
   "scripts": {
     "test": "node --test test/*.test.js",
-    "verificar": "node tools/verificar-snapshot.js",
-    "preview": "node tools/preview.js"
+    "test:ui": "node test/ui.check.js",
+    "verificar": "node tools/verificar-snapshot.js"
   }
 }

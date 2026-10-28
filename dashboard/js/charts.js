@@ -1,4 +1,3 @@
-<script>
 /*
  * NayarSound · Dashboard — gráficas SVG sin dependencias externas.
  * Línea (evolución), barras horizontales (comparación por ciudad) y columnas
@@ -426,4 +425,3 @@ var NSCharts = (function () {
 
   return { line: line, hbar: hbar, columns: columns, cssVar: cssVar, hideTip: hideTip };
 })();
-</script>

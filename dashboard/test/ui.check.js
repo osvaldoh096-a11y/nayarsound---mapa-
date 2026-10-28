@@ -1,25 +1,32 @@
 #!/usr/bin/env node
-// Prueba de la interfaz en Chromium (Playwright) con datos sintéticos.
-// Uso: node dashboard/test/ui.check.js [--capturas <carpeta>]
+// Prueba de la interfaz en Chromium (Playwright) con la página real
+// (dashboard/index.html) y Google Sheets simulado (tools/gviz-sim.js).
+//
+// Uso:
+//   node dashboard/test/ui.check.js [--capturas <carpeta>]
+//   node dashboard/test/ui.check.js --snapshot <snapshot.json> --hoy AAAA-MM-DD [--capturas <carpeta>]
+//
+// Con --snapshot compara los números de la pantalla contra los calculados con
+// la misma copia de la hoja (guárdala FUERA del repositorio).
 // Requiere Playwright instalado (no es dependencia del proyecto).
-const os = require('os');
 const path = require('path');
-const fs = require('fs');
-const { execFileSync } = require('child_process');
 const { chromium } = require('playwright');
+const gvizSim = require('../tools/gviz-sim');
+const fx = require('./fixtures');
+const { loadSheet, loadCore } = require('./load');
 
 const args = process.argv.slice(2);
-const shotsDir = args.includes('--capturas') ? args[args.indexOf('--capturas') + 1] : null;
-const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ns-ui-')), 'preview.html');
-execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'preview.js'), '--salida', file, '--hoy', '2026-03-25']);
-const url = 'file://' + file;
+const opt = (name) => { const i = args.indexOf(name); return i === -1 ? null : args[i + 1]; };
+const shotsDir = opt('--capturas');
+const snapshotFile = opt('--snapshot');
+const PAGE = 'file://' + path.join(__dirname, '..', 'index.html');
+const SHEET_ID = 'HojaDePruebaSintetica_0123456789';
 
 let failures = 0;
 function check(ok, label) {
   console.log((ok ? '  ✓ ' : '  ✗ ') + label);
   if (!ok) failures++;
 }
-
 function tile(page, label) {
   return page.locator('.kpi', { has: page.locator('.kpi-label', { hasText: new RegExp('^' + label + '$') }) });
 }
@@ -27,17 +34,70 @@ async function kpi(page, label) {
   return tile(page, label).locator('.kpi-value').innerText();
 }
 
-async function run() {
-  const browser = await chromium.launch();
-  const errors = [];
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+// Libro simulado. En la prueba de interfaz los montos van como números (en la
+// hoja real así llegan); las pruebas unitarias cubren montos escritos como texto.
+function fixtureWorkbook() {
+  const numeric = (rows) => rows.map((r) => r.map((c) => (typeof c === 'string' && /^\$[\d,]+(\.\d+)?$/.test(c) ? parseFloat(c.replace(/[$,]/g, '')) : c)));
+  return {
+    'AGENDA Y VENTAS': numeric(fx.agendaValues()),
+    'STOCK OPERACION': fx.expenseValues(),
+    ANALISIS: fx.analysisValues()
+  };
+}
+function snapshotWorkbook(file) {
+  const snap = require('../tools/snapshot').readSnapshot(file);
+  const out = {};
+  ['AGENDA Y VENTAS', 'STOCK OPERACION', 'ANALISIS'].forEach((t) => { out[t] = gvizSim.markDates(snap.sheetValues(t).values); });
+  return out;
+}
+
+async function newPage(browser, workbook, today, options) {
+  const o = options || {};
+  const ctx = await browser.newContext({ viewport: o.viewport || { width: 1366, height: 900 }, isMobile: !!o.mobile, hasTouch: !!o.mobile, deviceScaleFactor: o.mobile ? 2 : 1 });
   const page = await ctx.newPage();
+  const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)|net::ERR/.test(m.text())) errors.push(m.text()); });
+  const state = { mode: 'ok', requests: 0, strictColumns: !!o.strictColumns };
+  await page.route('**/*', (route) => {
+    const url = route.request().url();
+    if (url.startsWith('file://')) return route.continue();
+    if (url.includes('/gviz/tq')) {
+      state.requests++;
+      if (state.mode === 'fail') return route.abort();
+      return route.fulfill({ contentType: 'application/javascript', body: gvizSim.respond(workbook, url, { strictColumns: state.strictColumns }) });
+    }
+    return route.fulfill({ status: 204, body: '' });
+  });
+  await page.clock.setFixedTime(new Date(today + 'T12:00:00-06:00'));
+  return { page, ctx, errors, state };
+}
 
-  console.log('Escritorio · datos sintéticos (hoy = 25 mar 2026)');
-  await page.goto(url);
+async function runFixture(browser) {
+  const workbook = fixtureWorkbook();
+  const allErrors = [];
+
+  console.log('Primera visita sin hoja guardada');
+  {
+    const { page, errors } = await newPage(browser, workbook, '2026-03-25');
+    await page.goto(PAGE);
+    await page.waitForSelector('#sheetInput');
+    check(await page.locator('.kpi').count() === 0, 'Sin hoja: pide el enlace y no muestra números');
+    await page.fill('#sheetInput', 'hola');
+    await page.click('.sheet-form button[type=submit]');
+    check(/enlace completo/.test(await page.locator('.sheet-form .detail').innerText()), 'Enlace inválido: mensaje claro');
+    await page.fill('#sheetInput', 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit#gid=0');
+    await page.click('.sheet-form button[type=submit]');
+    await page.waitForSelector('.kpi');
+    check(await kpi(page, 'Ingresos generados') === '$13,500', 'Con el enlace pegado carga el dashboard');
+    allErrors.push(...errors);
+  }
+
+  console.log('Escritorio · enlace con #hoja= (hoy = 25 mar 2026)');
+  const { page, errors, state } = await newPage(browser, workbook, '2026-03-25');
+  await page.goto(PAGE + '#hoja=' + SHEET_ID);
   await page.waitForSelector('.kpi');
+  check(!page.url().includes('hoja='), 'El ID de la hoja se quita de la dirección');
   check(await page.locator('.kpi').count() === 6, '6 tarjetas principales');
   check(await kpi(page, 'Ingresos generados') === '$13,500', 'Año actual: ingresos $13,500');
   check(await kpi(page, 'Ganancia personal') === '$6,495', 'Año actual: ganancia personal $6,495');
@@ -89,9 +149,7 @@ async function run() {
   await card.locator('button', { hasText: 'VER TABLA' }).click();
   check(await card.locator('table').count() === 1, 'Cada gráfica tiene su vista de tabla');
   await card.locator('button', { hasText: 'VER GRÁFICA' }).click();
-
-  const bar = page.locator('#tab-resumen .card', { hasText: 'Ganancia por ciudad' }).locator('g.bar-row').first();
-  await bar.click();
+  await card.locator('g.bar-row').first().click();
   check(!(await page.locator('#drawer').isHidden()), 'Las barras abren el desglose de la ciudad');
   await page.keyboard.press('Escape');
 
@@ -102,6 +160,7 @@ async function run() {
   }
   check(/Coincide con la hoja ANALISIS/.test(await page.locator('#tab-fuentes').innerText()), 'Verificación contra ANALISIS: coincide');
   check(/PUBLICIDAD /.test(await page.locator('#tab-fuentes').innerText()), 'Lista los gastos que el archivo no suma');
+  check(/fila 12/.test(await page.locator('#tab-fuentes').innerText()), 'Ubica los encabezados en la fila real de la hoja');
 
   await page.click('#themeBtn');
   check((await page.getAttribute('html', 'data-theme')) === 'light', 'Cambio a tema claro');
@@ -110,41 +169,92 @@ async function run() {
   await page.click('#themeBtn');
 
   console.log('Errores de conexión');
-  const p2 = await ctx.newPage();
-  p2.on('pageerror', (e) => errors.push(e.message));
-  await p2.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
-  await p2.goto(url + '#fallo');
-  await p2.waitForSelector('#state h2:has-text("No se pudieron cargar")');
-  check(await p2.locator('.kpi').count() === 0, 'Error inicial: no muestra indicadores en cero');
-  check(/Sin conexión/.test(await p2.locator('#syncStatus').innerText()), 'Error inicial: estado de conexión claro');
-  if (shotsDir) await p2.screenshot({ path: path.join(shotsDir, 'error-inicial.png') });
+  state.mode = 'fail';
+  await page.click('#refreshBtn');
+  await page.waitForSelector('#banner:not([hidden])');
+  check(/no datos actuales/.test(await page.locator('#banner').innerText()), 'Falla al actualizar: los datos se marcan como no actuales');
+  check(/Sin actualizar desde/.test(await page.locator('#syncStatus').innerText()), 'Falla al actualizar: muestra desde cuándo no se actualiza');
+  if (shotsDir) await page.screenshot({ path: path.join(shotsDir, 'error-actualizar.png') });
+  allErrors.push(...errors);
 
-  const p3 = await ctx.newPage();
-  await p3.goto(url + '#fallo-despues');
-  await p3.waitForSelector('.kpi');
-  await p3.click('#refreshBtn');
-  await p3.waitForSelector('#banner:not([hidden])');
-  check(/no datos actuales/.test(await p3.locator('#banner').innerText()), 'Falla al actualizar: los datos se marcan como no actuales');
-  check(/Sin actualizar desde/.test(await p3.locator('#syncStatus').innerText()), 'Falla al actualizar: muestra desde cuándo no se actualiza');
-  if (shotsDir) await p3.screenshot({ path: path.join(shotsDir, 'error-actualizar.png') });
-
-  console.log('Celular (390 × 844)');
-  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  const pm = await mobile.newPage();
-  pm.on('pageerror', (e) => errors.push(e.message));
-  await pm.goto(url);
-  await pm.waitForSelector('.kpi');
-  for (const tab of ['resumen', 'analisis', 'operacion', 'fuentes']) {
-    await pm.click(`#tab-btn-${tab}`);
-    const overflow = await pm.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    check(overflow <= 0, `Sin desplazamiento horizontal de la página en ${tab} (${overflow}px)`);
-    if (shotsDir) await pm.screenshot({ path: path.join(shotsDir, `celular-${tab}.png`), fullPage: true });
+  {
+    const p2 = await newPage(browser, workbook, '2026-03-25');
+    p2.state.mode = 'fail';
+    await p2.page.goto(PAGE + '#hoja=' + SHEET_ID);
+    await p2.page.waitForSelector('#state h2:has-text("No se pudieron cargar")');
+    check(await p2.page.locator('.kpi').count() === 0, 'Error inicial: no muestra indicadores en cero');
+    check(/Sin conexión/.test(await p2.page.locator('#syncStatus').innerText()), 'Error inicial: estado de conexión claro');
+    if (shotsDir) await p2.page.screenshot({ path: path.join(shotsDir, 'error-inicial.png') });
   }
 
-  check(errors.length === 0, 'Sin errores de JavaScript' + (errors.length ? ': ' + errors.join(' | ') : ''));
-  await browser.close();
-  console.log(failures ? `\n✗ ${failures} fallas` : '\n✓ Interfaz verificada');
-  process.exit(failures ? 1 : 0);
+  console.log('Google rechaza rangos más anchos que la hoja');
+  {
+    const s = await newPage(browser, workbook, '2026-03-25', { strictColumns: true });
+    await s.page.goto(PAGE + '#hoja=' + SHEET_ID);
+    await s.page.waitForSelector('.kpi');
+    check(await kpi(s.page, 'Ingresos generados') === '$13,500', 'Lee la hoja con el ancho real cuando el rango ancho falla');
+    allErrors.push(...s.errors);
+  }
+
+  console.log('Celular (390 × 844)');
+  {
+    const m = await newPage(browser, workbook, '2026-03-25', { viewport: { width: 390, height: 844 }, mobile: true });
+    await m.page.goto(PAGE + '#hoja=' + SHEET_ID);
+    await m.page.waitForSelector('.kpi');
+    for (const tab of ['resumen', 'analisis', 'operacion', 'fuentes']) {
+      await m.page.click(`#tab-btn-${tab}`);
+      const overflow = await m.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      check(overflow <= 0, `Sin desplazamiento horizontal de la página en ${tab} (${overflow}px)`);
+      if (shotsDir) await m.page.screenshot({ path: path.join(shotsDir, `celular-${tab}.png`), fullPage: true });
+    }
+    allErrors.push(...m.errors);
+  }
+  check(allErrors.length === 0, 'Sin errores de JavaScript' + (allErrors.length ? ': ' + allErrors.join(' | ') : ''));
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+async function runSnapshot(browser, file, today) {
+  console.log('Copia real de la hoja (los números no se imprimen)');
+  const workbook = snapshotWorkbook(file);
+  const sheet = loadSheet();
+  const core = loadCore();
+  const model = core.prepare(require('../tools/snapshot').payloadFromSnapshot(sheet, file, today).payload);
+  const { page, errors } = await newPage(browser, workbook, today);
+  await page.goto(PAGE + '#hoja=' + SHEET_ID);
+  await page.waitForSelector('.kpi', { timeout: 30000 });
+  for (const [type, label] of [['all', 'Histórico'], ['year', 'Año actual'], ['month', 'Mes actual']]) {
+    await page.click(`#periodFilter button[data-period="${type}"]`);
+    const t = core.summarize(model, { city: 'ALL', period: { type } }).totals;
+    check(await kpi(page, 'Ingresos generados') === core.formatMoney(t.revenue), `${label}: ingresos iguales al cálculo sobre la copia`);
+    check(await kpi(page, 'Ganancia personal') === core.formatMoney(t.personal), `${label}: ganancia personal igual`);
+    check(await kpi(page, 'Saldo por cobrar') === core.formatMoney(t.saldo), `${label}: saldo por cobrar igual`);
+    check(await kpi(page, 'Eventos realizados') === core.formatNumber(t.realizedCount), `${label}: eventos realizados igual`);
+    check(await kpi(page, 'Gasto en publicidad') === core.formatMoney(t.ads), `${label}: publicidad igual`);
+  }
+  for (const city of model.cities.map((c) => c.key)) {
+    await page.click(`#cityFilter button[data-city="${city}"]`);
+    await page.click('#periodFilter button[data-period="all"]');
+    const t = core.summarize(model, { city, period: { type: 'all' } }).totals;
+    check(await kpi(page, 'Ganancia personal') === core.formatMoney(t.personal), `${core.cityName(city)}: ganancia personal histórica igual`);
+  }
+  await page.click('#tab-btn-fuentes');
+  check(/Coincide con la hoja ANALISIS/.test(await page.locator('#tab-fuentes').innerText()), 'Leída por gviz, coincide con la hoja ANALISIS');
+  if (shotsDir) {
+    await page.click('#cityFilter button[data-city="ALL"]');
+    await page.click('#periodFilter button[data-period="year"]');
+    await page.click('#tab-btn-resumen');
+    await page.screenshot({ path: path.join(shotsDir, 'real-resumen.png'), fullPage: true });
+  }
+  check(errors.length === 0, 'Sin errores de JavaScript' + (errors.length ? ': ' + errors.join(' | ') : ''));
+}
+
+(async () => {
+  const browser = await chromium.launch();
+  try {
+    if (snapshotFile) await runSnapshot(browser, snapshotFile, opt('--hoy'));
+    else await runFixture(browser);
+  } finally {
+    await browser.close();
+  }
+  console.log(failures ? `\n✗ ${failures} fallas` : '\n✓ Interfaz verificada');
+  process.exit(failures ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(1); });

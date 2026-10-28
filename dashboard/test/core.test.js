@@ -1,13 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadServer, loadCore } = require('./load');
+const { loadSheet, loadCore } = require('./load');
 const fx = require('./fixtures');
 
-const server = loadServer();
+const sheet = loadSheet();
 const core = loadCore();
 
 function model(today, overrides) {
-  return core.prepare(fx.payload(server, today, overrides));
+  return core.prepare(fx.payload(sheet, today, overrides));
 }
 const ALL = { city: 'ALL', period: { type: 'all' } };
 const close = (a, b) => assert.ok(Math.abs(a - b) < 0.005, `${a} ≠ ${b}`);
