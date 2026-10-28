@@ -14,9 +14,9 @@
   --text:#eaf6f8;
   --text-2:#a7bec4;
   --muted:#7a959c;
-  --accent:#00e0ff;
-  --accent-soft:rgba(0,224,255,0.12);
-  --accent-ink:#04141a;
+  --accent:#3b82f6;
+  --accent-soft:rgba(59,130,246,0.12);
+  --accent-ink:#ffffff;
   /* Paleta categórica validada (orden fijo; el color sigue a la ciudad). */
   --series-1:#3987e5;
   --series-2:#d95926;
@@ -52,8 +52,8 @@
   --text:#0b1418;
   --text-2:#3d4f55;
   --muted:#62757b;
-  --accent:#00788a;
-  --accent-soft:rgba(0,120,138,0.10);
+  --accent:#1d4ed8;
+  --accent-soft:rgba(29,78,216,0.10);
   --accent-ink:#ffffff;
   --series-1:#2a78d6;
   --series-2:#eb6834;

@@ -29,24 +29,26 @@ dashboard/
 Igual que el mapa: con la consulta `gviz` de Google Sheets. Funciona mientras la
 hoja esté compartida como «Cualquier persona con el enlace».
 
-**El ID de la hoja no está en este repositorio.** La página lo toma del enlace
-`…/dashboard/#hoja=ID` (lo que va después de `#` no se envía a ningún servidor)
-o lo pide la primera vez. Después lo guarda solo en ese navegador. Para usar
-otra hoja: «Fuentes y verificación» → «Cambiar hoja».
+El ID de la hoja está en `js/config.js`. Es el mismo que ya usa el mapa
+publicado (`VENTAS_SHEET_ID`). Para ver otra hoja en un navegador: «Fuentes y
+verificación» → «Cambiar hoja», o abre `…/dashboard/#hoja=ID`. Esa elección se
+guarda solo en ese navegador.
+
+La navegación MAPA · DJS · DEMANDA · DASHBOARD es la misma del mapa.
 
 ## 2. Privacidad: estado actual y siguiente paso
 
-**Hoy los datos no están protegidos.** Quien tenga el enlace de la hoja puede
-verlos, con o sin este dashboard, porque la hoja está compartida con
-«cualquier persona con el enlace». El repositorio y GitHub Pages son públicos,
-pero aquí solo hay código: ni datos, ni IDs, ni contraseñas.
+**Hoy los datos no están protegidos.** Quien abra el dashboard, el mapa o el
+enlace de la hoja puede ver la información financiera, porque la hoja está
+compartida con «cualquier persona con el enlace» y su ID está en el código
+público. El dueño decidió verlo así por ahora y protegerlo después.
 
-Para protegerlo (pendiente, por decisión del dueño):
+Para protegerlo:
 
 1. Crear un «ID de cliente de OAuth» gratuito en Google Cloud, con la API de
    Google Sheets habilitada y el origen `https://osvaldoh096-a11y.github.io`.
 2. Cambiar `js/source.js` por una lectura con inicio de sesión de Google y
-   permiso de solo lectura. Así solo tu cuenta ve los datos.
+   permiso de solo lectura, y **quitar el ID** de `js/config.js` y del mapa.
 3. Dejar la hoja financiera y «AMAL AGENDA» como **Restringidas**. Para el mapa,
    usar una hoja pública aparte con solo ciudad, fecha y coordenadas.
 

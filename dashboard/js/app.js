@@ -252,7 +252,6 @@
   }
 
   function changeSheet() {
-    NSSource.clearSheet();
     state.model = null;
     state.error = null;
     state.needSheet = true;
@@ -1301,6 +1300,13 @@
   // Eventos de la interfaz
   // ---------------------------------------------------------------------------
   function bind() {
+    // El mapa recuerda su página en localStorage («nayarCurrentPage»); se usa la
+    // misma clave para que MAPA, DJS y DEMANDA abran directo en esa página.
+    $('siteNav').addEventListener('click', function (ev) {
+      var a = ev.target.closest('a[data-page]');
+      if (!a) return;
+      try { localStorage.setItem('nayarCurrentPage', a.getAttribute('data-page')); } catch (e) { /* abre en MAPA */ }
+    });
     $('refreshBtn').addEventListener('click', load);
     $('themeBtn').addEventListener('click', function () {
       setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');

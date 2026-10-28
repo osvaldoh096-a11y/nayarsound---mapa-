@@ -59,8 +59,10 @@ async function newPage(browser, workbook, today, options) {
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)|net::ERR/.test(m.text())) errors.push(m.text()); });
   const state = { mode: 'ok', requests: 0, strictColumns: !!o.strictColumns };
+  const testConfig = "var NS_CONFIG = { spreadsheetId: '', mapUrl: '../', timezone: 'America/Mexico_City' };";
   await page.route('**/*', (route) => {
     const url = route.request().url();
+    if (url.endsWith('/js/config.js') && !o.realConfig) return route.fulfill({ contentType: 'application/javascript', body: testConfig });
     if (url.startsWith('file://')) return route.continue();
     if (url.includes('/gviz/tq')) {
       state.requests++;
@@ -91,6 +93,18 @@ async function runFixture(browser) {
     await page.waitForSelector('.kpi');
     check(await kpi(page, 'Ingresos generados') === '$13,500', 'Con el enlace pegado carga el dashboard');
     allErrors.push(...errors);
+  }
+
+  console.log('Configuración publicada (config.js con la hoja)');
+  {
+    const c = await newPage(browser, workbook, '2026-03-25', { realConfig: true });
+    await c.page.goto(PAGE);
+    await c.page.waitForSelector('.kpi');
+    check(await kpi(c.page, 'Ingresos generados') === '$13,500', 'Abre directo, sin pedir el enlace');
+    allErrors.push(...c.errors); // después se sale del dashboard (a la carpeta del mapa)
+    await c.page.click('#siteNav a[data-page="djs"]');
+    await c.page.waitForURL((u) => !u.pathname.includes('/dashboard/'));
+    check(await c.page.evaluate(() => localStorage.getItem('nayarCurrentPage')) === 'djs', 'DJS abre el mapa en su página DJS');
   }
 
   console.log('Escritorio · enlace con #hoja= (hoy = 25 mar 2026)');

@@ -33,8 +33,9 @@ var NSSource = (function () {
     } catch (e) { /* solo en memoria */ }
   }
   function sheetId() {
-    if (cfg.spreadsheetId) return cfg.spreadsheetId;
-    try { return localStorage.getItem(KEY_SHEET) || memory; } catch (e) { return memory; }
+    var saved = memory;
+    try { saved = localStorage.getItem(KEY_SHEET) || memory; } catch (e) { /* solo en memoria */ }
+    return saved || cfg.spreadsheetId || '';
   }
   /** Toma la hoja de la dirección (#hoja=ID), la guarda y la quita de la barra. */
   function captureFromUrl() {
