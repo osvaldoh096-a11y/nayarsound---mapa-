@@ -166,6 +166,13 @@
     .toolbar-group{ justify-content:center; flex-wrap:wrap; }
   }
 
+  /* Pantallas medianas: con DASHBOARD en el selector de páginas la barra ya no
+     cabe en una sola fila; se acomoda en dos filas en lugar de encimarse. */
+  @media (min-width: 901px) and (max-width: 1460px){
+    .toolbar{ display:flex; flex-wrap:wrap; align-items:center; row-gap:8px; }
+    .toolbar-right{ margin-left:auto; }
+  }
+
   .segmented{
     display:inline-flex;
     border:1px solid var(--line);
@@ -193,6 +200,21 @@
     background:rgba(59,130,246,0.12);
     color:var(--cyan);
   }
+
+  /* Enlace a la página DASHBOARD (dashboard/), con el mismo aspecto que los botones */
+  .segmented a{
+    color:var(--muted);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.06em;
+    padding:7px 12px;
+    text-decoration:none;
+    white-space:nowrap;
+    display:inline-flex;
+    align-items:center;
+    transition:background 0.15s ease, color 0.15s ease;
+  }
+  .segmented a:hover{ color:var(--text); }
 
   #mapPage{
     flex:1;
@@ -1154,6 +1176,7 @@
           <button data-page="mapa" class="active">MAPA</button>
           <button data-page="djs">DJS</button>
           <button data-page="demanda">DEMANDA</button>
+          <a href="dashboard/">DASHBOARD</a>
         </div>
         <div class="segmented page-ctrl-mapa" id="viewSelector">
           <button data-view="points" class="active">PUNTOS</button>

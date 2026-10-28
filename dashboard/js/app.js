@@ -1,0 +1,1371 @@
+/*
+ * NayarSound · Dashboard — interfaz. Lee la hoja con NSSource, aplica los
+ * filtros globales y dibuja tarjetas, gráficas, tablas y desgloses. Todo el
+ * texto de datos se inserta con textContent.
+ */
+(function () {
+  'use strict';
+  var C = NSCore;
+  var G = NSCharts;
+  var STORAGE_KEY = 'nayarsound-dashboard';
+  var REQUEST_TIMEOUT_MS = 90000;
+  var DATE_NOTE = 'Fechas: ingresos, ganancias, eventos y saldos se ubican por fecha del evento; publicidad, operación, ' +
+    'atención al cliente y equipo, por fecha de compra. El archivo no registra la fecha en que se cobra cada pago.';
+
+  var state = {
+    model: null,
+    summary: null,
+    lastSuccess: null,
+    loading: false,
+    error: null,
+    needSheet: false,
+    filters: { city: 'ALL', period: { type: 'year', from: '', to: '' } },
+    tab: 'resumen',
+    ui: { cityProfit: 'personal', adsMetric: 'sales' },
+    tableView: {}
+  };
+  var pendingDraws = [];
+
+  function $(id) { return document.getElementById(id); }
+
+  function h(tag, attrs, children) {
+    var n = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        var v = attrs[k];
+        if (v === null || v === undefined || v === false) return;
+        if (k === 'class') n.className = v;
+        else if (k === 'text') n.textContent = v;
+        else if (k.indexOf('on') === 0) n.addEventListener(k.slice(2), v);
+        else n.setAttribute(k, v === true ? '' : v);
+      });
+    }
+    (children || []).forEach(function (c) {
+      if (c === null || c === undefined || c === false) return;
+      n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Formato
+  // ---------------------------------------------------------------------------
+  var money = function (v) { return C.formatMoney(v); };
+  var money2 = function (v) { return C.formatMoney(v, 2); };
+  var orDash = function (v) { return v === null || v === undefined ? '—' : C.formatMoney(v); };
+  var number = C.formatNumber;
+  function plural(n, one, many) { return C.formatNumber(n) + ' ' + (n === 1 ? one : many); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function localIso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function stamp(d) { return C.formatDate(localIso(d)) + ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function titleCase(s) { return s ? C.capitalize(String(s).toLowerCase()) : '—'; }
+
+  // ---------------------------------------------------------------------------
+  // Ciudades y colores (el color sigue a la ciudad)
+  // ---------------------------------------------------------------------------
+  function cityInfo(key) {
+    var found = null;
+    state.model.cities.forEach(function (c) { if (c.key === key) found = c; });
+    return found || { key: key, name: C.cityName(key), slot: null };
+  }
+  function cityColor(key) {
+    var c = cityInfo(key);
+    return G.cssVar(c.slot ? '--series-' + c.slot : '--series-other');
+  }
+  function visibleCities() {
+    return state.model.cities.filter(function (c) { return state.filters.city === 'ALL' || c.key === state.filters.city; });
+  }
+  function cityScopeName() {
+    return state.filters.city === 'ALL' ? 'Todas las ciudades' : cityInfo(state.filters.city).name;
+  }
+  function cityCell(key) {
+    var dot = h('span', { 'class': 'dot' });
+    dot.style.background = cityColor(key);
+    return h('span', { 'class': 'nowrap' }, [dot, cityInfo(key).name]);
+  }
+  function hasActivity(t) {
+    return t.realizedCount || t.upcomingCount || t.ads || t.operacion || t.atCliente || t.excludedCount;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Preferencias (solo comodidad del visitante; la página funciona sin ellas)
+  // ---------------------------------------------------------------------------
+  function loadPrefs() {
+    try {
+      var p = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (p.period && p.period.type) state.filters.period = p.period;
+      if (p.city) state.filters.city = p.city;
+      if (p.tab) state.tab = p.tab;
+      if (p.theme === 'light' || p.theme === 'dark') setTheme(p.theme);
+    } catch (e) { /* almacenamiento no disponible */ }
+  }
+  function savePrefs() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        period: state.filters.period, city: state.filters.city, tab: state.tab,
+        theme: document.documentElement.getAttribute('data-theme')
+      }));
+    } catch (e) { /* almacenamiento no disponible */ }
+  }
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    $('themeBtn').setAttribute('aria-label', theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Carga de datos
+  // ---------------------------------------------------------------------------
+  var requestSeq = 0;
+  function load() {
+    if (state.loading) return;
+    if (!NSSource.sheetId()) {
+      state.needSheet = true;
+      renderChrome();
+      return;
+    }
+    state.needSheet = false;
+    state.loading = true;
+    renderChrome();
+    var seq = ++requestSeq;
+    var timer = setTimeout(function () {
+      if (seq === requestSeq && state.loading) fail(new Error('La hoja tardó demasiado en responder. Intenta de nuevo.'));
+    }, REQUEST_TIMEOUT_MS);
+    NSSource.fetchTables().then(function (tables) {
+      clearTimeout(timer);
+      if (seq === requestSeq) succeed(tables);
+    }, function (err) {
+      clearTimeout(timer);
+      if (seq === requestSeq) fail(err);
+    });
+  }
+
+  function todayInMexico() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: (window.NS_CONFIG || {}).timezone || 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    } catch (e) {
+      return localIso(new Date());
+    }
+  }
+
+  function succeed(tables) {
+    var model;
+    try {
+      var payload = NSSheet.buildPayload(tables, function (d) { return localIso(d); });
+      payload.today = todayInMexico();
+      payload.generatedAt = new Date().toISOString();
+      payload.spreadsheetName = tables.spreadsheetName || '';
+      model = C.prepare(payload);
+    } catch (e) {
+      fail(e);
+      return;
+    }
+    state.model = model;
+    state.lastSuccess = new Date(model.generatedAt || Date.now());
+    state.error = null;
+    state.loading = false;
+    if (state.filters.city !== 'ALL' && !model.cities.some(function (c) { return c.key === state.filters.city; })) {
+      state.filters.city = 'ALL';
+    }
+    renderChrome();
+    renderFilters();
+    renderContent();
+  }
+
+  function fail(err) {
+    state.loading = false;
+    state.error = err && err.message ? err.message : String(err || 'Error desconocido');
+    renderChrome();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Encabezado, avisos y estados
+  // ---------------------------------------------------------------------------
+  function renderChrome() {
+    var status = $('syncStatus');
+    var stale = !!(state.error && state.model);
+    status.classList.toggle('is-stale', stale);
+    if (state.loading) status.textContent = state.model ? 'Actualizando…' : 'Cargando datos…';
+    else if (state.needSheet) status.textContent = 'Sin hoja conectada';
+    else if (stale) status.textContent = 'Sin actualizar desde ' + stamp(state.lastSuccess);
+    else if (state.error) status.textContent = 'Sin conexión con la hoja';
+    else if (state.lastSuccess) status.textContent = 'Actualizado: ' + stamp(state.lastSuccess);
+    $('refreshBtn').disabled = state.loading;
+    $('app').classList.toggle('is-loading', state.loading);
+
+    var banner = $('banner');
+    banner.textContent = '';
+    if (stale) {
+      banner.appendChild(h('span', { 'class': 'icon', 'aria-hidden': 'true', text: '✕' }));
+      banner.appendChild(h('div', null, [
+        h('strong', { text: 'No se pudo actualizar. ' }),
+        'Lo que ves son los datos de la última actualización exitosa (' + stamp(state.lastSuccess) + '), no datos actuales. ',
+        h('span', { 'class': 'muted', text: 'Detalle: ' + state.error })
+      ]));
+      banner.appendChild(h('button', { type: 'button', 'class': 'btn', onclick: load, text: 'REINTENTAR' }));
+    }
+    banner.hidden = !stale;
+
+    var st = $('state');
+    st.textContent = '';
+    if (!state.model) {
+      if (state.loading) {
+        st.appendChild(h('div', { 'class': 'spinner', 'aria-hidden': 'true' }));
+        st.appendChild(h('h2', { text: 'Cargando datos de Google Sheets…' }));
+        st.appendChild(h('p', { text: 'Leyendo «AGENDA Y VENTAS», «STOCK OPERACION» y «ANALISIS».' }));
+      } else if (state.needSheet) {
+        st.appendChild(sheetForm());
+      } else if (state.error) {
+        st.appendChild(h('h2', { text: 'No se pudieron cargar los datos' }));
+        st.appendChild(h('p', { text: 'No se muestra ningún indicador para no confundir un error con valores en cero.' }));
+        st.appendChild(h('p', { 'class': 'detail', text: state.error }));
+        st.appendChild(h('button', { type: 'button', 'class': 'btn btn-primary', onclick: load, text: 'REINTENTAR' }));
+        st.appendChild(h('p', { style: 'margin-top:12px' }, [
+          h('button', { type: 'button', 'class': 'btn btn-link', onclick: changeSheet, text: 'Usar otra hoja' })
+        ]));
+      }
+    }
+    st.hidden = !!state.model;
+    $('content').hidden = !state.model;
+    $('filters').hidden = !state.model;
+  }
+
+  function sheetForm() {
+    var input = h('input', { type: 'text', inputmode: 'url', autocomplete: 'off', id: 'sheetInput', 'class': 'sheet-input', placeholder: 'https://docs.google.com/spreadsheets/d/…', 'aria-label': 'Enlace de la hoja de Google Sheets' });
+    var msg = h('p', { 'class': 'detail', role: 'alert' });
+    var submit = function (ev) {
+      ev.preventDefault();
+      try {
+        NSSource.setSheet(input.value);
+      } catch (e) {
+        msg.textContent = e.message;
+        return;
+      }
+      load();
+    };
+    return h('form', { 'class': 'sheet-form', onsubmit: submit }, [
+      h('h2', { text: 'Conecta la hoja de NayarSound' }),
+      h('p', { text: 'Pega el enlace de la hoja «🐯NAYARSOUND - PERSONAL». Se guarda solo en este navegador; no queda en GitHub.' }),
+      input,
+      h('button', { type: 'submit', 'class': 'btn btn-primary', text: 'VER DASHBOARD' }),
+      msg
+    ]);
+  }
+
+  function changeSheet() {
+    state.model = null;
+    state.error = null;
+    state.needSheet = true;
+    renderChrome();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Filtros
+  // ---------------------------------------------------------------------------
+  function renderFilters() {
+    var cf = $('cityFilter');
+    cf.textContent = '';
+    var mk = function (key, label, color) {
+      var active = state.filters.city === key;
+      var b = h('button', { type: 'button', 'data-city': key, 'class': active ? 'active' : null, 'aria-pressed': String(active) });
+      if (color) {
+        var sw = h('span', { 'class': 'swatch', 'aria-hidden': 'true' });
+        sw.style.background = color;
+        b.appendChild(sw);
+      }
+      b.appendChild(document.createTextNode(label));
+      return b;
+    };
+    cf.appendChild(mk('ALL', 'TODAS'));
+    state.model.cities.forEach(function (c) { cf.appendChild(mk(c.key, c.name.toUpperCase(), cityColor(c.key))); });
+
+    var type = state.filters.period.type;
+    Array.prototype.forEach.call($('periodFilter').querySelectorAll('button'), function (b) {
+      var active = b.getAttribute('data-period') === type;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', String(active));
+    });
+    $('customRange').hidden = type !== 'custom';
+    $('fromDate').value = state.filters.period.from || '';
+    $('toDate').value = state.filters.period.to || '';
+  }
+
+  function setPeriod(type) {
+    var p = state.filters.period;
+    if (type === 'custom' && (!p.from || !p.to)) {
+      var today = state.model.today;
+      p.from = today.slice(0, 8) + '01';
+      p.to = today;
+    }
+    p.type = type;
+    savePrefs();
+    renderFilters();
+    renderContent();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Contenido
+  // ---------------------------------------------------------------------------
+  function renderContent() {
+    if (!state.model) return;
+    state.summary = C.summarize(state.model, state.filters);
+    renderScope();
+    ['resumen', 'analisis', 'operacion', 'fuentes'].forEach(function (t) {
+      $('tab-btn-' + t).setAttribute('aria-selected', String(t === state.tab));
+      $('tab-btn-' + t).tabIndex = t === state.tab ? 0 : -1;
+      $('tab-' + t).hidden = t !== state.tab;
+    });
+    renderTab();
+  }
+
+  function renderScope() {
+    var r = state.summary.range;
+    var scope = $('scope');
+    scope.textContent = '';
+    scope.appendChild(h('h1', { text: r.label }));
+    scope.appendChild(h('span', {
+      'class': 'range',
+      text: cityScopeName() + ' · ' + (r.from ? C.formatDate(r.from) + ' – ' + C.formatDate(r.to) : 'todas las fechas registradas')
+    }));
+    if (r.error) scope.appendChild(h('span', { 'class': 'error', role: 'alert', text: r.error }));
+    scope.appendChild(h('span', { 'class': 'dates', text: DATE_NOTE }));
+  }
+
+  function renderTab() {
+    var panel = $('tab-' + state.tab);
+    panel.textContent = '';
+    pendingDraws = [];
+    G.hideTip();
+    if (state.summary.range.error) {
+      panel.appendChild(h('div', { 'class': 'chart-empty', text: state.summary.range.error }));
+      return;
+    }
+    if (state.tab === 'resumen') renderResumen(panel);
+    else if (state.tab === 'analisis') renderAnalisis(panel);
+    else if (state.tab === 'operacion') renderOperacion(panel);
+    else renderFuentes(panel);
+    pendingDraws.forEach(function (fn) { fn(); });
+  }
+
+  function sectionTitle(title, sub) {
+    return h('div', { 'class': 'section-title' }, [h('h2', { text: title }), sub ? h('p', { text: sub }) : null]);
+  }
+
+  function segmentedToggle(options, value, onChange, label) {
+    var group = h('div', { 'class': 'segmented small', role: 'group', 'aria-label': label });
+    options.forEach(function (o) {
+      var active = o.key === value;
+      group.appendChild(h('button', {
+        type: 'button', 'class': active ? 'active' : null, 'aria-pressed': String(active),
+        onclick: function () { onChange(o.key); }, text: o.label
+      }));
+    });
+    return group;
+  }
+
+  /** Tarjeta de gráfica con su vista de tabla equivalente. */
+  function chartCard(opts) {
+    var body = h('div', { 'class': 'chart' });
+    var note = h('p', { 'class': 'card-note' });
+    var actions = h('div', { 'class': 'card-actions' });
+    var tableBtn = h('button', { type: 'button', 'class': 'btn' });
+    var titles = h('div', { 'class': 'titles' }, [h('h3', { text: opts.title }), opts.sub ? h('p', { 'class': 'card-sub', text: opts.sub }) : null]);
+    var card = h('article', { 'class': 'card' }, [h('div', { 'class': 'card-head' }, [titles, actions]), body, note]);
+    function draw() {
+      var showTable = !!state.tableView[opts.id];
+      actions.textContent = '';
+      if (opts.toggle) actions.appendChild(segmentedToggle(opts.toggle.options, opts.toggle.value(), function (k) { opts.toggle.set(k); draw(); }, opts.toggle.label));
+      tableBtn.textContent = showTable ? 'VER GRÁFICA' : 'VER TABLA';
+      tableBtn.setAttribute('aria-pressed', String(showTable));
+      actions.appendChild(tableBtn);
+      body.textContent = '';
+      if (showTable) body.appendChild(opts.table());
+      else opts.draw(body);
+      var n = typeof opts.note === 'function' ? opts.note() : opts.note;
+      note.textContent = n || '';
+      note.hidden = !n;
+    }
+    tableBtn.addEventListener('click', function () { state.tableView[opts.id] = !state.tableView[opts.id]; draw(); });
+    card.redraw = draw;
+    pendingDraws.push(draw);
+    return card;
+  }
+
+  /** Tabla genérica. columns: [{label, num, cls, render(row)}] */
+  function table(columns, rows, opts) {
+    opts = opts || {};
+    if (!rows.length) return h('p', { 'class': 'chart-empty', text: opts.empty || 'Sin registros para este filtro.' });
+    var list = opts.limit ? rows.slice(0, opts.limit) : rows;
+    var tbody = h('tbody');
+    list.forEach(function (r) {
+      var tr = h('tr', { 'class': (opts.onRow ? 'clickable ' : '') + (r._cls || '') || null });
+      columns.forEach(function (c) {
+        var v = c.render(r);
+        var td = h('td', { 'class': ((c.num ? 'num ' : '') + (c.cls || '')).trim() || null });
+        if (v && v.nodeType) td.appendChild(v);
+        else td.textContent = v === null || v === undefined ? '' : v;
+        tr.appendChild(td);
+      });
+      if (opts.onRow) {
+        tr.tabIndex = 0;
+        tr.addEventListener('click', function () { opts.onRow(r); });
+        tr.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') opts.onRow(r); });
+      }
+      tbody.appendChild(tr);
+    });
+    if (opts.total) {
+      var tr = h('tr', { 'class': 'total' });
+      opts.total.forEach(function (v, i) {
+        tr.appendChild(h('td', { 'class': columns[i] && columns[i].num ? 'num' : null, text: v }));
+      });
+      tbody.appendChild(tr);
+    }
+    var thead = h('thead', null, [h('tr', null, columns.map(function (c) {
+      return h('th', { scope: 'col', 'class': c.num ? 'num' : null, text: c.label });
+    }))]);
+    var wrap = h('div', null, [h('div', { 'class': 'table-wrap' }, [h('table', null, [thead, tbody])])]);
+    if (opts.limit && rows.length > opts.limit) {
+      wrap.appendChild(h('p', { 'class': 'table-more', text: 'Se muestran ' + opts.limit + ' de ' + number(rows.length) + ' registros.' }));
+    }
+    return wrap;
+  }
+
+  // Columnas reutilizables para listas de eventos.
+  var EV = {
+    date: { label: 'Fecha', cls: 'nowrap', render: function (e) { return C.formatDateWeekday(e.date); } },
+    city: { label: 'Ciudad', render: function (e) { return cityCell(e.city); } },
+    dj: { label: 'DJ', render: function (e) { return e.dj || '—'; } },
+    sonido: { label: 'Sonido de', render: function (e) { return titleCase(e.sonido); } },
+    type: { label: 'Tipo', render: function (e) { return titleCase(e.type); } },
+    client: { label: 'Cliente', render: function (e) { return e.client || '—'; } },
+    total: { label: 'Total evento', num: true, render: function (e) { return orDash(e.total); } },
+    anticipo: { label: 'Anticipo', num: true, render: function (e) { return orDash(e.anticipo); } },
+    gas: { label: 'Gasolina', num: true, render: function (e) { return orDash(e.gas); } },
+    djPay: { label: 'Pago DJ', num: true, render: function (e) { return orDash(e.djPay); } },
+    revenue: { label: 'Ingreso', num: true, render: function (e) { return money(e.revenue); } },
+    personal: { label: 'Ganancia personal', num: true, render: function (e) { return money(e.personal); } },
+    saldo: { label: 'Saldo por cobrar', num: true, render: function (e) { return money(e.saldo); } },
+    cobrado: { label: 'Cobrado en el evento', num: true, render: function (e) { return money((e.total || 0) - (e.anticipo || 0) + (e.gas || 0)); } },
+    entregar: { label: 'Por entregar', num: true, render: function (e) { return e.djPay > 0 ? orDash(e.entregar) : 'Falta pago DJ'; } },
+    status: { label: 'Estado', render: function (e) { return e.realized ? 'Realizado' : e.pending ? 'Próximo' : 'Sin estado'; } }
+  };
+  var XP = {
+    row: { label: 'Fila', num: true, render: function (x) { return String(x.row); } },
+    date: { label: 'Fecha de compra', cls: 'nowrap', render: function (x) { return C.formatDate(x.date); } },
+    city: { label: 'Ciudad', render: function (x) { return x.city ? cityCell(x.city) : '—'; } },
+    category: { label: 'Categoría', render: function (x) { return '«' + x.category + '»'; } },
+    product: { label: 'Concepto', render: function (x) { return x.product || '—'; } },
+    owner: { label: 'Dueño', render: function (x) { return titleCase(x.owner); } },
+    total: { label: 'Monto', num: true, render: function (x) { return orDash(x.total); } },
+    counted: { label: 'En los cálculos', render: function (x) { return x.counted ? 'Sí' : 'No — ' + x.excludedReason; } },
+    status: { label: 'Estado', render: function (x) { return titleCase(x.status); } }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Pestaña Resumen
+  // ---------------------------------------------------------------------------
+  function kpiTile(t) {
+    var na = t.value === 'No disponible';
+    return h('button', { type: 'button', 'class': 'kpi', onclick: t.open, 'aria-label': t.label + ': ' + t.value + '. Ver desglose.' }, [
+      h('span', { 'class': 'kpi-label', text: t.label }),
+      h('span', { 'class': 'kpi-value' + (na ? ' is-na' : ''), text: t.value }),
+      h('span', { 'class': 'kpi-sub', text: t.sub }),
+      t.warn ? h('span', { 'class': 'kpi-sub warn', text: t.warn }) : null,
+      h('span', { 'class': 'kpi-more', 'aria-hidden': 'true', text: 'Ver desglose →' })
+    ]);
+  }
+
+  function renderResumen(panel) {
+    var s = state.summary;
+    var t = s.totals;
+    panel.appendChild(sectionTitle('Resumen del periodo', s.range.label + ' · ' + cityScopeName()));
+    if (!s.events.length && !s.expenses.length) {
+      panel.appendChild(h('p', { 'class': 'chart-empty', text: 'No hay eventos ni gastos registrados para este filtro. Los montos en $0 significan que no hubo movimientos, no que falte la conexión.' }));
+    }
+    var tiles = [
+      {
+        label: 'Ingresos generados', value: money(t.revenue),
+        sub: plural(t.realizedCount, 'evento realizado', 'eventos realizados') + ' · fecha del evento',
+        open: drawerRevenue
+      },
+      {
+        label: 'Ganancia personal', value: money(t.personal),
+        sub: (t.revenue ? C.formatPercent(t.personal / t.revenue) + ' de los ingresos · ' : '') + 'reparto del archivo',
+        open: drawerPersonal
+      },
+      {
+        label: 'Saldo por cobrar', value: money(t.saldo),
+        sub: 'A clientes, en ' + plural(t.upcomingCount, 'evento próximo', 'eventos próximos'),
+        warn: t.djOwedCount ? '+ ' + money(t.djOwed) + ' por entregar de DJs (' + plural(t.djOwedCount, 'evento', 'eventos') + ')' : null,
+        open: drawerSaldo
+      },
+      {
+        label: 'Eventos realizados', value: number(t.realizedCount),
+        sub: t.personalPerEvent === null ? 'Sin eventos realizados en el periodo' : money(t.personalPerEvent) + ' de ganancia personal por evento',
+        open: drawerRealized
+      },
+      {
+        label: 'Eventos próximos', value: number(t.upcomingCount),
+        sub: t.upcomingCount ? money(t.contratadoPendiente) + ' contratado · ' + money(t.anticiposPendientes) + ' en anticipos' : 'Sin eventos por realizar en el periodo',
+        open: drawerUpcoming
+      },
+      {
+        label: 'Gasto en publicidad', value: money(t.ads),
+        sub: 'Ventas por cada $1: ' + C.formatRatio(t.salesPerAd) + ' · fecha de compra',
+        warn: t.adsExcluded ? money(t.adsExcluded) + ' registrado que el archivo no suma'
+          : (!t.ads && t.realizedCount ? 'Aún no hay publicidad registrada para este periodo' : null),
+        open: drawerAds
+      }
+    ];
+    panel.appendChild(h('div', { 'class': 'kpis' }, tiles.map(kpiTile)));
+
+    if (s.range.type !== 'all') {
+      var hs = s.history;
+      panel.appendChild(h('div', { 'class': 'history', role: 'group', 'aria-label': 'Resultados históricos' }, [
+        h('span', { 'class': 'kicker', text: 'RESULTADOS HISTÓRICOS (TODAS LAS FECHAS) · ' + cityScopeName().toUpperCase() + (s.historySince ? ' · DESDE ' + C.formatDate(s.historySince).toUpperCase() : '') }),
+        histItem('Ingresos generados', money(hs.revenue)),
+        histItem('Ganancia operativa', money(hs.operating)),
+        histItem('Ganancia personal', money(hs.personal)),
+        histItem('Eventos realizados', number(hs.realizedCount)),
+        histItem('Publicidad', money(hs.ads)),
+        h('button', { type: 'button', 'class': 'btn btn-link', onclick: function () { setPeriod('all'); }, text: 'Ver histórico completo' })
+      ]));
+    }
+
+    var gran = s.buckets.granularity === 'week' ? 'semana' : 'mes';
+    var grid = h('div', { 'class': 'grid-2' });
+    grid.appendChild(chartCard({
+      id: 'evolucion', title: 'Ingresos y ganancia personal por ' + gran,
+      sub: 'Eventos realizados por fecha del evento; gastos por fecha de compra. Los periodos futuros no se grafican.',
+      draw: drawEvolution, table: tableEvolution,
+      note: function () {
+        return state.summary.buckets.list.some(function (b) { return b.isCurrent; })
+          ? 'El último tramo atenuado (punto hueco) es el periodo en curso: sus cifras son parciales.' : null;
+      }
+    }));
+    grid.appendChild(chartCard({
+      id: 'gananciaCiudad', title: 'Ganancia por ciudad',
+      sub: 'Ganancia personal = reparto del archivo; ganancia operativa = ingresos − DJs − publicidad − operación − atención al cliente.',
+      toggle: {
+        label: 'Tipo de ganancia',
+        options: [{ key: 'personal', label: 'PERSONAL' }, { key: 'operating', label: 'OPERATIVA' }],
+        value: function () { return state.ui.cityProfit; },
+        set: function (k) { state.ui.cityProfit = k; }
+      },
+      draw: drawCityProfit, table: tableCityProfit
+    }));
+    grid.appendChild(chartCard({
+      id: 'eventosCiudad', title: 'Eventos por ' + gran + ' y ciudad',
+      sub: 'Realizados y próximos, por fecha del evento.',
+      draw: drawEventsByCity, table: tableEventsByCity
+    }));
+    grid.appendChild(chartCard({
+      id: 'publicidad', title: 'Publicidad y rendimiento por ciudad',
+      toggle: {
+        label: 'Indicador de publicidad',
+        options: [{ key: 'sales', label: 'VENTAS POR $1' }, { key: 'profit', label: 'GANANCIA POR $1' }, { key: 'spend', label: 'GASTO' }],
+        value: function () { return state.ui.adsMetric; },
+        set: function (k) { state.ui.adsMetric = k; }
+      },
+      draw: drawAds, table: tableAds, note: adsNote
+    }));
+    panel.appendChild(grid);
+  }
+
+  function histItem(label, value) {
+    return h('div', { 'class': 'item' }, [h('span', { text: label }), h('strong', { text: value })]);
+  }
+
+  function bucketLabels(list) {
+    return {
+      labels: list.map(function (b) { return b.shortLabel; }),
+      full: list.map(function (b) { return C.capitalize(b.label) + (b.isCurrent ? ' (en curso)' : ''); })
+    };
+  }
+
+  function drawEvolution(host) {
+    var list = state.summary.buckets.list;
+    var l = bucketLabels(list);
+    var current = -1;
+    list.forEach(function (b, i) { if (b.isCurrent) current = i; });
+    G.line(host, {
+      labels: l.labels, fullLabels: l.full, partialIndex: current,
+      series: [
+        { key: 'revenue', name: 'Ingresos generados', color: G.cssVar('--measure-revenue'), values: list.map(function (b) { return b.isFuture ? null : b.totals.revenue; }) },
+        { key: 'personal', name: 'Ganancia personal', color: G.cssVar('--measure-personal'), values: list.map(function (b) { return b.isFuture ? null : b.totals.personal; }) }
+      ],
+      format: money, formatAxis: C.formatMoneyCompact,
+      ariaLabel: 'Ingresos generados y ganancia personal',
+      noteFor: function (i) { return list[i].isCurrent ? 'Periodo en curso: cifras parciales.' : 'Clic para ver el desglose.'; },
+      onSelect: function (i) { drawerBucket(list[i]); },
+      emptyMessage: 'No hay periodos transcurridos con datos en este filtro.'
+    });
+  }
+
+  function tableEvolution() {
+    var list = state.summary.buckets.list;
+    var t = state.summary.totals;
+    return table([
+      { label: 'Periodo', render: function (b) { return C.capitalize(b.label) + (b.isCurrent ? ' (en curso)' : ''); } },
+      { label: 'Realizados', num: true, render: function (b) { return number(b.totals.realizedCount); } },
+      { label: 'Ingresos generados', num: true, render: function (b) { return b.isFuture ? '—' : money(b.totals.revenue); } },
+      { label: 'Ganancia operativa', num: true, render: function (b) { return b.isFuture ? '—' : money(b.totals.operating); } },
+      { label: 'Ganancia personal', num: true, render: function (b) { return b.isFuture ? '—' : money(b.totals.personal); } }
+    ], list, {
+      onRow: drawerBucket,
+      total: ['Total', number(t.realizedCount), money(t.revenue), money(t.operating), money(t.personal)]
+    });
+  }
+
+  function drawCityProfit(host) {
+    var mode = state.ui.cityProfit;
+    var rows = state.summary.byCity.filter(hasActivity).map(function (c) {
+      return {
+        key: c.city.key, label: c.city.name, color: cityColor(c.city.key),
+        value: mode === 'personal' ? c.personal : c.operating,
+        extra: [
+          { value: money(mode === 'personal' ? c.operating : c.personal), label: mode === 'personal' ? 'Ganancia operativa' : 'Ganancia personal' },
+          { value: money(c.revenue), label: 'Ingresos generados' }
+        ],
+        note: 'Clic para ver el desglose.'
+      };
+    }).sort(function (a, b) { return b.value - a.value; });
+    G.hbar(host, {
+      rows: rows, format: money, valueLabel: mode === 'personal' ? 'Ganancia personal' : 'Ganancia operativa',
+      ariaLabel: 'Ganancia por ciudad', onSelect: drawerCity,
+      emptyMessage: 'Sin eventos ni gastos en este periodo.'
+    });
+  }
+
+  function tableCityProfit() {
+    var rows = state.summary.byCity.filter(hasActivity);
+    var t = state.summary.totals;
+    return table([
+      { label: 'Ciudad', render: function (c) { return cityCell(c.city.key); } },
+      { label: 'Ingresos generados', num: true, render: function (c) { return money(c.revenue); } },
+      { label: 'Ganancia operativa', num: true, render: function (c) { return money(c.operating); } },
+      { label: 'Ganancia personal', num: true, render: function (c) { return money(c.personal); } }
+    ], rows, {
+      onRow: function (c) { drawerCity(c.city.key); },
+      total: ['Total', money(t.revenue), money(t.operating), money(t.personal)]
+    });
+  }
+
+  function drawEventsByCity(host) {
+    var list = state.summary.buckets.list;
+    var l = bucketLabels(list);
+    G.columns(host, {
+      labels: l.labels, fullLabels: l.full,
+      series: visibleCities().map(function (c) {
+        return {
+          key: c.key, name: c.name, color: cityColor(c.key),
+          values: list.map(function (b) { var x = b.byCity[c.key]; return x ? x.realizedCount + x.upcomingCount : 0; })
+        };
+      }),
+      format: number, formatAxis: number, formatCap: number, integer: true,
+      ariaLabel: 'Eventos por periodo y ciudad',
+      noteFor: function (i) {
+        var x = list[i].totals;
+        return number(x.realizedCount) + ' realizados · ' + number(x.upcomingCount) + ' próximos. Clic para ver la lista.';
+      },
+      onSelect: function (i) { drawerBucketEvents(list[i]); },
+      emptyMessage: 'No hay eventos en este periodo.'
+    });
+  }
+
+  function tableEventsByCity() {
+    var list = state.summary.buckets.list;
+    var cities = visibleCities();
+    var cols = [{ label: 'Periodo', render: function (b) { return C.capitalize(b.label); } }];
+    cities.forEach(function (c) {
+      cols.push({ label: c.name, num: true, render: function (b) { var x = b.byCity[c.key]; return number(x ? x.realizedCount + x.upcomingCount : 0); } });
+    });
+    cols.push({ label: 'Realizados', num: true, render: function (b) { return number(b.totals.realizedCount); } });
+    cols.push({ label: 'Próximos', num: true, render: function (b) { return number(b.totals.upcomingCount); } });
+    var t = state.summary.totals;
+    var total = ['Total'].concat(cities.map(function (c) {
+      var x = state.summary.byCity.filter(function (b) { return b.city.key === c.key; })[0];
+      return number(x ? x.realizedCount + x.upcomingCount : 0);
+    })).concat([number(t.realizedCount), number(t.upcomingCount)]);
+    return table(cols, list, { onRow: drawerBucketEvents, total: total });
+  }
+
+  function adsValue(c, mode) {
+    return mode === 'spend' ? c.ads : mode === 'sales' ? c.salesPerAd : c.profitPerAd;
+  }
+
+  function drawAds(host) {
+    var mode = state.ui.adsMetric;
+    var rows = state.summary.byCity.filter(function (c) { return c.ads > 0 || c.revenue > 0 || c.adsExcluded > 0; }).map(function (c) {
+      return {
+        key: c.city.key, label: c.city.name, color: cityColor(c.city.key), value: adsValue(c, mode),
+        naText: 'No disponible: sin publicidad registrada',
+        extra: [
+          { value: money(c.ads), label: 'Publicidad' },
+          { value: money(c.revenue), label: 'Ingresos generados' },
+          { value: money(c.operating), label: 'Ganancia operativa' },
+          { value: C.formatRatio(c.salesPerAd), label: 'Ventas por $1' },
+          { value: C.formatRatio(c.profitPerAd), label: 'Ganancia por $1' }
+        ],
+        note: 'Clic para ver los registros de publicidad.'
+      };
+    }).sort(function (a, b) {
+      if (a.value === null) return 1;
+      if (b.value === null) return -1;
+      return b.value - a.value;
+    });
+    G.hbar(host, {
+      rows: rows, format: mode === 'spend' ? money : C.formatRatio,
+      valueLabel: mode === 'spend' ? 'Publicidad' : mode === 'sales' ? 'Ventas por $1' : 'Ganancia por $1',
+      ariaLabel: 'Publicidad y rendimiento por ciudad', onSelect: drawerAdsCity,
+      emptyMessage: rows.length && mode !== 'spend'
+        ? 'No disponible: no hay publicidad registrada en este periodo, así que no se puede calcular el rendimiento por cada $1.'
+        : 'Sin publicidad ni ingresos en este periodo.'
+    });
+  }
+
+  function adsNote() {
+    var mode = state.ui.adsMetric;
+    var t = state.summary.totals;
+    var total = t.salesPerAd === null
+      ? ' Sin publicidad registrada en el periodo: los indicadores por cada $1 no están disponibles.'
+      : ' Total del periodo: ventas ' + C.formatRatio(t.salesPerAd) + ' y ganancia ' + C.formatRatio(t.profitPerAd) + ' por cada $1.';
+    var base = mode === 'sales'
+      ? 'Ventas por cada $1 en publicidad = ingresos generados ÷ publicidad (DATA!AT «$1 EN ADS, VENDE»).'
+      : mode === 'profit'
+        ? 'Ganancia operativa por cada $1 en publicidad = ganancia operativa ÷ publicidad (DATA!AU «$1 EN ADS NETO»). La ganancia operativa ya descuenta la publicidad.'
+        : 'Gasto en publicidad por fecha de compra, solo en ciudades y meses con agenda (regla de ANALISIS).';
+    return base + total;
+  }
+
+  function tableAds() {
+    var rows = state.summary.byCity.filter(function (c) { return c.ads > 0 || c.revenue > 0 || c.adsExcluded > 0; });
+    var t = state.summary.totals;
+    return table([
+      { label: 'Ciudad', render: function (c) { return cityCell(c.city.key); } },
+      { label: 'Publicidad', num: true, render: function (c) { return money(c.ads); } },
+      { label: 'Ingresos generados', num: true, render: function (c) { return money(c.revenue); } },
+      { label: 'Ganancia operativa', num: true, render: function (c) { return money(c.operating); } },
+      { label: 'Ventas por $1', num: true, render: function (c) { return C.formatRatio(c.salesPerAd); } },
+      { label: 'Ganancia por $1', num: true, render: function (c) { return C.formatRatio(c.profitPerAd); } }
+    ], rows, {
+      onRow: function (c) { drawerAdsCity(c.city.key); },
+      total: ['Total', money(t.ads), money(t.revenue), money(t.operating), C.formatRatio(t.salesPerAd), C.formatRatio(t.profitPerAd)]
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pestaña Análisis
+  // ---------------------------------------------------------------------------
+  function renderAnalisis(panel) {
+    var s = state.summary;
+    panel.appendChild(sectionTitle('Análisis', s.range.label + ' · ' + cityScopeName()));
+
+    var cities = s.byCity.filter(hasActivity);
+    var cols = [{ label: 'Concepto', render: function (r) { return r.label; } }];
+    cities.forEach(function (c) { cols.push({ label: c.city.name, num: true, render: function (r) { return r.get(c); } }); });
+    if (cities.length !== 1) cols.push({ label: 'Total', num: true, render: function (r) { return r.get(s.totals); } });
+    var lines = [
+      { label: 'Eventos realizados', get: function (t) { return number(t.realizedCount); } },
+      { label: 'Ingresos generados', get: function (t) { return money(t.revenue); } },
+      { label: '   de ello, gasolina (Guadalajara desde feb 2026)', _cls: 'sub', get: function (t) { return money(t.gasRevenue); } },
+      { label: 'Pago a DJs', get: function (t) { return money(-t.djCost); } },
+      { label: 'Publicidad', get: function (t) { return money(-t.ads); } },
+      { label: 'Operación', get: function (t) { return money(-t.operacion); } },
+      { label: 'Atención al cliente', get: function (t) { return money(-t.atCliente); } },
+      { label: 'Ganancia operativa', _cls: 'total', get: function (t) { return money(t.operating); } },
+      { label: 'Margen operativo', _cls: 'sub', get: function (t) { return C.formatPercent(t.margin); } },
+      { label: 'Ganancia personal', _cls: 'total', get: function (t) { return money(t.personal); } },
+      { label: 'Ganancia personal por evento', _cls: 'sub', get: function (t) { return t.personalPerEvent === null ? 'No disponible' : money(t.personalPerEvent); } }
+    ];
+    var statement = h('article', { 'class': 'card', style: 'margin-bottom:16px' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [
+        h('h3', { text: 'Estado de resultados del periodo' }),
+        h('p', { 'class': 'card-sub', text: 'Mismo cálculo que la hoja ANALISIS, aplicado al periodo y la ciudad elegidos.' })
+      ])]),
+      table(cols, lines, { empty: 'Sin movimientos en este periodo.' }),
+      h('p', { 'class': 'card-note', text: personalRulesText() })
+    ]);
+    panel.appendChild(statement);
+
+    var adsCard = card('Rendimiento de la publicidad por ciudad',
+      'Publicidad por fecha de compra; ingresos y ganancia por fecha del evento. Clic en una ciudad para ver sus registros.',
+      [tableAds(), h('p', { 'class': 'card-note', text: adsNote() })]);
+    if (s.totals.adsExcluded) {
+      adsCard.appendChild(h('p', { 'class': 'card-note', text: '⚠ ' + money(s.totals.adsExcluded) + ' de publicidad registrada en este periodo no entra en los cálculos porque las fórmulas del archivo no la suman (ver «Fuentes y verificación»).' }));
+    }
+    panel.appendChild(adsCard);
+
+    var grid = h('div', { 'class': 'grid-2' });
+    grid.appendChild(chartCard({
+      id: 'pendientes', title: 'Eventos pendientes y saldo por cobrar',
+      sub: 'Eventos aún no realizados, por fecha del evento. Saldo = total − anticipo + gasolina (lo que se cobra en el evento).',
+      draw: drawPending, table: tablePending,
+      note: 'No incluye «POR COBRAR PROPIO» del archivo: esa gráfica resta costos de DJ estimados y fijos por ciudad.'
+    }));
+    grid.appendChild(renderEquipment());
+    panel.appendChild(grid);
+
+    var gran = s.buckets.granularity === 'week' ? 'semana' : 'mes';
+    var t = s.totals;
+    panel.appendChild(h('article', { 'class': 'card' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [
+        h('h3', { text: 'Detalle por ' + gran }),
+        h('p', { 'class': 'card-sub', text: 'Clic en una fila para ver los eventos y gastos que explican el resultado.' })
+      ])]),
+      table([
+        { label: 'Periodo', cls: 'nowrap', render: function (b) { return C.capitalize(b.label) + (b.isCurrent ? ' (en curso)' : ''); } },
+        { label: 'Realizados', num: true, render: function (b) { return number(b.totals.realizedCount); } },
+        { label: 'Ingresos', num: true, render: function (b) { return money(b.totals.revenue); } },
+        { label: 'Pago DJs', num: true, render: function (b) { return money(b.totals.djCost); } },
+        { label: 'Publicidad', num: true, render: function (b) { return money(b.totals.ads); } },
+        { label: 'Operación', num: true, render: function (b) { return money(b.totals.operacion); } },
+        { label: 'At. cliente', num: true, render: function (b) { return money(b.totals.atCliente); } },
+        { label: 'Ganancia operativa', num: true, render: function (b) { return money(b.totals.operating); } },
+        { label: 'Ganancia personal', num: true, render: function (b) { return money(b.totals.personal); } },
+        { label: 'Próximos', num: true, render: function (b) { return number(b.totals.upcomingCount); } },
+        { label: 'Saldo por cobrar', num: true, render: function (b) { return money(b.totals.saldo); } }
+      ], s.buckets.list, {
+        onRow: drawerBucket,
+        total: ['Total', number(t.realizedCount), money(t.revenue), money(t.djCost), money(t.ads), money(t.operacion),
+          money(t.atCliente), money(t.operating), money(t.personal), number(t.upcomingCount), money(t.saldo)]
+      })
+    ]));
+  }
+
+  function personalRulesText() {
+    var cut = C.monthLabel(C.RULES.personalCutoverMonth, true);
+    return 'Reparto personal (ANALISIS!M): Guadalajara 50% de la ganancia operativa antes de ' + cut + ' y 100% desde entonces; ' +
+      'Tepic 100% antes de ' + cut + ' y desde entonces 50% más la mitad de «GANANCIA 2» de los eventos con sonido de Osvaldo; ' +
+      'las demás ciudades, 100%. En Guadalajara la gasolina cuenta como ingreso desde ' + C.monthLabel(C.RULES.gasRevenue.fromMonth, true) + ' (ANALISIS!E).';
+  }
+
+  function pendingBuckets() {
+    var today = state.model.today;
+    return state.summary.buckets.list.filter(function (b) { return b.to >= today; });
+  }
+
+  function drawPending(host) {
+    var list = pendingBuckets();
+    var l = bucketLabels(list);
+    G.columns(host, {
+      labels: l.labels, fullLabels: l.full,
+      series: visibleCities().map(function (c) {
+        return { key: c.key, name: c.name, color: cityColor(c.key), values: list.map(function (b) { var x = b.byCity[c.key]; return x ? x.saldo : 0; }) };
+      }),
+      format: money, formatAxis: C.formatMoneyCompact,
+      ariaLabel: 'Saldo por cobrar por periodo y ciudad',
+      noteFor: function (i) { return plural(list[i].totals.upcomingCount, 'evento próximo', 'eventos próximos') + '. Clic para ver la lista.'; },
+      onSelect: function (i) { drawerPendingBucket(list[i]); },
+      emptyMessage: 'No hay eventos pendientes en este periodo.'
+    });
+  }
+
+  function tablePending() {
+    var list = pendingBuckets();
+    return table([
+      { label: 'Periodo', render: function (b) { return C.capitalize(b.label); } },
+      { label: 'Eventos próximos', num: true, render: function (b) { return number(b.totals.upcomingCount); } },
+      { label: 'Contratado', num: true, render: function (b) { return money(b.totals.contratadoPendiente); } },
+      { label: 'Anticipos recibidos', num: true, render: function (b) { return money(b.totals.anticiposPendientes); } },
+      { label: 'Saldo por cobrar', num: true, render: function (b) { return money(b.totals.saldo); } }
+    ], list, { onRow: drawerPendingBucket, empty: 'No hay eventos pendientes en este periodo.' });
+  }
+
+  function renderEquipment() {
+    var eq = C.equipment(state.model, state.filters);
+    var details = h('details', null, [
+      h('summary', { 'class': 'card-note', text: 'Ver las ' + number(eq.rows.length) + ' compras de equipo del periodo' }),
+      table([XP.date, XP.owner, XP.city, XP.product, XP.total, XP.status], eq.rows.slice().sort(C.byDate), { limit: 200 })
+    ]);
+    return h('article', { 'class': 'card' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [
+        h('h3', { text: 'Inversión en equipo' }),
+        h('p', { 'class': 'card-sub', text: 'Filas con categoría STOCK en «STOCK OPERACION», por fecha de compra. No se descuenta de la ganancia operativa.' })
+      ])]),
+      h('dl', { 'class': 'kv' }, [
+        h('dt', { text: 'Equipo comprado en el periodo' }), h('dd', { text: money(eq.total) }),
+        h('dt', { text: 'Inversión de Osvaldo (propia − ventas + 50% de socios)' }), h('dd', { text: money(eq.osvaldoWithPartners) })
+      ]),
+      h('div', { style: 'margin-top:12px' }, [table([
+        { label: 'Dueño', render: function (o) { return titleCase(o.owner); } },
+        { label: 'Compras', num: true, render: function (o) { return number(o.count); } },
+        { label: 'Monto', num: true, render: function (o) { return money(o.total); } },
+        { label: 'Vendido (precio de venta)', num: true, render: function (o) { return money(o.sold); } },
+        { label: 'Perdido', num: true, render: function (o) { return money(o.lost); } }
+      ], eq.owners, { empty: 'Sin compras de equipo en este periodo.' })]),
+      h('p', { 'class': 'card-note', text: 'Regla del archivo (STOCK OPERACION!V6, «TOTAL INVERTIDO OSVALDO»): equipo de Osvaldo − precio de venta de lo vendido + 50% del equipo de Jorge y Paul. En la hoja se calcula con todas las fechas y ciudades; aquí respeta los filtros.' }),
+      details
+    ]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pestaña Operación
+  // ---------------------------------------------------------------------------
+  function renderOperacion(panel) {
+    var s = state.summary;
+    panel.appendChild(sectionTitle('Operación', s.range.label + ' · ' + cityScopeName()));
+
+    var rems = C.reminders(state.model, state.filters);
+    var icon = { good: '✓', warning: '!', info: 'i', critical: '✕' };
+    panel.appendChild(h('article', { 'class': 'card' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [
+        h('h3', { text: 'Recordatorios' }),
+        h('p', { 'class': 'card-sub', text: 'Mismas condiciones que los avisos del archivo. Consideran todas las fechas (salvo atención al cliente, que usa el periodo) y la ciudad elegida.' })
+      ])]),
+      h('div', { 'class': 'reminders' }, rems.map(function (r) {
+        var items = [];
+        (r.events || []).slice(0, 8).forEach(function (e) {
+          var extra = r.id === 'djOwed' ? ' · por entregar ' + (e.djPay > 0 ? orDash(e.entregar) : '(falta pago DJ)') : '';
+          items.push(h('li', { text: C.formatDateWeekday(e.date) + ' · ' + cityInfo(e.city).name + ' · DJ ' + (e.dj || 'sin asignar') + (e.client && r.id !== 'soon' ? ' · ' + e.client : '') + extra }));
+        });
+        if (r.events && r.events.length > 8) items.push(h('li', { text: 'y ' + (r.events.length - 8) + ' más' }));
+        (r.months || []).forEach(function (m) { items.push(h('li', { text: C.capitalize(C.monthLabel(m, true)) })); });
+        return h('div', { 'class': 'reminder ' + r.severity }, [
+          h('div', { 'class': 'reminder-head' }, [
+            h('span', { 'class': 'icon', 'aria-hidden': 'true', text: icon[r.severity] }),
+            h('div', null, [h('div', { 'class': 'reminder-title', text: r.title }), h('div', { 'class': 'reminder-source', text: 'Fuente: ' + r.source })])
+          ]),
+          items.length ? h('ul', null, items) : null
+        ]);
+      }))
+    ]));
+
+    var pending = s.events.filter(function (e) { return e.pending; }).sort(C.byDate);
+    var t = s.totals;
+    panel.appendChild(h('article', { 'class': 'card', style: 'margin-top:16px' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [
+        h('h3', { text: 'Próximos eventos y cobros pendientes a clientes' }),
+        h('p', { 'class': 'card-sub', text: 'REALIZADO = NO. Saldo por cobrar = total − anticipo + gasolina.' })
+      ])]),
+      table([EV.date, EV.city, EV.dj, EV.type, EV.client, EV.total, EV.anticipo, EV.gas, EV.saldo], pending, {
+        empty: 'No hay eventos próximos en este periodo.',
+        limit: 60,
+        total: ['Total', '', '', '', plural(pending.length, 'evento', 'eventos'), money(pending.reduce(function (a, e) { return a + (e.total || 0); }, 0)),
+          money(t.anticiposPendientes), money(pending.reduce(function (a, e) { return a + (e.gas || 0); }, 0)), money(t.saldo)]
+      })
+    ]));
+
+    var owed = s.events.filter(function (e) { return e.djOwes; }).sort(C.byDate);
+    panel.appendChild(h('article', { 'class': 'card', style: 'margin-top:16px' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [
+        h('h3', { text: 'Entregas pendientes de DJs' }),
+        h('p', { 'class': 'card-sub', text: 'Eventos realizados con PAGADO = DEUDOR: el DJ cobró en el evento y falta que entregue la diferencia («ENTREGAR A OSVALDO»).' })
+      ])]),
+      table([EV.date, EV.city, EV.dj, EV.client, EV.cobrado, EV.djPay, EV.entregar], owed, {
+        empty: 'Ningún DJ tiene entregas pendientes en este periodo.',
+        total: ['Total', '', '', plural(owed.length, 'evento', 'eventos'), '', '', money(t.djOwed)]
+      })
+    ]));
+
+    var noPay = s.events.filter(function (e) { return e.realized && (e.djPay === null || e.djPay === undefined); }).sort(C.byDate);
+    panel.appendChild(h('article', { 'class': 'card', style: 'margin-top:16px' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [h('h3', { text: 'Pagos operativos pendientes' })])]),
+      h('p', { text: 'El archivo no tiene un registro de pagos operativos pendientes: «STOCK OPERACION» no tiene columna de estado de pago, y el pago al DJ se descuenta en el propio evento.' }),
+      h('p', { 'class': 'card-note', text: noPay.length ? 'Eventos realizados sin pago al DJ registrado (AGENDA Y VENTAS!L11):' : '✓ Todos los eventos realizados del periodo tienen pago al DJ registrado.' }),
+      noPay.length ? table([EV.date, EV.city, EV.dj, EV.client, EV.total], noPay) : null
+    ]));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pestaña Fuentes y verificación
+  // ---------------------------------------------------------------------------
+  function col(source, key) {
+    var s = state.model.sources[source];
+    return s && s.columns && s.columns[key] ? s.columns[key].column : '?';
+  }
+
+  function renderFuentes(panel) {
+    var m = state.model;
+    panel.appendChild(sectionTitle('Fuentes y verificación', 'Sin filtros: revisa todo el archivo.'));
+
+    var v = C.verify(m);
+    var verifyChildren = [];
+    if (!v.available) {
+      verifyChildren.push(h('p', { 'class': 'pill warning' }, [h('span', { 'class': 'icon', text: '!' }), 'Verificación no disponible: ' + v.reason]));
+    } else {
+      var ok = v.mismatches.length === 0;
+      verifyChildren.push(h('p', { 'class': 'pill ' + (ok ? 'good' : 'critical') }, [
+        h('span', { 'class': 'icon', 'aria-hidden': 'true', text: ok ? '✓' : '✕' }),
+        ok ? 'Coincide con la hoja ANALISIS en las ' + number(v.checks) + ' comparaciones (' + v.rowCount + ' ciudad/mes × ' + v.fields.length + ' indicadores).'
+          : v.mismatches.length + ' diferencias con la hoja ANALISIS.'
+      ]));
+      verifyChildren.push(h('div', { style: 'margin-top:12px' }, [table([
+        { label: 'Indicador (histórico, todas las ciudades)', render: function (r) { return r.field.label; } },
+        { label: 'Dashboard', num: true, render: function (r) { return r.field.count ? number(r.mine) : money2(r.mine); } },
+        { label: 'Hoja ANALISIS', num: true, render: function (r) { return r.field.count ? number(r.file) : money2(r.file); } },
+        { label: 'Estado', render: function (r) { return r.ok ? '✓ Coincide' : '✕ Diferente'; } }
+      ], v.totals)]));
+      if (!ok) {
+        verifyChildren.push(h('div', { style: 'margin-top:12px' }, [table([
+          { label: 'Ciudad', render: function (x) { return C.cityName(x.city); } },
+          { label: 'Mes', render: function (x) { return C.monthLabel(x.month, true); } },
+          { label: 'Indicador', render: function (x) { return x.field.label; } },
+          { label: 'Dashboard', num: true, render: function (x) { return x.field.count ? number(x.mine) : money2(x.mine); } },
+          { label: 'Hoja', num: true, render: function (x) { return x.file === null ? 'Sin fila' : x.field.count ? number(x.file) : money2(x.file); } }
+        ], v.mismatches, { limit: 100 })]));
+      }
+    }
+    panel.appendChild(card('Verificación contra el archivo',
+      'Cada indicador se recalcula por ciudad y mes con las reglas del archivo y se compara con la hoja ANALISIS.', verifyChildren));
+
+    var excluded = m.expenses.filter(function (x) { return x.excludedReason; }).sort(C.byDate);
+    var excludedTotal = excluded.reduce(function (a, x) { return a + (x.total || 0); }, 0);
+    panel.appendChild(card('Gastos que las fórmulas del archivo no suman',
+      'El dashboard respeta el archivo y tampoco los suma. Si deben contar, corrígelos en la hoja.',
+      [table([XP.row, XP.date, XP.city, XP.category, XP.product, XP.total, XP.counted], excluded, {
+        empty: '✓ Todos los gastos registrados entran en los cálculos.',
+        total: ['', '', '', '', 'Total', money2(excludedTotal), '']
+      })]));
+
+    var dups = C.possibleDuplicates(m);
+    panel.appendChild(card('Posibles duplicados',
+      'Misma fecha, ciudad, DJ, sonido, cliente, total y anticipo. No se eliminan: pueden ser eventos distintos.',
+      [table([
+        { label: 'Fecha', cls: 'nowrap', render: function (g) { return C.formatDateWeekday(g[0].date); } },
+        { label: 'Ciudad', render: function (g) { return cityCell(g[0].city); } },
+        { label: 'DJ', render: function (g) { return g[0].dj || '—'; } },
+        { label: 'Cliente', render: function (g) { return g[0].client || '—'; } },
+        { label: 'Total', num: true, render: function (g) { return orDash(g[0].total); } },
+        { label: 'Filas en la hoja', render: function (g) { return g.map(function (e) { return e.row; }).join(', '); } }
+      ], dups, { empty: '✓ Sin posibles duplicados.' })]));
+
+    panel.appendChild(card('Problemas de lectura', 'Celdas con valores que no se pudieron interpretar (fechas, montos o estados).',
+      [table([
+        { label: 'Hoja', render: function (i) { return i.sheet; } },
+        { label: 'Fila', num: true, render: function (i) { return String(i.row); } },
+        { label: 'Campo', render: function (i) { return i.field; } },
+        { label: 'Problema', render: function (i) { return i.message; } }
+      ], m.issues, { empty: '✓ Todas las filas se leyeron correctamente.', limit: 200 })]));
+
+    var A = function (k) { return col('agenda', k); };
+    var X = function (k) { return col('expenses', k); };
+    var defs = [
+      ['Ingresos generados', 'TOTAL EVENTO de eventos con REALIZADO = SI; en Guadalajara desde feb 2026 se suma GAS A COBRAR.', 'AGENDA Y VENTAS ' + A('total') + ', ' + A('gas') + ', ' + A('realizado') + ' · igual a ANALISIS!E', 'Fecha del evento'],
+      ['Pago a DJs', 'Columna «DJ» de pago, en eventos realizados.', 'AGENDA Y VENTAS ' + A('djPay') + ' · igual a ANALISIS!F', 'Fecha del evento'],
+      ['Publicidad / Operación / Atención al cliente', 'TOTAL con categoría PUBLICIDAD, OPERACION o AT. CLIENTE, en ciudades y meses con agenda.', 'STOCK OPERACION ' + X('total') + ', ' + X('category') + ', ' + X('city') + ' · igual a ANALISIS!G:I', 'Fecha de compra'],
+      ['Ganancia operativa', 'Ingresos generados − pago a DJs − publicidad − operación − atención al cliente.', 'ANALISIS!J · DASHBOARD!C18', 'Evento y compra'],
+      ['Ganancia personal', 'Reparto de la ganancia operativa por ciudad y mes (ver Análisis).', 'ANALISIS!M · DASHBOARD!C19 · usa GANANCIA 2 (' + A('ganancia2') + ')', 'Evento y compra'],
+      ['Eventos realizados / próximos', 'REALIZADO = SI / NO (la hoja lo calcula con la fecha y hora del evento).', 'AGENDA Y VENTAS ' + A('realizado'), 'Fecha del evento'],
+      ['Saldo por cobrar a clientes', 'TOTAL EVENTO − ANTICIPO + GAS A COBRAR de eventos con REALIZADO = NO.', 'AGENDA Y VENTAS ' + A('total') + ', ' + A('anticipo') + ', ' + A('gas') + ' · fórmula de AGENDA Y VENTAS!I2', 'Fecha del evento'],
+      ['Por entregar de DJs', '«ENTREGAR A OSVALDO» de eventos realizados con PAGADO = DEUDOR y pago al DJ registrado.', 'AGENDA Y VENTAS ' + A('entregar') + ', ' + A('pagado') + ', ' + A('djPay') + ' · AGENDA Y VENTAS!I2', 'Fecha del evento'],
+      ['Ventas por cada $1 en publicidad', 'Ingresos generados ÷ publicidad. «No disponible» si la publicidad es 0.', 'DATA!AT «$1 EN ADS, VENDE»', 'Evento y compra'],
+      ['Ganancia operativa por cada $1 en publicidad', 'Ganancia operativa ÷ publicidad. «No disponible» si la publicidad es 0.', 'DATA!AU «$1 EN ADS NETO»', 'Evento y compra'],
+      ['Inversión en equipo', 'TOTAL con categoría STOCK; inversión de Osvaldo = propia − ventas + 50% de socios.', 'STOCK OPERACION ' + X('total') + ', ' + X('owner') + ' · STOCK OPERACION!V6', 'Fecha de compra'],
+      ['Dinero cobrado por fecha de cobro', 'No disponible: el archivo no registra cuándo se cobra cada anticipo o saldo.', '—', '—']
+    ];
+    panel.appendChild(card('De dónde sale cada indicador', 'Columnas detectadas por su encabezado en la última lectura.', [table([
+      { label: 'Indicador', render: function (d) { return d[0]; } },
+      { label: 'Cálculo', render: function (d) { return d[1]; } },
+      { label: 'Origen', render: function (d) { return d[2]; } },
+      { label: 'Fecha usada', cls: 'nowrap', render: function (d) { return d[3]; } }
+    ], defs)]));
+
+    var src = m.sources;
+    var kvs = [
+      ['Archivo', m.spreadsheetName || 'Hoja de Google Sheets (enlace guardado en este navegador)'],
+      ['Última actualización exitosa', state.lastSuccess ? stamp(state.lastSuccess) : '—'],
+      ['Eventos leídos', number(m.events.length) + ' (encabezados en «' + (src.agenda ? src.agenda.sheet : '?') + '», fila ' + (src.agenda ? src.agenda.headerRow : '?') + ')'],
+      ['Gastos y compras leídos', number(m.expenses.length) + ' (encabezados en «' + (src.expenses ? src.expenses.sheet : '?') + '», fila ' + (src.expenses ? src.expenses.headerRow : '?') + ')'],
+      ['Hoja de verificación', src.analysis ? '«' + src.analysis.sheet + '», fila ' + src.analysis.headerRow : 'No disponible']
+    ];
+    var dl = h('dl', { 'class': 'kv' });
+    kvs.forEach(function (p) { dl.appendChild(h('dt', { text: p[0] })); dl.appendChild(h('dd', { text: p[1] })); });
+    panel.appendChild(card('Lectura', 'Solo lectura: el dashboard nunca modifica la hoja.', [dl,
+      h('p', { style: 'margin-top:12px' }, [h('button', { type: 'button', 'class': 'btn', onclick: changeSheet, text: 'CAMBIAR HOJA' })])]));
+  }
+
+  function card(title, sub, children) {
+    return h('article', { 'class': 'card', style: 'margin-bottom:16px' }, [
+      h('div', { 'class': 'card-head' }, [h('div', { 'class': 'titles' }, [h('h3', { text: title }), sub ? h('p', { 'class': 'card-sub', text: sub }) : null])])
+    ].concat(children));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Desgloses (panel lateral)
+  // ---------------------------------------------------------------------------
+  var lastFocus = null;
+  function openDrawer(kicker, title, sections) {
+    lastFocus = document.activeElement;
+    G.hideTip();
+    $('drawerKicker').textContent = kicker;
+    $('drawerTitle').textContent = title;
+    var body = $('drawerBody');
+    body.textContent = '';
+    sections.forEach(function (s) { if (s) body.appendChild(s); });
+    $('drawer').hidden = false;
+    $('drawerBackdrop').hidden = false;
+    body.scrollTop = 0;
+    $('drawerClose').focus();
+  }
+  function closeDrawer() {
+    if ($('drawer').hidden) return;
+    $('drawer').hidden = true;
+    $('drawerBackdrop').hidden = true;
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  function section(title, children, note) {
+    return h('section', null, [title ? h('h3', { text: title }) : null]
+      .concat(children)
+      .concat(note ? [h('p', { 'class': 'note', text: note })] : []));
+  }
+  function kv(pairs) {
+    var dl = h('dl', { 'class': 'kv' });
+    pairs.forEach(function (p) {
+      if (!p) return;
+      dl.appendChild(h('dt', { 'class': p.cls || null, text: p.label }));
+      dl.appendChild(h('dd', { 'class': p.cls || null, text: p.value }));
+    });
+    return dl;
+  }
+  function scopeKicker() { return state.summary.range.label + ' · ' + cityScopeName(); }
+
+  function statementKv(t) {
+    return kv([
+      { label: 'Ingresos generados (' + plural(t.realizedCount, 'evento realizado', 'eventos realizados') + ')', value: money(t.revenue) },
+      { label: 'Pago a DJs', value: money(-t.djCost), cls: 'minus' },
+      { label: 'Publicidad', value: money(-t.ads), cls: 'minus' },
+      { label: 'Operación', value: money(-t.operacion), cls: 'minus' },
+      { label: 'Atención al cliente', value: money(-t.atCliente), cls: 'minus' },
+      { label: 'Ganancia operativa', value: money(t.operating), cls: 'total' },
+      { label: 'Ganancia personal (reparto del archivo)', value: money(t.personal) }
+    ]);
+  }
+
+  function eventsBlock(title, events, cols, note) {
+    var list = events.slice().sort(C.byDate);
+    return section(title + ' (' + number(list.length) + ')', [table(cols, list, { limit: 400, empty: 'Sin eventos.' })], note);
+  }
+
+  function expensesBlock(title, expenses) {
+    var list = expenses.slice().sort(C.byDate);
+    return section(title + ' (' + number(list.length) + ')', [table([XP.date, XP.city, XP.category, XP.product, XP.total, XP.counted], list, { limit: 400, empty: 'Sin gastos.' })]);
+  }
+
+  function byCityBlock(title, cols) {
+    var rows = state.summary.byCity.filter(hasActivity);
+    if (rows.length < 2) return null;
+    return section(title, [table([{ label: 'Ciudad', render: function (c) { return cityCell(c.city.key); } }].concat(cols), rows)]);
+  }
+
+  function drawerRevenue() {
+    var s = state.summary, t = s.totals;
+    openDrawer(scopeKicker(), 'Ingresos generados', [
+      section(null, [kv([
+        { label: 'Ingresos generados', value: money(t.revenue), cls: 'total' },
+        { label: 'Eventos realizados', value: number(t.realizedCount) },
+        { label: 'De ello, gasolina cobrada (Guadalajara desde feb 2026)', value: money(t.gasRevenue) }
+      ])], 'TOTAL EVENTO de eventos con REALIZADO = SI, por fecha del evento. Igual que ANALISIS!E y DASHBOARD!C10. No incluye anticipos de eventos futuros.'),
+      byCityBlock('Por ciudad', [
+        { label: 'Realizados', num: true, render: function (c) { return number(c.realizedCount); } },
+        { label: 'Ingresos', num: true, render: function (c) { return money(c.revenue); } },
+        { label: 'De ello, gasolina', num: true, render: function (c) { return money(c.gasRevenue); } }
+      ]),
+      eventsBlock('Eventos realizados', s.events.filter(function (e) { return e.realized; }), [EV.date, EV.city, EV.dj, EV.client, EV.total, EV.gas, EV.revenue])
+    ]);
+  }
+
+  function drawerPersonal() {
+    var s = state.summary, t = s.totals;
+    openDrawer(scopeKicker(), 'Ganancia personal', [
+      section('Cómo se llega al resultado', [statementKv(t)]),
+      byCityBlock('Por ciudad', [
+        { label: 'Ganancia operativa', num: true, render: function (c) { return money(c.operating); } },
+        { label: 'Bono sonido propio (Tepic)', num: true, render: function (c) { return money(c.bonus); } },
+        { label: 'Ganancia personal', num: true, render: function (c) { return money(c.personal); } }
+      ]),
+      section('Reglas del archivo', [h('p', { 'class': 'note', text: personalRulesText() })])
+    ]);
+  }
+
+  function drawerSaldo() {
+    var s = state.summary, t = s.totals;
+    openDrawer(scopeKicker(), 'Saldo por cobrar', [
+      section(null, [kv([
+        { label: 'Saldo por cobrar a clientes (' + plural(t.upcomingCount, 'evento próximo', 'eventos próximos') + ')', value: money(t.saldo), cls: 'total' },
+        { label: 'Anticipos ya recibidos de esos eventos', value: money(t.anticiposPendientes) },
+        { label: 'Monto contratado de esos eventos (total + gasolina)', value: money(t.contratadoPendiente) },
+        { label: 'Por entregar de DJs (' + plural(t.djOwedCount, 'evento realizado', 'eventos realizados') + ')', value: money(t.djOwed) }
+      ])], 'Saldo = total − anticipo + gasolina, lo que se cobra en el evento (AGENDA Y VENTAS!I2). Lo que deben los DJs es dinero ya cobrado al cliente que falta entregar.'),
+      eventsBlock('Eventos próximos', s.events.filter(function (e) { return e.pending; }), [EV.date, EV.city, EV.dj, EV.client, EV.total, EV.anticipo, EV.gas, EV.saldo]),
+      eventsBlock('Entregas pendientes de DJs', s.events.filter(function (e) { return e.djOwes; }), [EV.date, EV.city, EV.dj, EV.client, EV.cobrado, EV.djPay, EV.entregar])
+    ]);
+  }
+
+  function drawerRealized() {
+    var s = state.summary;
+    openDrawer(scopeKicker(), 'Eventos realizados', [
+      byCityBlock('Por ciudad', [
+        { label: 'Realizados', num: true, render: function (c) { return number(c.realizedCount); } },
+        { label: 'Ganancia personal por evento', num: true, render: function (c) { return c.personalPerEvent === null ? 'No disponible' : money(c.personalPerEvent); } }
+      ]),
+      eventsBlock('Eventos realizados', s.events.filter(function (e) { return e.realized; }), [EV.date, EV.city, EV.dj, EV.type, EV.client, EV.revenue, EV.personal],
+        'Ganancia personal por evento = ganancia personal del periodo ÷ eventos realizados (como «ME QUEDA X EVENTO» en DASHBOARD!C20).')
+    ]);
+  }
+
+  function drawerUpcoming() {
+    var s = state.summary;
+    openDrawer(scopeKicker(), 'Eventos próximos', [
+      eventsBlock('Eventos por realizar', s.events.filter(function (e) { return e.pending; }), [EV.date, EV.city, EV.dj, EV.type, EV.client, EV.total, EV.anticipo, EV.saldo])
+    ]);
+  }
+
+  function drawerAds() {
+    var s = state.summary, t = s.totals;
+    var ads = s.expenses.filter(function (x) { return x.kind === 'ads' || x.kindIfTrimmed === 'ads'; });
+    openDrawer(scopeKicker(), 'Gasto en publicidad', [
+      section(null, [kv([
+        { label: 'Publicidad (la que suma el archivo)', value: money(t.ads), cls: 'total' },
+        { label: 'Ventas por cada $1 en publicidad', value: C.formatRatio(t.salesPerAd) },
+        { label: 'Ganancia operativa por cada $1 en publicidad', value: C.formatRatio(t.profitPerAd) },
+        t.adsExcluded ? { label: 'Registrada pero no sumada por el archivo', value: money(t.adsExcluded) } : null
+      ])], adsNote()),
+      byCityBlock('Por ciudad', [
+        { label: 'Publicidad', num: true, render: function (c) { return money(c.ads); } },
+        { label: 'Ventas por $1', num: true, render: function (c) { return C.formatRatio(c.salesPerAd); } },
+        { label: 'Ganancia por $1', num: true, render: function (c) { return C.formatRatio(c.profitPerAd); } }
+      ]),
+      expensesBlock('Registros de publicidad', ads)
+    ]);
+  }
+
+  function drawerCity(key) {
+    var s = state.summary;
+    var t = s.byCity.filter(function (c) { return c.city.key === key; })[0];
+    if (!t) return;
+    openDrawer(s.range.label, cityInfo(key).name, [
+      section('Resultado del periodo', [statementKv(t)]),
+      section('Por ' + (s.buckets.granularity === 'week' ? 'semana' : 'mes'), [table([
+        { label: 'Periodo', render: function (b) { return C.capitalize(b.label); } },
+        { label: 'Realizados', num: true, render: function (b) { return number(b.byCity[key] ? b.byCity[key].realizedCount : 0); } },
+        { label: 'Ingresos', num: true, render: function (b) { return money(b.byCity[key] ? b.byCity[key].revenue : 0); } },
+        { label: 'Ganancia operativa', num: true, render: function (b) { return money(b.byCity[key] ? b.byCity[key].operating : 0); } },
+        { label: 'Ganancia personal', num: true, render: function (b) { return money(b.byCity[key] ? b.byCity[key].personal : 0); } }
+      ], s.buckets.list)]),
+      section('Regla de reparto', [h('p', { 'class': 'note', text: personalRulesText() })])
+    ]);
+  }
+
+  function drawerAdsCity(key) {
+    var s = state.summary;
+    var t = s.byCity.filter(function (c) { return c.city.key === key; })[0];
+    if (!t) return;
+    var ads = s.expenses.filter(function (x) { return x.city === key && (x.kind === 'ads' || x.kindIfTrimmed === 'ads'); });
+    openDrawer(s.range.label, 'Publicidad · ' + cityInfo(key).name, [
+      section(null, [kv([
+        { label: 'Publicidad', value: money(t.ads), cls: 'total' },
+        { label: 'Ingresos generados', value: money(t.revenue) },
+        { label: 'Ganancia operativa', value: money(t.operating) },
+        { label: 'Ventas por cada $1', value: C.formatRatio(t.salesPerAd) },
+        { label: 'Ganancia operativa por cada $1', value: C.formatRatio(t.profitPerAd) }
+      ])], adsNote()),
+      expensesBlock('Registros de publicidad', ads)
+    ]);
+  }
+
+  function drawerBucket(b) {
+    var multi = visibleCities().length > 1;
+    openDrawer(cityScopeName(), C.capitalize(b.label) + (b.isCurrent ? ' (en curso)' : ''), [
+      section('Resultado', [statementKv(b.totals)], b.isCurrent ? 'Periodo en curso: cifras parciales.' : null),
+      multi ? section('Por ciudad', [table([
+        { label: 'Ciudad', render: function (c) { return cityCell(c.key); } },
+        { label: 'Realizados', num: true, render: function (c) { return number(b.byCity[c.key].realizedCount); } },
+        { label: 'Ingresos', num: true, render: function (c) { return money(b.byCity[c.key].revenue); } },
+        { label: 'Ganancia operativa', num: true, render: function (c) { return money(b.byCity[c.key].operating); } },
+        { label: 'Ganancia personal', num: true, render: function (c) { return money(b.byCity[c.key].personal); } }
+      ], visibleCities().filter(function (c) { return b.byCity[c.key] && hasActivity(b.byCity[c.key]); }))]) : null,
+      eventsBlock('Eventos realizados', b.events.filter(function (e) { return e.realized; }), [EV.date, EV.city, EV.dj, EV.client, EV.revenue, EV.djPay, EV.personal]),
+      expensesBlock('Gastos', b.expenses.filter(function (x) { return x.kind !== 'stock'; }))
+    ]);
+  }
+
+  function drawerBucketEvents(b) {
+    openDrawer(cityScopeName(), 'Eventos · ' + C.capitalize(b.label), [
+      eventsBlock('Eventos', b.events, [EV.date, EV.city, EV.dj, EV.type, EV.client, EV.total, EV.status])
+    ]);
+  }
+
+  function drawerPendingBucket(b) {
+    openDrawer(cityScopeName(), 'Pendientes · ' + C.capitalize(b.label), [
+      section(null, [kv([
+        { label: 'Saldo por cobrar', value: money(b.totals.saldo), cls: 'total' },
+        { label: 'Anticipos recibidos', value: money(b.totals.anticiposPendientes) },
+        { label: 'Contratado (total + gasolina)', value: money(b.totals.contratadoPendiente) }
+      ])]),
+      eventsBlock('Eventos próximos', b.events.filter(function (e) { return e.pending; }), [EV.date, EV.city, EV.dj, EV.client, EV.total, EV.anticipo, EV.gas, EV.saldo])
+    ]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Eventos de la interfaz
+  // ---------------------------------------------------------------------------
+  function bind() {
+    // El mapa recuerda su página en localStorage («nayarCurrentPage»); se usa la
+    // misma clave para que MAPA, DJS y DEMANDA abran directo en esa página.
+    $('siteNav').addEventListener('click', function (ev) {
+      var a = ev.target.closest('a[data-page]');
+      if (!a) return;
+      try { localStorage.setItem('nayarCurrentPage', a.getAttribute('data-page')); } catch (e) { /* abre en MAPA */ }
+    });
+    $('refreshBtn').addEventListener('click', load);
+    $('themeBtn').addEventListener('click', function () {
+      setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      savePrefs();
+      if (state.model) { renderFilters(); renderTab(); }
+    });
+    $('cityFilter').addEventListener('click', function (ev) {
+      var b = ev.target.closest('button');
+      if (!b) return;
+      state.filters.city = b.getAttribute('data-city');
+      savePrefs();
+      renderFilters();
+      renderContent();
+    });
+    $('periodFilter').addEventListener('click', function (ev) {
+      var b = ev.target.closest('button');
+      if (b) setPeriod(b.getAttribute('data-period'));
+    });
+    ['fromDate', 'toDate'].forEach(function (id) {
+      $(id).addEventListener('change', function () {
+        state.filters.period.from = $('fromDate').value;
+        state.filters.period.to = $('toDate').value;
+        savePrefs();
+        renderContent();
+      });
+    });
+    document.querySelector('.tabs').addEventListener('click', function (ev) {
+      var b = ev.target.closest('button[data-tab]');
+      if (!b) return;
+      state.tab = b.getAttribute('data-tab');
+      savePrefs();
+      renderContent();
+    });
+    document.querySelector('.tabs').addEventListener('keydown', function (ev) {
+      if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return;
+      var tabs = ['resumen', 'analisis', 'operacion', 'fuentes'];
+      var i = tabs.indexOf(state.tab) + (ev.key === 'ArrowRight' ? 1 : -1);
+      state.tab = tabs[(i + tabs.length) % tabs.length];
+      renderContent();
+      $('tab-btn-' + state.tab).focus();
+    });
+    $('drawerClose').addEventListener('click', closeDrawer);
+    $('drawerBackdrop').addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeDrawer(); });
+
+    var lastWidth = 0, timer = null;
+    var onResize = function () {
+      var w = $('content').clientWidth;
+      if (!state.model || w === lastWidth) return;
+      lastWidth = w;
+      clearTimeout(timer);
+      timer = setTimeout(function () { pendingDraws.forEach(function (fn) { fn(); }); }, 150);
+    };
+    if (window.ResizeObserver) new ResizeObserver(onResize).observe($('content'));
+    else window.addEventListener('resize', onResize);
+  }
+
+  loadPrefs();
+  bind();
+  NSSource.captureFromUrl();
+  load();
+})();
