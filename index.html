@@ -47,36 +47,10 @@
 
   .row-top{
     display:flex;
-    flex-wrap:wrap;
     align-items:center;
     justify-content:space-between;
-    gap:10px 16px;
+    gap:16px;
     padding:14px 20px 10px;
-  }
-
-  /* navegación entre módulos: Mapa / Dashboard */
-  .brand-nav{
-    display:flex;
-    align-items:center;
-    flex-wrap:wrap;
-    gap:14px;
-  }
-  .app-nav a{
-    color:var(--muted);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    letter-spacing:0.06em;
-    padding:7px 12px;
-    text-decoration:none;
-    border-right:1px solid var(--line);
-    white-space:nowrap;
-    transition:background 0.15s ease, color 0.15s ease;
-  }
-  .app-nav a:last-child{ border-right:none; }
-  .app-nav a:hover{ color:var(--text); }
-  .app-nav a.active{
-    background:rgba(0,224,255,0.12);
-    color:var(--cyan);
   }
 
   .brand{
@@ -315,13 +289,7 @@
 <div id="app">
   <header>
     <div class="row-top">
-      <div class="brand-nav">
-        <div class="brand">NAYAR<span>SOUND</span></div>
-        <nav class="segmented app-nav" aria-label="Secciones">
-          <a href="./" class="active" aria-current="page">MAPA</a>
-          <a href="dashboard/" id="dashboardLink">DASHBOARD</a>
-        </nav>
-      </div>
+      <div class="brand">NAYAR<span>SOUND</span></div>
       <div class="counter">
         <span class="counter-label" id="counterLabel">EVENTOS REGISTRADOS:</span>
         <span class="counter-value" id="counterValue">—</span>
