@@ -1454,6 +1454,19 @@
       <div id="reviewModalList" class="review-list"></div>
     </div>
   </div>
+
+  <div id="djPasswordModalOverlay" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>ACCESO DJS</span>
+        <button id="djPasswordModalClose" class="dj-tool-close" type="button" aria-label="Cerrar">&times;</button>
+      </div>
+      <label class="dj-tool-label" for="djPasswordInput">CONTRASEÑA</label>
+      <input id="djPasswordInput" class="dj-tool-input" type="password" placeholder="••••••" autocomplete="off">
+      <button id="djPasswordSubmitBtn" class="dj-tool-search-btn" type="button">ENTRAR</button>
+      <div id="djPasswordMsg" class="dj-tool-msg"></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -4379,20 +4392,69 @@
     }
   }
 
+  // ================= ACCESO CON CONTRASEÑA A LA PÁGINA DJS =================
+  // Esto NO es seguridad real: el archivo es público y cualquiera puede leer
+  // la contraseña en el código fuente. Es solo un filtro simple para que no
+  // cualquiera que abra el sistema entre directo a los datos financieros de
+  // los DJs. djsUnlocked vive solo en memoria: se vuelve a pedir en cada
+  // recarga de la página.
+  var DJS_PAGE_PASSWORD = '12345';
+  var djsUnlocked = false;
+  var djPasswordModalOverlay = document.getElementById('djPasswordModalOverlay');
+  var djPasswordInput = document.getElementById('djPasswordInput');
+  var djPasswordMsg = document.getElementById('djPasswordMsg');
+
+  function openDjPasswordModal(){
+    djPasswordInput.value = '';
+    djPasswordMsg.textContent = '';
+    djPasswordMsg.classList.remove('error');
+    djPasswordModalOverlay.classList.add('visible');
+    setTimeout(function(){ djPasswordInput.focus(); }, 0);
+  }
+  function closeDjPasswordModal(){
+    djPasswordModalOverlay.classList.remove('visible');
+  }
+  function tryUnlockDjs(){
+    if (djPasswordInput.value === DJS_PAGE_PASSWORD){
+      djsUnlocked = true;
+      closeDjPasswordModal();
+      var pageSelectorEl = document.getElementById('pageSelector');
+      var djsBtn = pageSelectorEl.querySelector('button[data-page="djs"]');
+      setActive(pageSelectorEl, djsBtn);
+      setActivePage('djs');
+    } else {
+      djPasswordMsg.textContent = 'Contraseña incorrecta.';
+      djPasswordMsg.classList.add('error');
+      djPasswordInput.value = '';
+      djPasswordInput.focus();
+    }
+  }
+  document.getElementById('djPasswordSubmitBtn').addEventListener('click', tryUnlockDjs);
+  djPasswordInput.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') tryUnlockDjs(); });
+  document.getElementById('djPasswordModalClose').addEventListener('click', closeDjPasswordModal);
+  djPasswordModalOverlay.addEventListener('click', function(ev){
+    if (ev.target === djPasswordModalOverlay) closeDjPasswordModal();
+  });
+
   document.getElementById('pageSelector').addEventListener('click', function(ev){
     var btn = ev.target.closest('button');
     if (!btn) return;
+    if (btn.dataset.page === 'djs' && !djsUnlocked){
+      openDjPasswordModal();
+      return;
+    }
     setActive(this, btn);
     setActivePage(btn.dataset.page);
   });
 
   // Restaura la página en la que estaba el usuario antes del refresh (MAPA ya
   // es el estado inicial por defecto, así que solo hace falta actuar si
-  // quedó guardado DJS, TIPOS o DEMANDA).
+  // quedó guardado TIPOS o DEMANDA — DJS siempre vuelve a pedir contraseña,
+  // nunca se restaura directo).
   (function restoreSavedPage(){
     var saved = null;
     try { saved = localStorage.getItem('nayarCurrentPage'); } catch(e){}
-    if (saved !== 'djs' && saved !== 'tipos' && saved !== 'demanda') return;
+    if (saved !== 'tipos' && saved !== 'demanda') return;
     var pageSelectorEl = document.getElementById('pageSelector');
     var btn = pageSelectorEl.querySelector('button[data-page="' + saved + '"]');
     if (!btn) return;
