@@ -286,6 +286,42 @@
   .djs-table th:not(:first-child), .djs-table td:not(:first-child){ text-align:right; }
   .djs-table td:not(:first-child){ color:var(--cyan); font-family:'Space Grotesk', sans-serif; font-weight:700; }
 
+  /* ================= PÁGINA TIPOS DE EVENTO (misma hoja de ventas/pagos que DJS) ================= */
+  #tiposPage{
+    flex:1;
+    display:none;
+    flex-direction:column;
+    min-height:0;
+    overflow-y:auto;
+    padding:20px;
+    gap:16px;
+  }
+  .tipo-list{ display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
+  .tipo-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--panel);
+    padding:10px 14px;
+  }
+  .tipo-rank{
+    flex-shrink:0;
+    width:22px;
+    text-align:center;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    color:var(--cyan);
+  }
+  .tipo-info{ flex:1; min-width:0; }
+  .tipo-row-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .tipo-name{ font-weight:700; font-size:12.5px; color:var(--text); }
+  .tipo-pct{ font-size:11px; font-weight:700; color:var(--cyan); flex-shrink:0; }
+  .tipo-bar-track{ height:5px; border-radius:3px; background:var(--line); margin-top:6px; overflow:hidden; }
+  .tipo-bar-fill{ height:100%; background:var(--cyan); border-radius:3px; }
+  .tipo-sub{ font-size:10.5px; color:var(--muted); margin-top:5px; }
+
   /* ================= PÁGINA DEMANDA (solicitudes rechazadas, coordenadas desde AGENDA) ================= */
   #demandPage{
     flex:1;
@@ -543,6 +579,7 @@
 
   @media (max-width: 640px){
     #djsPage{ padding:14px; }
+    #tiposPage{ padding:14px; }
     #demandPage{ padding:14px; }
   }
 
@@ -1153,6 +1190,7 @@
         <div class="segmented" id="pageSelector">
           <button data-page="mapa" class="active">MAPA</button>
           <button data-page="djs">DJS</button>
+          <button data-page="tipos">TIPOS</button>
           <button data-page="demanda">DEMANDA</button>
         </div>
         <div class="segmented page-ctrl-mapa" id="viewSelector">
@@ -1286,6 +1324,29 @@
         <tbody id="djsTableBody"></tbody>
       </table>
     </div>
+  </div>
+
+  <div id="tiposPage">
+    <div class="djs-kpis">
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TIPOS DE EVENTO</div>
+        <div class="djs-kpi-value" id="tiposKpiCount">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL DE EVENTOS</div>
+        <div class="djs-kpi-value" id="tiposKpiEvents">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TOTAL GENERADO</div>
+        <div class="djs-kpi-value" id="tiposKpiGenerado">—</div>
+      </div>
+      <div class="djs-kpi">
+        <div class="djs-kpi-label">TICKET PROMEDIO</div>
+        <div class="djs-kpi-value" id="tiposKpiTicket">—</div>
+      </div>
+    </div>
+    <div id="tiposStatusMsg" class="djs-status-msg">Cargando datos…</div>
+    <div id="tiposList" class="tipo-list"></div>
   </div>
 
   <div id="demandPage">
@@ -1444,6 +1505,7 @@
   var VENTAS_DJ_COL_IDX        = 3;  // D — nombre del DJ
   var VENTAS_CIUDAD_COL_IDX    = 2;  // C
   var VENTAS_FECHA_COL_IDX     = 4;  // E
+  var VENTAS_TIPO_EVENTO_COL_IDX = 5; // F — TIPO EVENTO (XV, BODA, CUMPLEAÑOS, etc.)
   var VENTAS_GENERADO_COL_IDX  = 8;  // I — "AL EVENTO" (total generado por el evento)
   var VENTAS_PAGADO_COL_IDX    = 11; // L — "DJ" (repetido): monto pagado al DJ
   var VENTAS_GANANCIA_COL_IDX  = 13; // N — "GANANCIA 2": AL EVENTO + GAS A COI (gasolina) - DJ pagado,
@@ -1476,6 +1538,13 @@
   var djsKpiGananciaEl = document.getElementById('djsKpiGanancia');
   var djsStatusMsgEl = document.getElementById('djsStatusMsg');
   var djsTableBodyEl = document.getElementById('djsTableBody');
+
+  var tiposKpiCountEl = document.getElementById('tiposKpiCount');
+  var tiposKpiEventsEl = document.getElementById('tiposKpiEvents');
+  var tiposKpiGeneradoEl = document.getElementById('tiposKpiGenerado');
+  var tiposKpiTicketEl = document.getElementById('tiposKpiTicket');
+  var tiposStatusMsgEl = document.getElementById('tiposStatusMsg');
+  var tiposListEl = document.getElementById('tiposList');
 
   var demandStatusMsgEl = document.getElementById('demandStatusMsg');
   var quadrantOverlayEl = document.getElementById('quadrantOverlay');
@@ -1595,7 +1664,7 @@
   var currentPage = 'mapa'; // 'mapa' | 'djs'
   var djAgendaRows = [];    // [{cityNorm, djKey, djName, date, realizado}]
   var djAgendaStatsError = null; // mensaje si no se pudo leer REALIZADO por nombre de encabezado
-  var djVentasRows = [];    // [{cityNorm, djKey, djName, date, generado, pagado}] — sin filtrar por REALIZADO
+  var djVentasRows = [];    // [{cityNorm, djKey, djName, date, tipoEvento, generado, pagado, ganancia}] — solo REALIZADO=SI
   var djVentasStatsError = null; // mensaje si no se pudo leer la hoja externa de ventas/pagos
   var djsCityFilter = 'GLOBAL';
   var djsPeriodFilter = 'CURRENT_MONTH';
@@ -2627,11 +2696,18 @@
               var realizado = normalizeCity(cells[VENTAS_REALIZADO_COL_IDX] ? cells[VENTAS_REALIZADO_COL_IDX].v : null) === 'SI';
               if (!realizado) return;
 
+              // A diferencia de normalizeCity() (usada para CIUDAD), aquí NO se le
+              // quitan los acentos: es texto que se muestra tal cual en pantalla
+              // ("CUMPLEAÑOS"), no una clave que deba matchear contra un catálogo fijo.
+              var tipoRaw = cells[VENTAS_TIPO_EVENTO_COL_IDX] ? cells[VENTAS_TIPO_EVENTO_COL_IDX].v : null;
+              var tipoTrimmed = (tipoRaw == null) ? '' : String(tipoRaw).trim();
+
               parsed.push({
                 djKey: djKey,
                 djName: String(djRaw).trim(),
                 cityNorm: normalizeCity(cells[VENTAS_CIUDAD_COL_IDX] ? cells[VENTAS_CIUDAD_COL_IDX].v : null),
                 date: parseSheetDate(cells[VENTAS_FECHA_COL_IDX]),
+                tipoEvento: tipoTrimmed ? tipoTrimmed.toUpperCase() : 'SIN ESPECIFICAR',
                 generado: parseMoneyCell(cells[VENTAS_GENERADO_COL_IDX]),
                 pagado: parseMoneyCell(cells[VENTAS_PAGADO_COL_IDX]),
                 ganancia: parseMoneyCell(cells[VENTAS_GANANCIA_COL_IDX])
@@ -3428,6 +3504,15 @@
     applyDemandZoomLayer();
   }
 
+  // Filtro de CIUDAD/PERIODO compartido por DJS y TIPOS DE EVENTO: ambas páginas
+  // leen el mismo rango de la hoja de ventas/pagos (djVentasRows) y usan el mismo
+  // selector de filtros en la barra superior, así que un solo criterio evita que
+  // alguna quede filtrando distinto de la otra por error.
+  function matchesDjsScope(r){
+    var cityOk = (djsCityFilter === 'GLOBAL') || (r.cityNorm === djsCityFilter);
+    return cityOk && matchesDjsPeriod(r.date, djsPeriodFilter);
+  }
+
   function computeDjsStats(){
     var byDj = {};
     var order = [];
@@ -3439,18 +3524,12 @@
       return byDj[key];
     }
 
-    djAgendaRows.filter(function(r){
-      var cityOk = (djsCityFilter === 'GLOBAL') || (r.cityNorm === djsCityFilter);
-      return cityOk && matchesDjsPeriod(r.date, djsPeriodFilter);
-    }).forEach(function(r){
+    djAgendaRows.filter(matchesDjsScope).forEach(function(r){
       var entry = ensureEntry(r.djKey, r.djName);
       if (r.realizado) entry.totalEvents += 1;
     });
 
-    djVentasRows.filter(function(r){
-      var cityOk = (djsCityFilter === 'GLOBAL') || (r.cityNorm === djsCityFilter);
-      return cityOk && matchesDjsPeriod(r.date, djsPeriodFilter);
-    }).forEach(function(r){
+    djVentasRows.filter(matchesDjsScope).forEach(function(r){
       var entry = ensureEntry(r.djKey, r.djName);
       entry.totalGenerado += r.generado;
       entry.totalPagado += r.pagado;
@@ -3478,6 +3557,56 @@
       totalGenerado: totals.generado,
       totalPagado: totals.pagado,
       totalGanancia: totals.ganancia
+    };
+  }
+
+  // Análisis de "a qué tipo de eventos nos dirigimos": agrupa por TIPO EVENTO
+  // (columna F de la hoja de ventas/pagos) en vez de por DJ, con el mismo
+  // alcance de CIUDAD/PERIODO que la página DJS (misma fuente de datos).
+  function computeTiposStats(){
+    var byTipo = {};
+    var order = [];
+    function ensureEntry(key){
+      if (!byTipo[key]){
+        byTipo[key] = { name: key, totalEvents: 0, totalGenerado: 0, totalPagado: 0, totalGanancia: 0 };
+        order.push(key);
+      }
+      return byTipo[key];
+    }
+
+    djVentasRows.filter(matchesDjsScope).forEach(function(r){
+      var entry = ensureEntry(r.tipoEvento);
+      entry.totalEvents += 1;
+      entry.totalGenerado += r.generado;
+      entry.totalPagado += r.pagado;
+      entry.totalGanancia += r.ganancia;
+    });
+
+    var list = order.map(function(k){ return byTipo[k]; });
+    list.sort(function(a, b){ return b.totalEvents - a.totalEvents; });
+
+    var totalEvents = list.reduce(function(acc, t){ return acc + t.totalEvents; }, 0);
+    list.forEach(function(t){
+      t.pctEvents = totalEvents ? (t.totalEvents / totalEvents * 100) : 0;
+      t.ticketProm = t.totalEvents ? (t.totalGenerado / t.totalEvents) : 0;
+    });
+
+    var totals = list.reduce(function(acc, t){
+      acc.generado += t.totalGenerado;
+      acc.pagado += t.totalPagado;
+      acc.ganancia += t.totalGanancia;
+      return acc;
+    }, { generado: 0, pagado: 0, ganancia: 0 });
+
+    return {
+      list: list,
+      totalTipos: list.length,
+      totalEvents: totalEvents,
+      totalGenerado: totals.generado,
+      totalPagado: totals.pagado,
+      totalGanancia: totals.ganancia,
+      ticketPromGlobal: totalEvents ? (totals.generado / totalEvents) : 0,
+      top: list.length ? list[0] : null
     };
   }
 
@@ -3519,6 +3648,45 @@
         '<td>' + formatMoney(d.totalGenerado) + '</td>' +
         '<td>' + formatMoney(d.totalPagado) + '</td>' +
         '<td>' + formatMoney(d.totalGanancia) + '</td></tr>';
+    }).join('');
+  }
+
+  function renderTiposPage(){
+    var stats = computeTiposStats();
+    tiposKpiCountEl.textContent = stats.totalTipos;
+    tiposKpiEventsEl.textContent = stats.totalEvents;
+    tiposKpiGeneradoEl.textContent = formatMoney(stats.totalGenerado);
+    tiposKpiTicketEl.textContent = formatMoney(stats.ticketPromGlobal);
+
+    tiposStatusMsgEl.classList.toggle('error', !!djVentasStatsError);
+
+    if (!stats.list.length){
+      tiposStatusMsgEl.textContent = djVentasStatsError || 'No hay datos para este filtro.';
+      tiposListEl.innerHTML = '';
+      return;
+    }
+
+    tiposStatusMsgEl.textContent = djVentasStatsError
+      ? (djVentasStatsError + ' (datos previos)')
+      : ('Actualizado ' + new Date().toLocaleTimeString('es-MX'));
+
+    var maxEvents = stats.list[0].totalEvents || 1;
+    tiposListEl.innerHTML = stats.list.map(function(t, i){
+      var barPct = (t.totalEvents / maxEvents * 100);
+      return '<div class="tipo-row">' +
+        '<div class="tipo-rank">' + (i + 1) + '</div>' +
+        '<div class="tipo-info">' +
+          '<div class="tipo-row-top">' +
+            '<span class="tipo-name">' + escapeHtml(t.name) + '</span>' +
+            '<span class="tipo-pct">' + t.pctEvents.toFixed(1) + '%</span>' +
+          '</div>' +
+          '<div class="tipo-bar-track"><div class="tipo-bar-fill" style="width:' + barPct + '%"></div></div>' +
+          '<div class="tipo-sub">' + t.totalEvents + ' evento' + (t.totalEvents === 1 ? '' : 's') +
+            ' · generado ' + formatMoney(t.totalGenerado) +
+            ' · ticket prom. ' + formatMoney(t.ticketProm) +
+            ' · ganancia ' + formatMoney(t.totalGanancia) + '</div>' +
+        '</div>' +
+      '</div>';
     }).join('');
   }
 
@@ -4118,6 +4286,7 @@
     document.getElementById('djsCityDropdownValue').textContent = btn.textContent.trim();
     closeAllDropdowns();
     renderDjsPage();
+    renderTiposPage();
   });
 
   document.getElementById('djsPeriodSelector').addEventListener('click', function(ev){
@@ -4128,6 +4297,7 @@
     document.getElementById('djsPeriodDropdownValue').textContent = btn.textContent.trim();
     closeAllDropdowns();
     renderDjsPage();
+    renderTiposPage();
   });
 
   // ================= PÁGINA DEMANDA: dropdowns propios (ESTADO / PERIODO) =================
@@ -4168,6 +4338,7 @@
   // la lógica del mapa (filtros, clustering, cuadrantes) ni la de la página DJS.
   var mapPageEl = document.getElementById('mapPage');
   var djsPageEl = document.getElementById('djsPage');
+  var tiposPageEl = document.getElementById('tiposPage');
   var demandPageEl = document.getElementById('demandPage');
 
   function setActivePage(page){
@@ -4180,8 +4351,10 @@
     Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-mapa'), function(el){
       el.style.display = (page === 'mapa') ? '' : 'none';
     });
+    // DJS y TIPOS DE EVENTO comparten los mismos dropdowns de CIUDAD/PERIODO en
+    // la barra superior: son dos vistas distintas de la misma hoja de ventas/pagos.
     Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-djs'), function(el){
-      el.style.display = (page === 'djs') ? '' : 'none';
+      el.style.display = (page === 'djs' || page === 'tipos') ? '' : 'none';
     });
     Array.prototype.forEach.call(document.querySelectorAll('.page-ctrl-demanda'), function(el){
       el.style.display = (page === 'demanda') ? '' : 'none';
@@ -4189,6 +4362,7 @@
 
     mapPageEl.style.display = (page === 'mapa') ? 'flex' : 'none';
     djsPageEl.style.display = (page === 'djs') ? 'flex' : 'none';
+    tiposPageEl.style.display = (page === 'tipos') ? 'flex' : 'none';
     demandPageEl.style.display = (page === 'demanda') ? 'flex' : 'none';
 
     if (page === 'mapa'){
@@ -4197,6 +4371,8 @@
       setTimeout(function(){ map.invalidateSize(); }, 0);
     } else if (page === 'djs'){
       renderDjsPage();
+    } else if (page === 'tipos'){
+      renderTiposPage();
     } else if (page === 'demanda'){
       renderDemandPage();
       setTimeout(function(){ if (demandMap) demandMap.invalidateSize(); }, 0);
@@ -4212,11 +4388,11 @@
 
   // Restaura la página en la que estaba el usuario antes del refresh (MAPA ya
   // es el estado inicial por defecto, así que solo hace falta actuar si
-  // quedó guardado DJS o DEMANDA).
+  // quedó guardado DJS, TIPOS o DEMANDA).
   (function restoreSavedPage(){
     var saved = null;
     try { saved = localStorage.getItem('nayarCurrentPage'); } catch(e){}
-    if (saved !== 'djs' && saved !== 'demanda') return;
+    if (saved !== 'djs' && saved !== 'tipos' && saved !== 'demanda') return;
     var pageSelectorEl = document.getElementById('pageSelector');
     var btn = pageSelectorEl.querySelector('button[data-page="' + saved + '"]');
     if (!btn) return;
@@ -5198,10 +5374,12 @@
 
   loadDjVentasStats().then(function(){
     if (currentPage === 'djs') renderDjsPage();
+    if (currentPage === 'tipos') renderTiposPage();
   });
   setInterval(function(){
     loadDjVentasStats().then(function(){
       if (currentPage === 'djs') renderDjsPage();
+      if (currentPage === 'tipos') renderTiposPage();
     });
   }, REFRESH_MS);
 
