@@ -5,9 +5,9 @@ Panel privado de pendientes y finanzas. Se publica en GitHub Pages como el mapa 
 `https://osvaldoh096-a11y.github.io/nayarsound---mapa-/panel/`
 
 - **Fuente de datos:** tus Google Sheets. El panel no tiene base de datos propia.
-- **Acceso:** cualquiera con el enlace puede abrir la página, pero necesita la **contraseña** para ver algo.
-- **Solo lectura:** usa la consulta pública de Google Sheets (gviz), como el mapa. No escribe ni cambia fórmulas.
-- **Qué se publica:** el repositorio no tiene datos ni contraseñas. Los enlaces de tus hojas van cifrados en `acceso.json`.
+- **Acceso:** iniciar sesión con tu cuenta de Google.
+- **Hojas privadas:** Google solo entrega los datos a cuentas con acceso a tus archivos. Las hojas pueden estar como **Restringido**. Permiso pedido: `spreadsheets.readonly` (solo lectura).
+- **Qué se publica:** solo código. Los IDs de las hojas están en `js/fuentes.js`, pero no dan acceso porque las hojas están restringidas.
 - **Datos de ejemplo:** `…/panel/?demo` muestra datos inventados, siempre con la banda «DATOS DE EJEMPLO».
 
 ## 1. De dónde sale cada indicador
@@ -50,28 +50,15 @@ Los eventos se cuentan aparte. Colores:
 
 ## 2. Acceso y seguridad
 
-- **Contraseña:** `acceso.json` guarda los enlaces de tus 4 hojas cifrados con AES-GCM. La clave sale de tu contraseña (PBKDF2-SHA256, 600 000 vueltas). Sin la contraseña, la página no sabe qué hojas leer y no consulta ninguna.
-- **Recordar en este dispositivo:** guarda los enlaces ya descifrados en ese navegador para no pedir la contraseña cada vez. **⚙ Fuentes → Salir y olvidar en este dispositivo** los borra.
-- **Requisito:** las 4 hojas deben estar compartidas como **«Cualquier persona con el enlace: Lector»**:
-  - 🐯NAYARSOUND - PERSONAL
-  - AMAL AGENDA
-  - 💵REGISTRO DE PRESTAMOS
-  - 🚹GASTOS PERSONALES - OSVALDO
-- **Límite de esta protección:** quien consiga el enlace de una hoja la puede abrir directamente, sin el panel. La contraseña protege la página; tus hojas quedan protegidas solo mientras nadie más tenga sus enlaces.
-- **Contraseña larga:** `acceso.json` es público y se puede atacar sin conexión. Usa al menos 10 caracteres sin significado.
-
-### Cambiar la contraseña o las hojas
-
-1. Crea, **fuera del repositorio**, un `config.json` con el ID (o enlace) de cada hoja. El formato está al inicio de `herramientas/cifrar-acceso.mjs`.
-2. Ejecuta:
-   ```bash
-   node panel/herramientas/cifrar-acceso.mjs /ruta/config.json
-   ```
-3. Escribe la contraseña nueva y sube el `panel/acceso.json` que se genera. Los dispositivos que tenían «Recordar» siguen entrando hasta que toques «Salir».
+- **Google:** el proyecto de Google Cloud «dashboard personal» tiene un ID de cliente en `js/fuentes.js` (no es secreto) y solo acepta el origen `https://osvaldoh096-a11y.github.io`.
+  - El token de Google dura cerca de una hora y vive solo en la memoria de la pestaña.
+  - Si expira, el panel lo avisa y basta con tocar «Actualizar».
+- **Otro proyecto en otro dominio:** agrega su origen en https://console.cloud.google.com/auth/clients (cliente «dashboard personal» → Orígenes de JavaScript autorizados). Los proyectos en `osvaldoh096-a11y.github.io` ya funcionan.
+- **Usuarios:** la app está en modo de prueba. Solo entran las cuentas agregadas en https://console.cloud.google.com/auth/audience.
 
 ## 3. Uso diario
 
-- **En el celular:** abre la dirección del panel, escribe la contraseña y deja marcado «Recordar en este dispositivo». Para tenerlo como app:
+- **En el celular:** abre la dirección del panel, toca «Entrar con Google». Para tenerlo como app:
   - **iPhone:** Safari → Compartir → «Agregar a pantalla de inicio».
   - **Android:** Chrome → ⋮ → «Agregar a la pantalla principal».
 - **Actualizar:** el botón ↻ vuelve a leer tus hojas.
@@ -84,12 +71,11 @@ Los eventos se cuentan aparte. Colores:
 
 ## 4. Conectar otro negocio
 
-1. Agrega el archivo en `js/fuentes.js`: nombre, rangos, tramos y una clave nueva en `ORDEN_ARCHIVOS`.
-2. Agrega su ID en tu `config.json` y vuelve a generar `acceso.json` (sección 2).
-3. Escribe su lector:
+1. Agrega el archivo en `js/fuentes.js`: nombre, rangos y una clave nueva en `ORDEN_ARCHIVOS`.
+2. Escribe su lector:
    - Si el DASHBOARD del negocio tiene un texto de recordatorio con el mismo formato (📅 día, líneas con COBRAR/PAGAR o 🎧 persona | 📌 eventos | 💰 monto), reutiliza `leerPrestamos` o `leerDeuda` de `js/parsers.js`.
    - Si no, escribe un lector parecido.
-4. En `js/modelo.js`, convierte lo leído en pendientes, con `negocio`, `urgencia` y `origen`.
+3. En `js/modelo.js`, convierte lo leído en pendientes, con `negocio`, `urgencia` y `origen`.
 
 Para las finanzas no hace falta código: si agregas una columna del negocio en DASHBOARD BALANCE GENERAL, entre MES y GANANCIA MENSUAL, el panel la muestra sola.
 
@@ -97,8 +83,8 @@ Para las finanzas no hace falta código: si agregas una columna del negocio en D
 
 ```bash
 cd panel
-npm test                       # reglas, lectura, cifrado y gviz, con datos sintéticos (Node 20+)
-node test/ui.check.mjs         # interfaz en Chromium con un simulador de Google Sheets (requiere Playwright)
+npm test                       # reglas y lectura, con datos sintéticos (Node 20+)
+node test/ui.check.mjs         # interfaz en Chromium con un simulador de Google (requiere Playwright)
 ```
 
 Para comparar con una copia real, guárdala **fuera** del repositorio:
@@ -110,11 +96,10 @@ node test/ui.check.mjs --snapshot /ruta/snapshot.json --esperado /ruta/esperado.
 ```
 panel/
 ├── index.html, css/panel.css, manifest, iconos
-├── acceso.json      enlaces de tus hojas, cifrados con la contraseña
-├── js/acceso.js     cifrado y descifrado (AES-GCM + PBKDF2)
-├── js/fuentes.js    qué se lee de cada archivo (sin IDs)
-├── js/config.js     acceso recordado en el navegador y preferencias
-├── js/gviz.js       lectura de Google Sheets por gviz (JSONP)
+├── js/fuentes.js    archivos, IDs, pestañas y rangos que se leen
+├── js/config.js     preferencias en el navegador
+├── js/auth.js       inicio de sesión con Google (solo lectura)
+├── js/api.js        lectura con la API de Google Sheets
 ├── js/sheets.js     utilidades de rangos, celdas y encabezados
 ├── js/carga.js      lectura en paralelo y estado por archivo
 ├── js/parsers.js    lectura de los textos de recordatorio
@@ -122,6 +107,5 @@ panel/
 ├── js/graficas.js   barras y líneas sin librerías
 ├── js/app.js        interfaz
 ├── js/demo.js       DATOS DE EJEMPLO (inventados)
-├── herramientas/    generar acceso.json
 └── test/            pruebas y simulador
 ```

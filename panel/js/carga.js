@@ -3,12 +3,12 @@
 // datos anteriores, marcados como no actualizados.
 
 import { ARCHIVOS, ORDEN_ARCHIVOS } from './fuentes.js';
-import { leerRango } from './gviz.js';
+import { leerRangos } from './api.js';
 
-export async function leerArchivo(clave, archivo, lector = leerRango) {
+export async function leerArchivo(token, clave, archivo, lector = leerRangos) {
   const def = ARCHIVOS[clave];
   const claves = Object.keys(def.rangos);
-  const valores = await Promise.all(claves.map((k) => lector(archivo.id, def.rangos[k], def.tramos?.[k])));
+  const valores = await lector(token, archivo.id, claves.map((k) => def.rangos[k]));
   return {
     clave,
     id: archivo.id,
@@ -21,9 +21,9 @@ export async function leerArchivo(clave, archivo, lector = leerRango) {
  * estadoPrevio: { [clave]: { datos, actualizado } }
  * Devuelve el nuevo estado por archivo, sin perder datos anteriores.
  */
-export async function leerTodo(archivos, estadoPrevio = {}, lector = leerRango) {
+export async function leerTodo(token, archivos, estadoPrevio = {}, lector = leerRangos) {
   const resultados = await Promise.allSettled(
-    ORDEN_ARCHIVOS.map((clave) => leerArchivo(clave, archivos[clave], lector)),
+    ORDEN_ARCHIVOS.map((clave) => leerArchivo(token, clave, archivos[clave], lector)),
   );
   const ahora = new Date();
   const estado = {};

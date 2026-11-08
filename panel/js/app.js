@@ -1,9 +1,7 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import {
-  leerConfig, guardarConfig, borrarConfig, validarConfig, leerPreferencias, guardarPreferencias,
-} from './config.js';
-import { descifrar, ContrasenaIncorrecta } from './acceso.js';
+import { leerPreferencias, guardarPreferencias } from './config.js';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js';
 import { leerTodo, datosDisponibles } from './carga.js';
 import { construirModelo } from './modelo.js';
 import {
@@ -11,7 +9,7 @@ import {
 } from './fechas.js';
 import { dinero, monto, esc, plural, capitalizar } from './formato.js';
 import { barras, lineas, activarTips, ocultarTip } from './graficas.js';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js';
 import { fuentesDemo } from './demo.js';
 
 const VISTAS = {
@@ -29,9 +27,7 @@ const URG = {
 const COLOR_CIUDAD = { '🟣': 'violeta', '🟠': 'naranja', '🔵': 'azul', '🟢': 'verde' };
 
 const E = {
-  cfg: null,
-  paquete: null,
-  errorAcceso: null,
+  cfg: { archivos: ARCHIVOS },
   pref: leerPreferencias(),
   demo: false,
   fuentes: {},
@@ -40,7 +36,8 @@ const E = {
   mes: null,
   filtro: null,
   cargando: false,
-  abriendo: false,
+  sesion: 'preparando',
+  errorSesion: null,
   ultimaCompleta: null,
   ultimoIntento: 0,
   pendientes: new Map(),
@@ -62,24 +59,21 @@ async function arrancar() {
   window.addEventListener('hashchange', () => { E.ruta = rutaDesdeHash(); E.filtro = null; pintar(); window.scrollTo(0, 0); });
   document.addEventListener('click', alHacerClic);
   document.addEventListener('change', alCambiar);
-  document.addEventListener('submit', alEnviar);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
 
   if (E.demo) { cargarDemo(); return; }
-  E.cfg = leerConfig();
-  if (E.cfg) { actualizar(); return; }
-  await cargarPaquete();
+  pintar();
+  prepararGoogle();
 }
 
-/** acceso.json: enlaces de tus hojas cifrados con tu contraseña. */
-async function cargarPaquete() {
+async function prepararGoogle() {
   try {
-    const r = await fetch('acceso.json', { cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status === 404 ? 'Falta el archivo panel/acceso.json.' : `Error ${r.status} al leer acceso.json.`);
-    E.paquete = await r.json();
+    await prepararSesion(CLIENTE_GOOGLE);
+    E.sesion = 'lista';
   } catch (error) {
-    E.errorAcceso = error.message;
+    E.sesion = 'error';
+    E.errorSesion = error.message;
   }
   pintar();
 }
@@ -96,16 +90,30 @@ function cargarDemo() {
 
 // ------------------------------------------------------------------ actualizar
 
-async function actualizar() {
+/** interactivo: viene de un toque (puede abrir la ventana de Google). */
+async function actualizar({ interactivo = false } = {}) {
   if (E.cargando) return;
   if (E.demo) { cargarDemo(); return; }
-  if (!E.cfg) return;
+  let token = tokenVigente();
+  if (!token) {
+    if (!interactivo) { E.sesion = 'expirada'; pintar(); return; }
+    try {
+      token = await iniciarSesion();
+      E.sesion = 'lista';
+      E.errorSesion = null;
+    } catch (error) {
+      E.errorSesion = error.message;
+      pintar();
+      return;
+    }
+  }
   E.cargando = true;
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    E.fuentes = await leerTodo(E.cfg.archivos, E.fuentes);
+    E.fuentes = await leerTodo(token, E.cfg.archivos, E.fuentes);
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
+    if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }
     if (!errores.length) E.ultimaCompleta = new Date();
     E.modelo = construirModelo(datosDisponibles(E.fuentes), hoyCDMX());
   } finally {
@@ -115,10 +123,10 @@ async function actualizar() {
 }
 
 function revisarAuto() {
-  if (document.visibilityState !== 'visible' || E.cargando || E.demo || !E.cfg) return;
+  if (document.visibilityState !== 'visible' || E.cargando || E.demo) return;
   const minutos = Number(E.pref.autoMinutos) || 0;
   if (!minutos || !E.ultimoIntento) return;
-  if (Date.now() - E.ultimoIntento >= minutos * 60000) actualizar();
+  if (Date.now() - E.ultimoIntento >= minutos * 60000) actualizar({ interactivo: false });
 }
 
 // ------------------------------------------------------------------ eventos
@@ -137,12 +145,12 @@ function alHacerClic(evento) {
   if (el.dataset.pendiente) { abrirPendiente(E.pendientes.get(el.dataset.pendiente)); return; }
   if (el.dataset.dia) { abrirDia(Number(el.dataset.dia)); return; }
   const accion = el.dataset.accion;
-  if (accion === 'actualizar') actualizar();
+  if (accion === 'actualizar' || accion === 'entrar') actualizar({ interactivo: true });
   if (accion === 'salir') {
-    borrarConfig();
-    Object.assign(E, { cfg: null, modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
+    cerrarSesion();
+    Object.assign(E, { modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
     location.hash = '#/inicio';
-    if (E.paquete) pintar(); else cargarPaquete();
+    pintar();
   }
   if (accion === 'tabla') { const t = $(`#${el.dataset.objetivo}`); if (t) t.hidden = !t.hidden; }
 }
@@ -157,28 +165,6 @@ function alCambiar(evento) {
   }
 }
 
-async function alEnviar(evento) {
-  if (evento.target.id !== 'form-acceso') return;
-  evento.preventDefault();
-  if (E.abriendo) return;
-  const f = new FormData(evento.target);
-  E.abriendo = true;
-  E.errorAcceso = null;
-  pintar();
-  try {
-    const cfg = await descifrar(E.paquete, String(f.get('contrasena') ?? ''));
-    const errores = validarConfig(cfg);
-    if (errores.length) throw new Error(errores.join(' '));
-    E.cfg = cfg;
-    if (f.get('recordar')) guardarConfig(cfg);
-  } catch (error) {
-    E.errorAcceso = error instanceof ContrasenaIncorrecta ? 'Contraseña incorrecta.' : error.message;
-  } finally {
-    E.abriendo = false;
-  }
-  if (E.cfg) actualizar(); else pintar();
-}
-
 // ------------------------------------------------------------------ pintar
 
 function pintar() {
@@ -191,9 +177,8 @@ function pintar() {
   const vista = $('#vista');
   vista.setAttribute('aria-busy', E.cargando ? 'true' : 'false');
   document.title = `${VISTAS[E.ruta].titulo} · Panel`;
-  if (!E.demo && !E.cfg) { vista.innerHTML = vistaContrasena(); $('#contrasena')?.focus(); return; }
   if (E.ruta === 'fuentes') { vista.innerHTML = vistaFuentes(); return; }
-  if (!E.modelo) { vista.innerHTML = vistaCargando(); return; }
+  if (!E.modelo) { vista.innerHTML = E.cargando ? vistaCargando() : vistaEntrarGoogle(); return; }
   const banda = bandaEstado(VISTAS[E.ruta].archivos);
   const contenido = { inicio: vistaInicio, nayarsound: vistaNayarsound, prestamos: vistaPrestamos, finanzas: vistaFinanzas }[E.ruta](E.modelo);
   vista.innerHTML = banda + contenido;
@@ -206,7 +191,7 @@ function pintarCabecera() {
     a.setAttribute('aria-current', a.dataset.ruta === E.ruta ? 'page' : 'false');
   });
   const boton = $('#btn-actualizar');
-  boton.disabled = E.cargando || (!E.demo && !E.cfg);
+  boton.disabled = E.cargando || (!E.demo && E.sesion === 'preparando');
   boton.classList.toggle('girando', E.cargando);
   $('#btn-actualizar-texto').textContent = E.cargando ? 'Actualizando…' : 'Actualizar';
   const estado = $('#estado-lectura');
@@ -225,6 +210,10 @@ function pintarAvisoGlobal() {
   if (E.demo) {
     partes.push('<div class="banda banda-demo"><b>DATOS DE EJEMPLO.</b> Nombres y cifras inventados para probar el panel. No son tus datos reales.</div>');
   }
+  if (E.sesion === 'expirada' && E.modelo) {
+    partes.push('<div class="banda banda-alerta">La sesión de Google expiró; los datos en pantalla no se están actualizando. <button class="boton-texto" data-accion="actualizar">Entrar y actualizar</button></div>');
+  }
+  if (E.errorSesion && E.modelo) partes.push(`<div class="banda banda-error">${esc(E.errorSesion)}</div>`);
   $('#aviso-global').innerHTML = partes.join('');
 }
 
@@ -617,7 +606,7 @@ function vistaFuentes() {
     const rangos = Object.values(def.rangos).map((r) => {
       const pestana = r.match(/^'(.+)'!/)?.[1];
       const gid = meta?.pestanas?.[pestana];
-      const id = E.cfg?.archivos?.[k]?.id;
+      const id = ARCHIVOS[k].id;
       const url = id ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit${gid !== undefined ? `#gid=${gid}` : ''}` : null;
       return url && !E.demo ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(r)}</a>` : `<span>${esc(r)}</span>`;
     }).join('<br>');
@@ -640,29 +629,19 @@ function vistaFuentes() {
     <label class="selector">Actualización automática <select id="sel-auto">${autos}</select></label>
     <p class="nota">Solo se actualiza mientras la página está abierta.</p>
     ${E.demo ? '' : `<div class="botones">
-      <button class="boton boton-peligro" data-accion="salir">Salir y olvidar en este dispositivo</button>
-    </div>
-    <p class="nota">Al salir, el panel vuelve a pedir la contraseña en este dispositivo.</p>`}
+      <button class="boton" data-accion="salir">Cerrar sesión de Google</button>
+    </div>`}
   </article>`;
 }
 
-function vistaContrasena() {
-  if (!E.paquete) {
-    return E.errorAcceso
-      ? `<article class="tarjeta formulario"><h1 class="titulo-vista">No se pudo abrir el panel</h1><p class="mal">${esc(E.errorAcceso)}</p></article>`
-      : vistaCargando();
-  }
+function vistaEntrarGoogle() {
   return `
   <article class="tarjeta formulario entrar">
     <h1 class="titulo-vista">Panel personal</h1>
-    <form id="form-acceso" autocomplete="on">
-      <input type="text" name="usuario" value="panel" autocomplete="username" hidden>
-      <label for="contrasena">Contraseña</label>
-      <input id="contrasena" name="contrasena" type="password" required autocomplete="current-password" ${E.abriendo ? 'disabled' : ''}>
-      <label class="casilla"><input type="checkbox" name="recordar" checked> Recordar en este dispositivo</label>
-      ${E.errorAcceso ? `<p class="mal" role="alert">${esc(E.errorAcceso)}</p>` : ''}
-      <button class="boton boton-primario boton-grande" type="submit" ${E.abriendo ? 'disabled' : ''}>${E.abriendo ? 'Abriendo…' : 'Entrar'}</button>
-    </form>
+    <p>Entra con tu cuenta de Google para leer tus hojas. Solo se pide permiso de <b>lectura</b>.</p>
+    ${E.errorSesion ? `<p class="mal" role="alert">${esc(E.errorSesion)}</p>` : ''}
+    <button class="boton boton-primario boton-grande" data-accion="entrar" ${E.sesion !== 'lista' ? 'disabled' : ''}>${E.sesion === 'preparando' ? 'Preparando…' : 'Entrar con Google'}</button>
+    <p class="nota">Si otra persona abre la página, Google no le entrega tus datos.</p>
     <p class="nota"><a href="?demo#/inicio">Ver con datos de ejemplo</a></p>
   </article>`;
 }
