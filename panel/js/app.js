@@ -1,9 +1,6 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import {
-  leerConfig, guardarConfig, borrarConfig, validarConfig, leerPreferencias, guardarPreferencias,
-} from './config.js';
-import { descifrar, ContrasenaIncorrecta } from './acceso.js';
+import { leerPreferencias, guardarPreferencias } from './config.js';
 import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js';
 import { leerTodo, datosDisponibles } from './carga.js';
 import { construirModelo } from './modelo.js';
@@ -30,9 +27,7 @@ const URG = {
 const COLOR_CIUDAD = { '🟣': 'violeta', '🟠': 'naranja', '🔵': 'azul', '🟢': 'verde' };
 
 const E = {
-  cfg: null,
-  paquete: null,
-  errorAcceso: null,
+  cfg: { archivos: ARCHIVOS },
   pref: leerPreferencias(),
   demo: false,
   fuentes: {},
@@ -41,7 +36,6 @@ const E = {
   mes: null,
   filtro: null,
   cargando: false,
-  abriendo: false,
   sesion: 'preparando',
   errorSesion: null,
   ultimaCompleta: null,
@@ -65,15 +59,12 @@ async function arrancar() {
   window.addEventListener('hashchange', () => { E.ruta = rutaDesdeHash(); E.filtro = null; pintar(); window.scrollTo(0, 0); });
   document.addEventListener('click', alHacerClic);
   document.addEventListener('change', alCambiar);
-  document.addEventListener('submit', alEnviar);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
 
   if (E.demo) { cargarDemo(); return; }
+  pintar();
   prepararGoogle();
-  E.cfg = leerConfig();
-  if (E.cfg) { pintar(); return; }
-  await cargarPaquete();
 }
 
 async function prepararGoogle() {
@@ -83,18 +74,6 @@ async function prepararGoogle() {
   } catch (error) {
     E.sesion = 'error';
     E.errorSesion = error.message;
-  }
-  pintar();
-}
-
-/** acceso.json: enlaces de tus hojas cifrados con tu contraseña. */
-async function cargarPaquete() {
-  try {
-    const r = await fetch('acceso.json', { cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status === 404 ? 'Falta el archivo panel/acceso.json.' : `Error ${r.status} al leer acceso.json.`);
-    E.paquete = await r.json();
-  } catch (error) {
-    E.errorAcceso = error.message;
   }
   pintar();
 }
@@ -115,7 +94,6 @@ function cargarDemo() {
 async function actualizar({ interactivo = false } = {}) {
   if (E.cargando) return;
   if (E.demo) { cargarDemo(); return; }
-  if (!E.cfg) return;
   let token = tokenVigente();
   if (!token) {
     if (!interactivo) { E.sesion = 'expirada'; pintar(); return; }
@@ -145,7 +123,7 @@ async function actualizar({ interactivo = false } = {}) {
 }
 
 function revisarAuto() {
-  if (document.visibilityState !== 'visible' || E.cargando || E.demo || !E.cfg) return;
+  if (document.visibilityState !== 'visible' || E.cargando || E.demo) return;
   const minutos = Number(E.pref.autoMinutos) || 0;
   if (!minutos || !E.ultimoIntento) return;
   if (Date.now() - E.ultimoIntento >= minutos * 60000) actualizar({ interactivo: false });
@@ -170,10 +148,9 @@ function alHacerClic(evento) {
   if (accion === 'actualizar' || accion === 'entrar') actualizar({ interactivo: true });
   if (accion === 'salir') {
     cerrarSesion();
-    borrarConfig();
-    Object.assign(E, { cfg: null, modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
+    Object.assign(E, { modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
     location.hash = '#/inicio';
-    if (E.paquete) pintar(); else cargarPaquete();
+    pintar();
   }
   if (accion === 'tabla') { const t = $(`#${el.dataset.objetivo}`); if (t) t.hidden = !t.hidden; }
 }
@@ -188,28 +165,6 @@ function alCambiar(evento) {
   }
 }
 
-async function alEnviar(evento) {
-  if (evento.target.id !== 'form-acceso') return;
-  evento.preventDefault();
-  if (E.abriendo) return;
-  const f = new FormData(evento.target);
-  E.abriendo = true;
-  E.errorAcceso = null;
-  pintar();
-  try {
-    const cfg = await descifrar(E.paquete, String(f.get('contrasena') ?? ''));
-    const errores = validarConfig(cfg);
-    if (errores.length) throw new Error(errores.join(' '));
-    E.cfg = cfg;
-    if (f.get('recordar')) guardarConfig(cfg);
-  } catch (error) {
-    E.errorAcceso = error instanceof ContrasenaIncorrecta ? 'Contraseña incorrecta.' : error.message;
-  } finally {
-    E.abriendo = false;
-  }
-  pintar();
-}
-
 // ------------------------------------------------------------------ pintar
 
 function pintar() {
@@ -222,7 +177,6 @@ function pintar() {
   const vista = $('#vista');
   vista.setAttribute('aria-busy', E.cargando ? 'true' : 'false');
   document.title = `${VISTAS[E.ruta].titulo} · Panel`;
-  if (!E.demo && !E.cfg) { vista.innerHTML = vistaContrasena(); $('#contrasena')?.focus(); return; }
   if (E.ruta === 'fuentes') { vista.innerHTML = vistaFuentes(); return; }
   if (!E.modelo) { vista.innerHTML = E.cargando ? vistaCargando() : vistaEntrarGoogle(); return; }
   const banda = bandaEstado(VISTAS[E.ruta].archivos);
@@ -237,7 +191,7 @@ function pintarCabecera() {
     a.setAttribute('aria-current', a.dataset.ruta === E.ruta ? 'page' : 'false');
   });
   const boton = $('#btn-actualizar');
-  boton.disabled = E.cargando || (!E.demo && !E.cfg);
+  boton.disabled = E.cargando || (!E.demo && E.sesion === 'preparando');
   boton.classList.toggle('girando', E.cargando);
   $('#btn-actualizar-texto').textContent = E.cargando ? 'Actualizando…' : 'Actualizar';
   const estado = $('#estado-lectura');
@@ -652,7 +606,7 @@ function vistaFuentes() {
     const rangos = Object.values(def.rangos).map((r) => {
       const pestana = r.match(/^'(.+)'!/)?.[1];
       const gid = meta?.pestanas?.[pestana];
-      const id = E.cfg?.archivos?.[k]?.id;
+      const id = ARCHIVOS[k].id;
       const url = id ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit${gid !== undefined ? `#gid=${gid}` : ''}` : null;
       return url && !E.demo ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(r)}</a>` : `<span>${esc(r)}</span>`;
     }).join('<br>');
@@ -675,9 +629,8 @@ function vistaFuentes() {
     <label class="selector">Actualización automática <select id="sel-auto">${autos}</select></label>
     <p class="nota">Solo se actualiza mientras la página está abierta.</p>
     ${E.demo ? '' : `<div class="botones">
-      <button class="boton boton-peligro" data-accion="salir">Salir y olvidar en este dispositivo</button>
-    </div>
-    <p class="nota">Al salir, el panel vuelve a pedir la contraseña en este dispositivo.</p>`}
+      <button class="boton" data-accion="salir">Cerrar sesión de Google</button>
+    </div>`}
   </article>`;
 }
 
@@ -689,26 +642,6 @@ function vistaEntrarGoogle() {
     ${E.errorSesion ? `<p class="mal" role="alert">${esc(E.errorSesion)}</p>` : ''}
     <button class="boton boton-primario boton-grande" data-accion="entrar" ${E.sesion !== 'lista' ? 'disabled' : ''}>${E.sesion === 'preparando' ? 'Preparando…' : 'Entrar con Google'}</button>
     <p class="nota">Si otra persona abre la página, Google no le entrega tus datos.</p>
-  </article>`;
-}
-
-function vistaContrasena() {
-  if (!E.paquete) {
-    return E.errorAcceso
-      ? `<article class="tarjeta formulario"><h1 class="titulo-vista">No se pudo abrir el panel</h1><p class="mal">${esc(E.errorAcceso)}</p></article>`
-      : vistaCargando();
-  }
-  return `
-  <article class="tarjeta formulario entrar">
-    <h1 class="titulo-vista">Panel personal</h1>
-    <form id="form-acceso" autocomplete="on">
-      <input type="text" name="usuario" value="panel" autocomplete="username" hidden>
-      <label for="contrasena">Contraseña</label>
-      <input id="contrasena" name="contrasena" type="password" required autocomplete="current-password" ${E.abriendo ? 'disabled' : ''}>
-      <label class="casilla"><input type="checkbox" name="recordar" checked> Recordar en este dispositivo</label>
-      ${E.errorAcceso ? `<p class="mal" role="alert">${esc(E.errorAcceso)}</p>` : ''}
-      <button class="boton boton-primario boton-grande" type="submit" ${E.abriendo ? 'disabled' : ''}>${E.abriendo ? 'Abriendo…' : 'Entrar'}</button>
-    </form>
     <p class="nota"><a href="?demo#/inicio">Ver con datos de ejemplo</a></p>
   </article>`;
 }

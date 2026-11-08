@@ -7,7 +7,6 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ARCHIVOS, ORDEN_ARCHIVOS } from '../js/fuentes.js';
-import { cifrar } from '../js/acceso.js';
 
 const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
 const TIPOS = {
@@ -33,26 +32,15 @@ export function servir() {
   });
 }
 
-// IDs falsos para la configuración de prueba (20+ caracteres, como los reales).
-export const IDS = Object.fromEntries(ORDEN_ARCHIVOS.map((k, i) => [k, `PRUEBA${String.fromCharCode(65 + i)}${'x'.repeat(24)}`]));
-export const CONTRASENA = 'prueba-de-panel-123';
-
-export function configPrueba(datos) {
-  return {
-    archivos: Object.fromEntries(ORDEN_ARCHIVOS.map((k) => [k, {
-      id: IDS[k], pestanas: datos[k]?.meta?.pestanas ?? {}, zona: datos[k]?.meta?.zona ?? '',
-    }])),
-  };
-}
+// IDs de los archivos que lee el panel (el simulador responde por ellos).
+export const IDS = Object.fromEntries(ORDEN_ARCHIVOS.map((k) => [k, ARCHIVOS[k].id]));
 
 /**
  * Simula el inicio de sesión de Google y la API de Sheets (values:batchGet).
  * datos: { [clave]: { meta: {titulo, zona, pestanas}, valores: [rango1, rango2, ...] } }
  * fallas: { [clave]: estadoHttp | () => estadoHttp } para simular errores.
  */
-export async function simularGoogle(contexto, datos, { fallas = {}, contrasena = CONTRASENA } = {}) {
-  const paquete = await cifrar(configPrueba(datos), contrasena);
-  await contexto.route('**/panel/acceso.json', (ruta) => ruta.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(paquete) }));
+export async function simularGoogle(contexto, datos, { fallas = {} } = {}) {
   await contexto.addInitScript(() => {
     window.google = { accounts: { oauth2: {
       initTokenClient: (cfg) => ({

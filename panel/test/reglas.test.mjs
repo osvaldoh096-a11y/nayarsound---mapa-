@@ -5,8 +5,6 @@ import assert from 'node:assert/strict';
 import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '../js/parsers.js';
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
-import { idDesdeEnlace, validarConfig } from '../js/config.js';
-import { cifrar, descifrar, ContrasenaIncorrecta } from '../js/acceso.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
 import { construirModelo } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
@@ -102,23 +100,6 @@ test('busca textos y columnas por encabezado, sin depender de la posición', () 
   assert.equal(letraColumna(27), 'AB');
   assert.equal(horaDesdeFraccion(0.8333333), '8:00 p.m.');
   assert.deepEqual(leerEtiquetaMes('NOVIEMBRE 2026'), { y: 2026, m: 11 });
-});
-
-test('configuración: enlaces y validación', () => {
-  const id = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789';
-  assert.equal(idDesdeEnlace(`https://docs.google.com/spreadsheets/d/${id}/edit#gid=0`), id);
-  const archivo = { id, pestanas: { DASHBOARD: 1 }, zona: 'America/Mexico_City' };
-  const cfg = { archivos: { nayarsound: archivo, agenda: archivo, prestamos: archivo, gastos: archivo } };
-  assert.deepEqual(validarConfig(cfg), []);
-  assert.ok(validarConfig({ archivos: { nayarsound: archivo } }).length > 0);
-});
-
-test('contraseña: cifra y descifra; con otra contraseña falla', async () => {
-  const datos = { archivos: { nayarsound: { id: 'x'.repeat(30) } } };
-  const paquete = await cifrar(datos, 'clave correcta', { vueltas: 1000 });
-  assert.ok(!JSON.stringify(paquete).includes('xxxxxxxx'));
-  assert.deepEqual(await descifrar(paquete, 'clave correcta'), datos);
-  await assert.rejects(descifrar(paquete, 'otra'), ContrasenaIncorrecta);
 });
 
 test('modelo con datos de ejemplo: pendientes únicos y separados de los eventos', () => {

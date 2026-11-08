@@ -1,5 +1,5 @@
-// Qué se lee de cada archivo. Aquí no hay IDs ni datos: los IDs van cifrados
-// en acceso.json (ver acceso.js).
+// Qué se lee de cada archivo. Los IDs no dan acceso: las hojas están
+// restringidas y Google solo entrega datos a cuentas autorizadas.
 
 // ID de cliente de Google (proyecto «dashboard personal»). No es secreto:
 // solo funciona desde los sitios autorizados en Google Cloud.
@@ -15,6 +15,9 @@ export const TIPO_CAMBIO_USDT = 18;
 export const ARCHIVOS = {
   nayarsound: {
     nombre: '🐯NAYARSOUND - PERSONAL',
+    id: '1wMaqW1iCiL8Lv4u-6Txd_m662xSmjzqzcXB_NzYK0qg',
+    pestanas: { DASHBOARD: 1764740539, 'AGENDA Y VENTAS': 399951478 },
+    zona: 'America/Los_Angeles',
     rangos: {
       dashboard: "'DASHBOARD'!A1:E200",
       ventas: "'AGENDA Y VENTAS'!A11:U",
@@ -22,12 +25,18 @@ export const ARCHIVOS = {
   },
   agenda: {
     nombre: 'AMAL AGENDA',
+    id: '1FKaobilQ1HNHXntMxnFgoPld5In4dwSNsQgt-78yk4o',
+    pestanas: { AGENDA: 0 },
+    zona: 'America/Mexico_City',
     rangos: {
       agenda: "'AGENDA'!A9:T",
     },
   },
   prestamos: {
     nombre: '💵REGISTRO DE PRESTAMOS',
+    id: '1JKqaM9sI3tVXeEccvbtQuiTQvhUSbpbUprq3Qcv9DqA',
+    pestanas: { DASHBOARD: 873980962, 'REGISTRO PRESTAMOS': 2091243089, 'REGISTRO DE INVERSORES': 523120444 },
+    zona: 'America/Los_Angeles',
     rangos: {
       dashboard: "'DASHBOARD'!A1:E60",
       registro: "'REGISTRO PRESTAMOS'!A8:M",
@@ -36,6 +45,9 @@ export const ARCHIVOS = {
   },
   gastos: {
     nombre: '🚹GASTOS PERSONALES - OSVALDO',
+    id: '1NoUH0e52iilpAKEzt6LAYMe9yEGm_Pd5zfEDXf3AkK4',
+    pestanas: { 'DASHBOARD BALANCE GENERAL': 522944238, 'ANALISIS GASTOS PERSONALES': 0 },
+    zona: 'America/Mexico_City',
     rangos: {
       balance: "'DASHBOARD BALANCE GENERAL'!A7:N80",
       gastos: "'ANALISIS GASTOS PERSONALES'!A3:H",

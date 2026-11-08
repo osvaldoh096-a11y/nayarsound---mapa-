@@ -5,9 +5,9 @@ Panel privado de pendientes y finanzas. Se publica en GitHub Pages como el mapa 
 `https://osvaldoh096-a11y.github.io/nayarsound---mapa-/panel/`
 
 - **Fuente de datos:** tus Google Sheets. El panel no tiene base de datos propia.
-- **Acceso:** dos candados. La contraseña descifra en el navegador qué hojas leer, y el inicio de sesión con Google lee los datos.
+- **Acceso:** iniciar sesión con tu cuenta de Google.
 - **Hojas privadas:** Google solo entrega los datos a cuentas con acceso a tus archivos. Las hojas pueden estar como **Restringido**. Permiso pedido: `spreadsheets.readonly` (solo lectura).
-- **Qué se publica:** el repositorio no tiene datos ni contraseñas. Los enlaces de tus hojas van cifrados en `acceso.json`.
+- **Qué se publica:** solo código. Los IDs de las hojas están en `js/fuentes.js`, pero no dan acceso porque las hojas están restringidas.
 - **Datos de ejemplo:** `…/panel/?demo` muestra datos inventados, siempre con la banda «DATOS DE EJEMPLO».
 
 ## 1. De dónde sale cada indicador
@@ -50,25 +50,15 @@ Los eventos se cuentan aparte. Colores:
 
 ## 2. Acceso y seguridad
 
-- **Contraseña:** `acceso.json` guarda los IDs de tus hojas cifrados con AES-GCM (clave PBKDF2-SHA256, 600 000 vueltas). «Recordar en este dispositivo» evita escribirla cada vez; **⚙ Fuentes → Salir** la olvida.
 - **Google:** el proyecto de Google Cloud «dashboard personal» tiene un ID de cliente en `js/fuentes.js` (no es secreto) y solo acepta el origen `https://osvaldoh096-a11y.github.io`.
   - El token de Google dura cerca de una hora y vive solo en la memoria de la pestaña.
   - Si expira, el panel lo avisa y basta con tocar «Actualizar».
 - **Otro proyecto en otro dominio:** agrega su origen en https://console.cloud.google.com/auth/clients (cliente «dashboard personal» → Orígenes de JavaScript autorizados). Los proyectos en `osvaldoh096-a11y.github.io` ya funcionan.
 - **Usuarios:** la app está en modo de prueba. Solo entran las cuentas agregadas en https://console.cloud.google.com/auth/audience.
 
-### Cambiar la contraseña o las hojas
-
-1. Crea, **fuera del repositorio**, un `config.json` con el ID (o enlace) de cada hoja. El formato está al inicio de `herramientas/cifrar-acceso.mjs`.
-2. Ejecuta:
-   ```bash
-   node panel/herramientas/cifrar-acceso.mjs /ruta/config.json
-   ```
-3. Escribe la contraseña nueva y sube el `panel/acceso.json` que se genera. Los dispositivos que tenían «Recordar» siguen entrando hasta que toques «Salir».
-
 ## 3. Uso diario
 
-- **En el celular:** abre la dirección del panel, escribe la contraseña (con «Recordar en este dispositivo») y toca «Entrar con Google». Para tenerlo como app:
+- **En el celular:** abre la dirección del panel, toca «Entrar con Google». Para tenerlo como app:
   - **iPhone:** Safari → Compartir → «Agregar a pantalla de inicio».
   - **Android:** Chrome → ⋮ → «Agregar a la pantalla principal».
 - **Actualizar:** el botón ↻ vuelve a leer tus hojas.
@@ -82,11 +72,10 @@ Los eventos se cuentan aparte. Colores:
 ## 4. Conectar otro negocio
 
 1. Agrega el archivo en `js/fuentes.js`: nombre, rangos y una clave nueva en `ORDEN_ARCHIVOS`.
-2. Agrega su ID en tu `config.json` y vuelve a generar `acceso.json` (sección 2).
-3. Escribe su lector:
+2. Escribe su lector:
    - Si el DASHBOARD del negocio tiene un texto de recordatorio con el mismo formato (📅 día, líneas con COBRAR/PAGAR o 🎧 persona | 📌 eventos | 💰 monto), reutiliza `leerPrestamos` o `leerDeuda` de `js/parsers.js`.
    - Si no, escribe un lector parecido.
-4. En `js/modelo.js`, convierte lo leído en pendientes, con `negocio`, `urgencia` y `origen`.
+3. En `js/modelo.js`, convierte lo leído en pendientes, con `negocio`, `urgencia` y `origen`.
 
 Para las finanzas no hace falta código: si agregas una columna del negocio en DASHBOARD BALANCE GENERAL, entre MES y GANANCIA MENSUAL, el panel la muestra sola.
 
@@ -94,7 +83,7 @@ Para las finanzas no hace falta código: si agregas una columna del negocio en D
 
 ```bash
 cd panel
-npm test                       # reglas, lectura y cifrado, con datos sintéticos (Node 20+)
+npm test                       # reglas y lectura, con datos sintéticos (Node 20+)
 node test/ui.check.mjs         # interfaz en Chromium con un simulador de Google (requiere Playwright)
 ```
 
@@ -107,10 +96,8 @@ node test/ui.check.mjs --snapshot /ruta/snapshot.json --esperado /ruta/esperado.
 ```
 panel/
 ├── index.html, css/panel.css, manifest, iconos
-├── acceso.json      enlaces de tus hojas, cifrados con la contraseña
-├── js/acceso.js     cifrado y descifrado (AES-GCM + PBKDF2)
-├── js/fuentes.js    qué se lee de cada archivo (sin IDs)
-├── js/config.js     acceso recordado en el navegador y preferencias
+├── js/fuentes.js    archivos, IDs, pestañas y rangos que se leen
+├── js/config.js     preferencias en el navegador
 ├── js/auth.js       inicio de sesión con Google (solo lectura)
 ├── js/api.js        lectura con la API de Google Sheets
 ├── js/sheets.js     utilidades de rangos, celdas y encabezados
@@ -120,6 +107,5 @@ panel/
 ├── js/graficas.js   barras y líneas sin librerías
 ├── js/app.js        interfaz
 ├── js/demo.js       DATOS DE EJEMPLO (inventados)
-├── herramientas/    generar acceso.json
 └── test/            pruebas y simulador
 ```
