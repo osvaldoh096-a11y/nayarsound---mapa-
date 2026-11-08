@@ -1,18 +1,18 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082218';
-import { escribirCelda, leerRangos } from './api.js?v=202611082218';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082218';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611082218';
-import { construirModelo, entregarCon } from './modelo.js?v=202611082218';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082223';
+import { escribirCelda, leerRangos } from './api.js?v=202611082223';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082223';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611082223';
+import { construirModelo, entregarCon } from './modelo.js?v=202611082223';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611082218';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082218';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082218';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082218';
-import { fuentesDemo } from './demo.js?v=202611082218';
-import { icono } from './iconos.js?v=202611082218';
+} from './fechas.js?v=202611082223';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082223';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082223';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082223';
+import { fuentesDemo } from './demo.js?v=202611082223';
+import { icono } from './iconos.js?v=202611082223';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -650,7 +650,10 @@ function alertasPorNegocio(m) {
   for (const b of bloques) b.filas.sort((a, z) => (rango[a.urg] - rango[z.urg]) || ((a.fecha ?? Infinity) - (z.fecha ?? Infinity)));
 
   const iconos = { nayarsound: 'musica', prestamos: 'prestamos' };
-  return bloques.map((b) => `
+  // Con un filtro activo, solo se muestran los negocios que tienen algo de ese filtro.
+  const visibles = E.filtro ? bloques.filter((b) => b.filas.length) : bloques;
+  if (!visibles.length) return '<p class="vacio">Nada con este filtro.</p>';
+  return visibles.map((b) => `
     <article class="tarjeta bloque-alertas">
       <header class="tarjeta-cab"><h3 class="etq-cab">${icono(iconos[b.ruta])}${esc(b.nombre)}</h3><a class="enlace-vista" href="#/${b.ruta}">Ver todo ${icono('flecha')}</a></header>
       ${!b.disponible ? '<p class="sin-dato">No se pudo leer este negocio.</p>'
