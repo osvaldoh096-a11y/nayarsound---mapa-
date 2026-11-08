@@ -128,6 +128,21 @@ try {
       const copiado = await pagina.evaluate(() => navigator.clipboard.readText());
       revisar(copiado === msg, 'Deuda: «Copiar» pone el mensaje completo en el portapapeles');
       await pagina.locator('[data-cerrar]').click();
+      // Pago al DJ: se edita en el detalle y se escribe en la columna DJ (L).
+      await pagina.locator('.tabla tbody tr').first().click();
+      await pagina.waitForSelector('#detalle[open]');
+      const campo = pagina.locator('input[data-fila-pagodj]').first();
+      await campo.fill('1234');
+      pagina.once('dialog', (d) => d.accept());
+      const previo = lecturas.length;
+      await pagina.locator('[data-accion="guardar-pagodj"]').first().click();
+      for (let i = 0; i < 30 && !lecturas.slice(previo).some((l) => l.metodo === 'PUT'); i++) await pagina.waitForTimeout(100);
+      const pagoDj = lecturas.slice(previo).filter((l) => l.metodo === 'PUT');
+      revisar(pagoDj.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(pagoDj[0].celda) && pagoDj[0].valor === 1234,
+        `Pago al DJ: escribe 1234 en la columna DJ (${pagoDj.map((e) => `${e.celda}=${e.valor}`).join(', ')})`);
+      await pagina.waitForSelector('#detalle', { state: 'hidden' });
+      await pagina.waitForSelector('.dia');
+
       // Marcar como pagado: confirma, verifica la fila y escribe SI en PAGO.
       await pagina.locator('.tabla tbody tr').first().click();
       await pagina.waitForSelector('#detalle[open]');
@@ -141,7 +156,7 @@ try {
       const escrituras = lecturas.slice(antes).filter((l) => l.metodo === 'PUT');
       revisar(escrituras.length === primera.eventos && escrituras.every((e) => e.valor === 'SI' && /^'AGENDA Y VENTAS'!T\d+$/.test(e.celda)),
         `Marcar pagado: escribe «SI» en PAGO de ${primera.eventos} evento(s) (${escrituras.map((e) => e.celda).join(', ')})`);
-      revisar(lecturas.every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT').every((l) => /!T\d+$/.test(l.celda)), 'Solo se escribe en la columna PAGO');
+      revisar(lecturas.every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT').every((l) => /^'AGENDA Y VENTAS'!(T|L)\d+$/.test(l.celda)), 'Solo se escribe en PAGO (T) y pago al DJ (L) de AGENDA Y VENTAS');
     }
     const djs = await pagina.locator('.dia').first().locator('.dj').count();
     const primerDia = esperado.nayarsound.agenda.dias[0];

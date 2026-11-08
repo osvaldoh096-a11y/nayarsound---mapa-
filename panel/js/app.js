@@ -1,18 +1,18 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082134';
-import { escribirCelda, leerRangos } from './api.js?v=202611082134';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082134';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611082134';
-import { construirModelo } from './modelo.js?v=202611082134';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082157';
+import { escribirCelda, leerRangos } from './api.js?v=202611082157';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082157';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611082157';
+import { construirModelo } from './modelo.js?v=202611082157';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611082134';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082134';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082134';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082134';
-import { fuentesDemo } from './demo.js?v=202611082134';
-import { icono } from './iconos.js?v=202611082134';
+} from './fechas.js?v=202611082157';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082157';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082157';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082157';
+import { fuentesDemo } from './demo.js?v=202611082157';
+import { icono } from './iconos.js?v=202611082157';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -181,6 +181,7 @@ function alHacerClic(evento) {
   }
   if (accion === 'copiar-mensaje') copiarMensaje(el);
   if (accion === 'marcar-pagado') marcarPagado(el);
+  if (accion === 'guardar-pagodj') guardarPagoDj(el);
   if (accion === 'tabla') { const t = $(`#${el.dataset.objetivo}`); if (t) t.hidden = !t.hidden; }
 }
 
@@ -201,25 +202,13 @@ async function marcarPagado(boton) {
   try {
     if (!token) token = await iniciarSesion();
   } catch (error) { alert(error.message); return; }
-  const { archivo, pestana, columnas } = p.pago;
   const botones = [...document.querySelectorAll('[data-accion="marcar-pagado"]')];
   botones.forEach((b) => { b.disabled = true; });
   boton.textContent = 'Guardando…';
   const hechos = [];
   try {
     for (const r of filas) {
-      const rango = `'${pestana}'!${columnas.dj}${r.fila}:${columnas.pago}${r.fila}`;
-      const [valores] = await leerRangos(token, archivo, [rango]);
-      const fila = valores?.[0] ?? [];
-      const col = (letra) => fila[[...letra].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - [...columnas.dj].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0)];
-      const coincide = normalizar(col(columnas.dj)) === normalizar(p.titulo)
-        && Math.floor(Number(col(columnas.fecha))) - 25569 === r.idx
-        && normalizar(col(columnas.pagado)) === 'DEUDOR';
-      if (!coincide) throw new Error(`La fila ${r.fila} cambió en tu hoja (ya no es el evento de ${p.titulo} del ${fechaLarga(r.idx)} como deudor). No se escribió nada en ella.`);
-      const celda = `'${pestana}'!${columnas.pago}${r.fila}`;
-      const [formula] = await leerRangos(token, archivo, [celda], { modo: 'FORMULA' });
-      if (String(formula?.[0]?.[0] ?? '').startsWith('=')) throw new Error(`La celda PAGO de la fila ${r.fila} tiene una fórmula; no se modificó.`);
-      await escribirCelda(token, archivo, celda, 'SI');
+      await escribirVerificado(token, p, r, p.pago.columnas.pago, 'SI', 'PAGO');
       hechos.push(r.fila);
     }
     $('#detalle').close();
@@ -228,6 +217,59 @@ async function marcarPagado(boton) {
     alert(`${hechos.length ? `Se marcaron ${hechos.length} de ${filas.length} eventos. ` : ''}${error.message}`);
   } finally {
     botones.forEach((b) => { b.disabled = false; });
+  }
+  await actualizar({ interactivo: true });
+}
+
+/**
+ * Vuelve a leer la fila y comprueba que sigue siendo el mismo DJ, la misma
+ * fecha y DEUDOR, y que la celda destino no tiene fórmula; luego escribe.
+ */
+async function escribirVerificado(token, p, r, letraDestino, valor, nombreColumna) {
+  const { archivo, pestana, columnas } = p.pago;
+  const n = (letra) => [...letra].reduce((t, c) => t * 26 + c.charCodeAt(0) - 64, 0);
+  const letras = Object.values(columnas).filter(Boolean);
+  const desde = letras.reduce((a, b) => (n(a) <= n(b) ? a : b));
+  const hasta = letras.reduce((a, b) => (n(a) >= n(b) ? a : b));
+  const [valores] = await leerRangos(token, archivo, [`'${pestana}'!${desde}${r.fila}:${hasta}${r.fila}`]);
+  const fila = valores?.[0] ?? [];
+  const col = (letra) => fila[n(letra) - n(desde)];
+  const coincide = normalizar(col(columnas.dj)) === normalizar(p.titulo)
+    && Math.floor(Number(col(columnas.fecha))) - 25569 === r.idx
+    && normalizar(col(columnas.pagado)) === 'DEUDOR';
+  if (!coincide) throw new Error(`La fila ${r.fila} cambió en tu hoja (ya no es el evento de ${p.titulo} del ${fechaLarga(r.idx)} como deudor). No se escribió nada en ella.`);
+  const celda = `'${pestana}'!${letraDestino}${r.fila}`;
+  const [formula] = await leerRangos(token, archivo, [celda], { modo: 'FORMULA' });
+  if (String(formula?.[0]?.[0] ?? '').startsWith('=')) throw new Error(`La celda ${nombreColumna} de la fila ${r.fila} tiene una fórmula; no se modificó.`);
+  await escribirCelda(token, archivo, celda, valor);
+}
+
+/** Cambia el pago al DJ (columna «DJ» de AGENDA Y VENTAS) de un evento. */
+async function guardarPagoDj(boton) {
+  const p = E.pendientes.get(boton.dataset.pendientePago);
+  const r = p?.registros?.find((x) => String(x.fila) === boton.dataset.fila);
+  if (!p?.pago?.columnas?.pagoDj || !r) return;
+  const entrada = document.querySelector(`input[data-fila-pagodj="${r.fila}"]`);
+  const texto = String(entrada?.value ?? '').trim().replace(/[$,\s]/g, '');
+  const valor = Number(texto);
+  if (!texto || !Number.isFinite(valor) || valor < 0) { alert('Escribe un importe válido, por ejemplo 1500.'); entrada?.focus(); return; }
+  const antes = typeof r.pagoDj === 'number' ? dinero(r.pagoDj, 0) : 'sin registro';
+  if (!confirm(`¿Cambiar el pago al DJ ${p.titulo} del ${fechaLarga(r.idx)}?\n\nDe ${antes} a ${dinero(valor, 0)}.\nSe escribirá en la columna DJ de AGENDA Y VENTAS (fila ${r.fila}); tu hoja recalcula lo que debe enviar.`)) return;
+  let token = tokenVigente();
+  try {
+    if (!token) token = await iniciarSesion();
+  } catch (error) { alert(error.message); return; }
+  boton.disabled = true;
+  boton.textContent = 'Guardando…';
+  try {
+    await escribirVerificado(token, p, r, p.pago.columnas.pagoDj, valor, 'DJ');
+    $('#detalle').close();
+    E.avisoTemporal = `Listo: pago al DJ ${p.titulo} del ${fechaLarga(r.idx)} = ${dinero(valor, 0)}.`;
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    boton.disabled = false;
+    boton.textContent = 'Guardar';
   }
   await actualizar({ interactivo: true });
 }
@@ -875,7 +917,12 @@ function abrirPendiente(p) {
       if (r) usados.add(r.fila);
       const unoSolo = p.pago && r && p.registros.length > 1
         ? ` <button class="boton-texto" data-accion="marcar-pagado" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Marcar pagado</button>` : '';
-      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · ${esc(dinero(r.importe.valor))}` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}</li>`;
+      const editar = p.pago?.columnas?.pagoDj && r
+        ? (esPrivado() ? '<div class="pago-dj nota">Muestra los importes (ojo) para editar el pago al DJ.</div>'
+          : `<div class="pago-dj"><label>Pago al DJ <span class="campo-dinero">$<input type="number" inputmode="decimal" min="0" step="1" value="${typeof r.pagoDj === 'number' ? r.pagoDj : ''}" placeholder="Sin registro" data-fila-pagodj="${r.fila}"></span></label>
+            <button class="boton boton-chico" data-accion="guardar-pagodj" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Guardar</button></div>`)
+        : '';
+      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · Enviar ${esc(dinero(r.importe.valor))}` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}${editar}</li>`;
     }).join('')}</ul></section>`;
   } else if (p.registros?.length) {
     registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.hora ? `${esc(r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;

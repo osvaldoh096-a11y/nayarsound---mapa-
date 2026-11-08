@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611082134';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082134';
+} from './fechas.js?v=202611082157';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082157';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611082134';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082134';
-import { dinero } from './formato.js?v=202611082134';
+} from './sheets.js?v=202611082157';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082157';
+import { dinero } from './formato.js?v=202611082157';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -120,7 +120,7 @@ function tablaVentas(fuente) {
     pagado: 'PAGADO', pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP',
   }, inicio);
   const letra = (clave) => (indices[clave] >= 0 ? letraColumna(inicio.col + indices[clave]) : null);
-  const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago') };
+  const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago'), pagoDj: letra('pagoDj') };
   const controles = [];
   const nombres = filas[encabezado] ?? [];
   for (let f = 0; f < encabezado; f++) {
