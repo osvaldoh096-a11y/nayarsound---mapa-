@@ -8,9 +8,23 @@ const mxn0 = new Intl.NumberFormat('es-MX', {
 });
 const entero = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
 
+// Modo privado: los importes se muestran como asteriscos (para enseñar el panel).
+let privado = false;
+export const OCULTO = '$*****';
+export function fijarPrivado(valor) { privado = !!valor; }
+export function esPrivado() { return privado; }
+
+/** Oculta los importes dentro de un texto de la hoja ("$2,900", "$12.000", "87 USDT"). */
+export function ocultarImportes(texto) {
+  const t = String(texto ?? '');
+  if (!privado) return t;
+  return t.replace(/-?\$\s*-?[\d][\d.,]*/g, OCULTO).replace(/[\d][\d.,]*\s*USDT/gi, '***** USDT');
+}
+
 /** $4,853.32 — decimales: 2 (cifras de la hoja) o 0 (montos que la hoja ya redondea). */
 export function dinero(valor, decimales = 2) {
   if (typeof valor !== 'number' || !Number.isFinite(valor)) return '—';
+  if (privado) return OCULTO;
   const texto = (decimales === 0 ? mxn0 : mxn2).format(valor);
   return texto.replace(/^MX/, '');
 }
@@ -21,7 +35,7 @@ export function numero(valor) {
 }
 
 export function monto(valor, moneda = 'MXN', decimales = 2) {
-  if (moneda === 'USDT') return `${numero(valor)} USDT`;
+  if (moneda === 'USDT') return privado ? '***** USDT' : `${numero(valor)} USDT`;
   return dinero(valor, decimales);
 }
 

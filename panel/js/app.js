@@ -7,7 +7,7 @@ import { construirModelo } from './modelo.js';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
 } from './fechas.js';
-import { dinero, monto, esc, plural, capitalizar } from './formato.js';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js';
 import { barras, lineas, activarTips, ocultarTip } from './graficas.js';
 import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js';
 import { fuentesDemo } from './demo.js';
@@ -69,6 +69,7 @@ function montarMenu() {
 }
 
 async function arrancar() {
+  fijarPrivado(E.pref.privado);
   montarMenu();
   E.demo = new URLSearchParams(location.search).has('demo');
   E.ruta = rutaDesdeHash();
@@ -164,6 +165,13 @@ function alHacerClic(evento) {
   if (el.dataset.dia) { abrirDia(Number(el.dataset.dia)); return; }
   const accion = el.dataset.accion;
   if (accion === 'actualizar' || accion === 'entrar') actualizar({ interactivo: true });
+  if (accion === 'privado') {
+    E.pref.privado = !esPrivado();
+    fijarPrivado(E.pref.privado);
+    guardarPreferencias(E.pref);
+    if ($('#detalle').open) $('#detalle').close();
+    pintar();
+  }
   if (accion === 'salir') {
     cerrarSesion();
     Object.assign(E, { modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
@@ -212,6 +220,11 @@ function pintarCabecera() {
   boton.disabled = E.cargando || (!E.demo && E.sesion === 'preparando');
   boton.classList.toggle('girando', E.cargando);
   $('#btn-actualizar-texto').textContent = E.cargando ? 'Actualizando…' : 'Actualizar';
+  const priv = $('#btn-privado');
+  priv.innerHTML = icono(esPrivado() ? 'ojoCerrado' : 'ojo');
+  priv.setAttribute('aria-pressed', String(esPrivado()));
+  priv.title = esPrivado() ? 'Mostrar importes' : 'Ocultar importes';
+  priv.setAttribute('aria-label', priv.title);
   $('#titulo-cabecera').textContent = E.ruta === 'inicio' ? 'Tu día, en un vistazo.' : VISTAS[E.ruta].titulo;
   $('#fecha-cabecera').textContent = capitalizar(fechaLarga(hoyCDMX().idx));
   const estado = $('#estado-lectura');
@@ -556,7 +569,7 @@ function listaAvisos(avisos, titulo) {
   if (!avisos?.length) return '';
   const unicos = [...new Set(avisos.map((a) => a.texto))];
   return `<details class="tarjeta avisos"><summary>${esc(titulo)} · ${unicos.length}</summary>
-    <ul>${unicos.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></details>`;
+    <ul>${unicos.map((t) => `<li>${esc(ocultarImportes(t))}</li>`).join('')}</ul></details>`;
 }
 
 // ------------------------------------------------------------------ Préstamos
@@ -644,7 +657,7 @@ function vistaFinanzas(m) {
     <div id="grafica-mensual" class="grafica"></div>
     <div id="tabla-mensual" hidden>${tablaMensual(fi)}</div>
   </article>
-  ${avisosMes.length ? `<article class="tarjeta avisos-abiertos"><h2>Revisión de ${esc(mes.y ? nombreMes(mes.y, mes.m) : mes.etiqueta)}</h2><ul>${[...new Set(avisosMes)].map((a) => `<li>${esc(a)}</li>`).join('')}</ul></article>` : ''}
+  ${avisosMes.length ? `<article class="tarjeta avisos-abiertos"><h2>Revisión de ${esc(mes.y ? nombreMes(mes.y, mes.m) : mes.etiqueta)}</h2><ul>${[...new Set(avisosMes)].map((a) => `<li>${esc(ocultarImportes(a))}</li>`).join('')}</ul></article>` : ''}
   <p class="nota">La ganancia mensual es la columna GANANCIA MENSUAL de tu hoja (suma de negocios). El sobrante es un resultado calculado; no es saldo bancario ni dinero disponible.</p>`;
 }
 
@@ -701,7 +714,7 @@ function vistaFuentes() {
     <div class="tabla-desliza"><table class="tabla"><thead><tr><th>Archivo</th><th>Rangos leídos (solo lectura)</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table></div>
     <p class="nota">Pendientes: textos de recordatorio de cada DASHBOARD. Finanzas: tabla mensual de DASHBOARD BALANCE GENERAL. Los registros solo añaden hora y enlace.</p>
   </article>
-  ${avisos.length ? `<article class="tarjeta avisos-abiertos"><h2>Revisión de la lectura</h2><ul>${[...new Set(avisos.map((a) => a.texto))].map((t) => `<li>${esc(t)}</li>`).join('')}</ul></article>` : ''}
+  ${avisos.length ? `<article class="tarjeta avisos-abiertos"><h2>Revisión de la lectura</h2><ul>${[...new Set(avisos.map((a) => a.texto))].map((t) => `<li>${esc(ocultarImportes(t))}</li>`).join('')}</ul></article>` : ''}
   <article class="tarjeta">
     <header class="tarjeta-cab"><h2>Ajustes</h2></header>
     <label class="selector">Actualización automática <select id="sel-auto">${autos}</select></label>
@@ -741,7 +754,7 @@ function bloqueOrigen(p) {
   return `<section class="det-origen">
     <h3>Origen</h3>
     <p>${esc(o?.archivo || '')} › ${esc(o?.pestana || '')}${o?.a1 ? ` › ${esc(o.a1)}` : ''} ${enlaceOrigen(o, 'Abrir celda')}</p>
-    ${p.linea ? `<pre class="linea-hoja">${esc(p.linea)}</pre>` : ''}
+    ${p.linea ? `<pre class="linea-hoja">${esc(ocultarImportes(p.linea))}</pre>` : ''}
   </section>`;
 }
 

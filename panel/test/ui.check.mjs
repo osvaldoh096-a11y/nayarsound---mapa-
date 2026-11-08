@@ -92,6 +92,16 @@ try {
     await pagina.waitForSelector('.inicio-rejilla');
     revisar(await pagina.locator('[data-accion="entrar"]').count() === 0, 'Al recargar con la sesión vigente no pide la cuenta otra vez');
 
+    // modo privado: el ojo oculta todos los importes y se recuerda al recargar
+    await pagina.locator('#btn-privado').click();
+    const oculto = await pagina.locator('#vista').innerText();
+    revisar(!/\$\s?\d/.test(oculto) && oculto.includes('$*****'), 'Ojo: los importes se vuelven asteriscos');
+    await pagina.reload();
+    await pagina.waitForSelector('.inicio-rejilla');
+    revisar(!/\$\s?\d/.test(await pagina.locator('#vista').innerText()), 'Ojo: el modo privado se recuerda al recargar');
+    await pagina.locator('#btn-privado').click();
+    revisar(/\$\d/.test(await pagina.locator('#vista').innerText()), 'Ojo: al tocarlo otra vez vuelven las cifras');
+
     // detalle con origen
     await pagina.locator('.bloque-alertas .fila-pend').first().click();
     await pagina.waitForSelector('#detalle[open]');

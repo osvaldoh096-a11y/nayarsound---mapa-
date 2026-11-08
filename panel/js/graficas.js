@@ -1,9 +1,10 @@
 // Gráficas sencillas sin librerías: barras en HTML y líneas en SVG, con
 // información al pasar el dedo o el cursor.
 
-import { dinero, esc } from './formato.js';
+import { dinero, esc, esPrivado } from './formato.js';
 
 function compacto(v) {
+  if (esPrivado()) return '$***';
   const a = Math.abs(v);
   const s = v < 0 ? '−' : '';
   if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1).replace(/\.0$/, '')}M`;
