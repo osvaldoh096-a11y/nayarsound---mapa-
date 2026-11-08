@@ -59,7 +59,7 @@ async function nuevaPagina({ ancho = 1280, alto = 900, fallas = {}, movil = fals
 async function entrar(pagina) {
   await pagina.goto(`${url}/panel/`);
   await pagina.getByRole('button', { name: 'Entrar con Google' }).click();
-  await pagina.waitForSelector('.fila-1');
+  await pagina.waitForSelector('.inicio-rejilla');
 }
 
 const texto = async (pagina, sel) => (await pagina.locator(sel).first().innerText()).trim();
@@ -70,11 +70,11 @@ try {
     const { pagina, errores, lecturas, contexto } = await nuevaPagina();
     await pagina.goto(`${url}/panel/`);
     await pagina.waitForSelector('[data-accion="entrar"]');
-    revisar(await pagina.locator('.fila-1').count() === 0 && lecturas.length === 0, 'Sin iniciar sesión no se consulta ni se muestra nada');
+    revisar(await pagina.locator('.inicio-rejilla').count() === 0 && lecturas.length === 0, 'Sin iniciar sesión no se consulta ni se muestra nada');
     await entrar(pagina);
     const total = await texto(pagina, '.protagonista .cifra-xl');
     revisar(total === String(esperado.pendientes.length), `Pendientes en Inicio: ${total} (esperado ${esperado.pendientes.length})`);
-    for (const u of ['hoy', 'proximo', 'vencido', 'sin-fecha']) {
+    for (const u of ['hoy', 'proximo', 'sin-fecha']) {
       const n = await texto(pagina, `.clase.u-${u} .clase-num`);
       revisar(n === String(esperado.conteo[u]), `  ${u}: ${n} (esperado ${esperado.conteo[u]})`);
     }
@@ -89,7 +89,7 @@ try {
     revisar(/Actualizado/.test(await texto(pagina, '#estado-lectura')), 'Muestra fecha y hora de la última actualización');
     revisar(lecturas.length > 0 && lecturas.every((l) => l.metodo === 'GET'), `Todas las consultas a Sheets son de lectura (${lecturas.length} GET)`);
     await pagina.reload();
-    await pagina.waitForSelector('.fila-1');
+    await pagina.waitForSelector('.inicio-rejilla');
     revisar(await pagina.locator('[data-accion="entrar"]').count() === 0, 'Al recargar con la sesión vigente no pide la cuenta otra vez');
 
     // detalle con origen
@@ -216,7 +216,7 @@ try {
     const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 } });
     const pagina = await contexto.newPage();
     await pagina.goto(`${url}/panel/?demo#/inicio`);
-    await pagina.waitForSelector('.fila-1');
+    await pagina.waitForSelector('.inicio-rejilla');
     revisar(/DATOS DE EJEMPLO/.test(await texto(pagina, '#aviso-global')), 'Modo de ejemplo identificado con una banda visible');
     await contexto.close();
   }

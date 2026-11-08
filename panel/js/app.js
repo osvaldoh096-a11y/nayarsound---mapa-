@@ -370,14 +370,13 @@ function vistaInicio(m) {
   const sel = selectorMes(fi);
   const mes = fi.meses?.[E.mes] ?? m.mesActual;
   return `
-  <section class="fila-1">
+  <section class="inicio-rejilla">
     <article class="tarjeta protagonista">
       <div class="tarjeta-cab"><h2 class="etq-cab">${icono('pendientes')}Pendientes</h2>${E.filtro ? `<button class="boton-texto" data-filtro="${E.filtro}">Quitar filtro</button>` : ''}</div>
       <div class="cifra cifra-xl">${m.pendientes.length}</div>
       <div class="clases">
         ${filtro('hoy', 'Hoy', m.conteo.hoy)}
         ${filtro('proximo', 'Próximos', m.conteo.proximo)}
-        ${filtro('vencido', 'Vencidos', m.conteo.vencido)}
         ${filtro('sin-fecha', 'Cobros de eventos', m.conteo['sin-fecha'], deudas.length ? `<span class="clase-monto">${esc(dinero(totalDeuda, 0))}</span>` : '')}
       </div>
     </article>
@@ -388,10 +387,10 @@ function vistaInicio(m) {
         <div><div class="cifra cifra-l">${m.eventos.manana}</div><div class="sub">eventos mañana</div></div>
       </div><p class="nota">Los eventos se cuentan aparte de los pendientes.</p>` : '<p class="sin-dato">Sin datos de agenda.</p>'}
     </article>
-  </section>
-  <section class="bloque-finanzas">
-    <div class="seccion-cab"><h2 class="titulo-seccion">Finanzas${mes?.y ? ` de ${esc(nombreMes(mes.y, mes.m).toLowerCase())}` : ''}</h2>${sel}</div>
-    <div class="rejilla-tiles">${tilesFinanzas(mes, { conOrigen: false })}</div>
+    <div class="bloque-finanzas">
+      <div class="seccion-cab"><h2 class="titulo-seccion">Finanzas</h2>${sel}</div>
+      <div class="rejilla-tiles">${tilesFinanzas(mes, { conOrigen: false })}</div>
+    </div>
   </section>
   <section>
     <div class="seccion-cab"><h2 class="titulo-seccion">Lo que requiere tu atención${E.filtro ? ` · ${esc(URG[E.filtro])}` : ''}</h2></div>

@@ -187,9 +187,15 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 .par { display: flex; gap: 36px; }
 
 /* ---------- Inicio ---------- */
-.fila-1 { display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; margin-bottom: 26px; }
+.inicio-rejilla {
+  display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; margin-bottom: 28px;
+  grid-template-areas: "pendientes eventos" "finanzas finanzas";
+}
+.inicio-rejilla .protagonista { grid-area: pendientes; }
+.inicio-rejilla .eventos { grid-area: eventos; }
+.inicio-rejilla .bloque-finanzas { grid-area: finanzas; margin: 8px 0 0; }
 .protagonista { padding: 22px 22px 18px; }
-.clases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 8px; }
+.clases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
 .clase {
   display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: left;
   padding: 12px 14px; border-radius: 12px; border: 1px solid var(--borde); background: var(--tarjeta);
@@ -394,9 +400,6 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 
 /* ---------- celular ---------- */
 .pestanas-movil { display: none; }
-@media (max-width: 1100px) {
-  .clases { grid-template-columns: repeat(2, 1fr); }
-}
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; background: none; }
   .lateral { display: none; }
@@ -413,7 +416,8 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
   }
   .pestanas-movil a .icono { width: 22px; height: 22px; }
   .pestanas-movil a[aria-current="page"] { color: var(--azul); }
-  .fila-1, .rejilla-alertas, .rejilla-ns, .rejilla-dos { grid-template-columns: 1fr; }
+  .rejilla-alertas, .rejilla-ns, .rejilla-dos { grid-template-columns: 1fr; }
+  .inicio-rejilla { grid-template-columns: 1fr; grid-template-areas: "pendientes" "finanzas" "eventos"; }
 }
 @media (max-width: 640px) {
   body { font-size: 14.5px; }
@@ -423,11 +427,34 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
   .estado-conexion { flex: 1; min-width: 0; }
   .estado-conexion small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tarjeta { padding: 16px; border-radius: 14px; }
-  .fila-1 { gap: 12px; margin-bottom: 20px; }
-  .cifra-xl { font-size: 52px; }
+  .inicio-rejilla { gap: 14px; margin-bottom: 22px; }
+  .inicio-rejilla .bloque-finanzas { margin-top: 6px; }
+  .protagonista { padding: 18px 16px 16px; }
+  .cifra-xl { font-size: 56px; margin: 0 0 4px; }
   .cifra-l { font-size: 34px; }
-  .rejilla-tiles { grid-template-columns: 1fr; gap: 12px; }
-  .tile .cifra { font-size: 28px; margin-top: 10px; }
+  .clases { grid-template-columns: 1fr; gap: 8px; margin-top: 4px; }
+  .clase { flex-direction: row; align-items: center; gap: 10px; padding: 12px 14px; }
+  .clase-etq { order: 1; font-size: 14px; color: var(--tinta-2); gap: 8px; }
+  .clase-etq .punto { width: 8px; height: 8px; }
+  .clase-monto { order: 2; margin-left: auto; font-size: 14px; }
+  .clase-num { order: 3; font-size: 20px; min-width: 28px; text-align: right; margin-left: auto; }
+  .clase:has(.clase-monto) .clase-num { margin-left: 6px; }
+  .clase:hover { transform: none; }
+  .seccion-cab { margin: 0 0 10px; flex-wrap: nowrap; }
+  .seccion-cab .titulo-seccion { font-size: 15px; }
+  .selector select { padding: 8px 6px 8px 0; font-size: 14px; }
+  .rejilla-tiles { grid-template-columns: 1fr; gap: 10px; }
+  .tile {
+    display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "icono etq cifra" "icono sub sub";
+    align-items: center; column-gap: 12px; row-gap: 0; padding: 14px 16px;
+  }
+  .tile:hover { transform: none; }
+  .tile-cab { display: contents; }
+  .tile-icono { grid-area: icono; width: 40px; height: 40px; border-radius: 12px; align-self: center; }
+  .tile .etq { grid-area: etq; font-size: 13px; }
+  .tile .cifra { grid-area: cifra; font-size: 22px; margin: 0; text-align: right; }
+  .tile .sub { grid-area: sub; margin: 2px 0 0; font-size: 12px; }
+  .eventos .par { gap: 28px; }
   .rejilla-alertas { gap: 12px; }
   .fila-pend { gap: 11px; padding: 11px 8px; }
   .fp-icono { width: 34px; height: 34px; }
