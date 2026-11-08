@@ -348,6 +348,22 @@ function tilesFinanzas(mes, { conOrigen = true } = {}) {
     + tile(`tile-sobrante ${negativo ? 'negativo' : ''}`, 'sobrante', 'Sobrante del mes', mes.sobrante, 'Ganancia − gastos. Resultado calculado, no saldo bancario.');
 }
 
+/** Ganancia, gastos y sobrante en una fila, como los eventos de hoy y mañana. */
+function resumenFinanzas(mes) {
+  if (!mes) {
+    const f = E.fuentes.gastos;
+    return `<p class="sin-dato">No hay datos de finanzas${f?.error ? `: ${esc(f.error.mensaje)}` : '.'}</p>`;
+  }
+  const negativo = typeof mes.sobrante.valor === 'number' && mes.sobrante.valor < 0;
+  const dato = (clase, celda, etiqueta, nota = '') => `
+    <div class="fin-dato ${clase}"><div class="cifra">${valorCelda(celda)}</div><div class="sub">${etiqueta}</div>${nota ? `<div class="fin-nota">${nota}</div>` : ''}</div>`;
+  return `<div class="fin-fila">
+    ${dato('fin-ganancia', mes.ganancia, 'ganancia del mes')}
+    ${dato('fin-gasto', mes.gastos, 'gastos personales', mes.registrosGastos === 0 ? 'Sin gastos registrados' : '')}
+    ${dato(`fin-sobrante ${negativo ? 'negativo' : ''}`, mes.sobrante, 'sobrante del mes')}
+  </div><p class="nota">Sobrante = ganancia − gastos. Resultado calculado, no saldo bancario.</p>`;
+}
+
 function selectorMes(fi) {
   if (!fi?.meses?.length) return '';
   if (E.mes === null || !fi.meses[E.mes]) E.mes = fi.indiceActual >= 0 ? fi.indiceActual : fi.meses.length - 1;
@@ -387,10 +403,10 @@ function vistaInicio(m) {
         <div><div class="cifra cifra-l">${m.eventos.manana}</div><div class="sub">eventos mañana</div></div>
       </div><p class="nota">Los eventos se cuentan aparte de los pendientes.</p>` : '<p class="sin-dato">Sin datos de agenda.</p>'}
     </article>
-    <div class="bloque-finanzas">
-      <div class="seccion-cab"><h2 class="titulo-seccion">Finanzas</h2>${sel}</div>
-      <div class="rejilla-tiles">${tilesFinanzas(mes, { conOrigen: false })}</div>
-    </div>
+    <article class="tarjeta bloque-finanzas">
+      <div class="tarjeta-cab"><h2 class="etq-cab">${icono('finanzas')}Finanzas</h2>${sel}</div>
+      ${resumenFinanzas(mes)}
+    </article>
   </section>
   <section>
     <div class="seccion-cab"><h2 class="titulo-seccion">Lo que requiere tu atención${E.filtro ? ` · ${esc(URG[E.filtro])}` : ''}</h2></div>

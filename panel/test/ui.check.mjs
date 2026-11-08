@@ -81,7 +81,7 @@ try {
     const eventos = await pagina.locator('.eventos .par .cifra').allInnerTexts();
     revisar(eventos[0] === String(esperado.eventos.hoy) && eventos[1] === String(esperado.eventos.manana),
       `Eventos hoy/mañana: ${eventos.join('/')} (esperado ${esperado.eventos.hoy}/${esperado.eventos.manana})`);
-    const tiles = await pagina.locator('.rejilla-tiles .cifra').allInnerTexts();
+    const tiles = await pagina.locator('.fin-fila .cifra').allInnerTexts();
     const mes = esperado.mesActual;
     const esperadoTiles = [mes.ganancia, mes.gastos, mes.sobrante].map((c) => dinero(c.valor));
     revisar(JSON.stringify(tiles) === JSON.stringify(esperadoTiles), `Finanzas del mes en Inicio: ${tiles.join(' · ')} (esperado ${esperadoTiles.join(' · ')})`);
@@ -175,7 +175,7 @@ try {
     const { pagina, contexto } = await nuevaPagina({ fallas: { gastos: 403 } });
     await entrar(pagina);
     revisar(/No se pudo leer 🚹GASTOS PERSONALES/.test(await texto(pagina, '#vista')), 'Archivo sin permiso: aviso claro');
-    revisar(!/\$0\.00/.test(await texto(pagina, '.rejilla-tiles')), 'Archivo sin permiso: no muestra cifras en cero');
+    revisar(!/\$0\.00/.test(await texto(pagina, '.bloque-finanzas')), 'Archivo sin permiso: no muestra cifras en cero');
     revisar(/parcial/i.test(await texto(pagina, '#estado-lectura')), 'Cabecera indica actualización parcial');
     await contexto.close();
   }

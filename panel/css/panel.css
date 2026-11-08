@@ -193,7 +193,15 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 }
 .inicio-rejilla .protagonista { grid-area: pendientes; }
 .inicio-rejilla .eventos { grid-area: eventos; }
-.inicio-rejilla .bloque-finanzas { grid-area: finanzas; margin: 8px 0 0; }
+.inicio-rejilla .bloque-finanzas { grid-area: finanzas; }
+.fin-fila { display: grid; grid-template-columns: repeat(3, 1fr); }
+.fin-dato { min-width: 0; padding: 0 16px; border-left: 1px solid var(--suave); }
+.fin-dato:first-child { padding-left: 0; border-left: 0; }
+.fin-dato .cifra { font-size: 36px; margin-top: 2px; }
+.fin-ganancia .cifra { color: var(--verde-tinta); }
+.fin-gasto .cifra { color: var(--coral-tinta); }
+.fin-sobrante.negativo .cifra { color: var(--coral-tinta); }
+.fin-nota { font-size: 12px; font-weight: 600; color: var(--ambar-tinta); margin-top: 2px; }
 .protagonista { padding: 22px 22px 18px; }
 .clases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
 .clase {
@@ -213,7 +221,6 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 .u-sin-fecha .punto { background: var(--verde); }
 .u-aviso .punto { background: var(--coral); }
 .eventos .par { margin-top: 2px; }
-.bloque-finanzas { margin-bottom: 26px; }
 .rejilla-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .tile { display: flex; flex-direction: column; gap: 2px; transition: box-shadow var(--t), transform var(--t); }
 .tile:hover { box-shadow: var(--sombra-hover); transform: translateY(-1px); }
@@ -428,7 +435,15 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
   .estado-conexion small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tarjeta { padding: 16px; border-radius: 14px; }
   .inicio-rejilla { gap: 14px; margin-bottom: 22px; }
-  .inicio-rejilla .bloque-finanzas { margin-top: 6px; }
+  .bloque-finanzas .tarjeta-cab { flex-wrap: nowrap; }
+  .fin-dato { padding: 0 8px; }
+  .fin-dato .cifra { font-size: clamp(13px, 3.9vw, 18px); letter-spacing: -0.02em; }
+  .fin-dato .sub { font-size: 11.5px; line-height: 1.3; }
+  .fin-nota { font-size: 11px; line-height: 1.3; }
+  .bloque-finanzas .selector { padding-left: 10px; }
+  .bloque-finanzas .selector .icono { display: none; }
+  .bloque-finanzas .selector { min-width: 0; flex: 0 1 auto; }
+  .bloque-finanzas .selector select { max-width: 48vw; text-overflow: ellipsis; }
   .protagonista { padding: 18px 16px 16px; }
   .cifra-xl { font-size: 56px; margin: 0 0 4px; }
   .cifra-l { font-size: 34px; }
