@@ -134,8 +134,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       gastos.push([op++, '', cantidad, c, 'YO', etq, '']);
     });
   });
-  const balance = [
-    [], [], [], [], [], [],
+  const balance = [ // empieza en la fila 7 de DASHBOARD BALANCE GENERAL
     ['', '', 'MES', 'NEGOCIO A', 'NEGOCIO B', 'PRESTAMOS', 'OTROS', 'GANANCIA MENSUAL', 'GASTOS PERSONALES', 'SOBRANTE MENSUAL'],
     ...meses.map((etq, i) => {
       const a = 30000 + ((i * 37) % 11) * 4000;
@@ -151,11 +150,11 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   const meta = (titulo, pestanas) => ({ titulo, zona: 'America/Mexico_City', pestanas });
   return {
     nayarsound: { clave: 'nayarsound', id: 'DEMO', demo: true, meta: meta('🐯NAYARSOUND - PERSONAL', { DASHBOARD: 1, 'AGENDA Y VENTAS': 2 }),
-      rangos: { dashboard: dashboardNs, ventas }, nombreCoincide: true },
-    agenda: { clave: 'agenda', id: 'DEMO', demo: true, meta: meta('AMAL AGENDA', { AGENDA: 0 }), rangos: { agenda: agendaFilas }, nombreCoincide: true },
+      rangos: { dashboard: dashboardNs, ventas } },
+    agenda: { clave: 'agenda', id: 'DEMO', demo: true, meta: meta('AMAL AGENDA', { AGENDA: 0 }), rangos: { agenda: agendaFilas } },
     prestamos: { clave: 'prestamos', id: 'DEMO', demo: true, meta: meta('💵REGISTRO DE PRESTAMOS', { DASHBOARD: 3, 'REGISTRO PRESTAMOS': 4, 'REGISTRO DE INVERSORES': 5 }),
-      rangos: { dashboard: dashboardPr, registro, inversores }, nombreCoincide: true },
+      rangos: { dashboard: dashboardPr, registro, inversores } },
     gastos: { clave: 'gastos', id: 'DEMO', demo: true, meta: meta('🚹GASTOS PERSONALES - OSVALDO', { 'DASHBOARD BALANCE GENERAL': 6, 'ANALISIS GASTOS PERSONALES': 7 }),
-      rangos: { balance, gastos }, nombreCoincide: true },
+      rangos: { balance, gastos } },
   };
 }

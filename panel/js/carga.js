@@ -1,24 +1,19 @@
-// Lee cada archivo configurado (metadatos + rangos) en paralelo. Cada archivo
-// tiene su propio estado: si uno falla, los demás se actualizan y el que
-// falló conserva sus datos anteriores, marcados como no actualizados.
+// Lee cada archivo configurado en paralelo. Cada archivo tiene su propio
+// estado: si uno falla, los demás se actualizan y el que falló conserva sus
+// datos anteriores, marcados como no actualizados.
 
 import { ARCHIVOS, ORDEN_ARCHIVOS } from './fuentes.js';
-import { leerMetadatos, leerRangos } from './sheets.js';
+import { leerRango } from './gviz.js';
 
-export async function leerArchivo(token, clave, id) {
+export async function leerArchivo(clave, archivo, lector = leerRango) {
   const def = ARCHIVOS[clave];
   const claves = Object.keys(def.rangos);
-  const [meta, valores] = await Promise.all([
-    leerMetadatos(token, id),
-    leerRangos(token, id, claves.map((k) => def.rangos[k])),
-  ]);
+  const valores = await Promise.all(claves.map((k) => lector(archivo.id, def.rangos[k], def.tramos?.[k])));
   return {
     clave,
-    id,
-    meta,
+    id: archivo.id,
+    meta: { titulo: def.nombre, zona: archivo.zona ?? '', pestanas: archivo.pestanas ?? {} },
     rangos: Object.fromEntries(claves.map((k, i) => [k, valores[i]])),
-    nombreEsperado: def.nombre,
-    nombreCoincide: meta.titulo === def.nombre,
   };
 }
 
@@ -26,9 +21,9 @@ export async function leerArchivo(token, clave, id) {
  * estadoPrevio: { [clave]: { datos, actualizado } }
  * Devuelve el nuevo estado por archivo, sin perder datos anteriores.
  */
-export async function leerTodo(token, archivos, estadoPrevio = {}) {
+export async function leerTodo(archivos, estadoPrevio = {}, lector = leerRango) {
   const resultados = await Promise.allSettled(
-    ORDEN_ARCHIVOS.map((clave) => leerArchivo(token, clave, archivos[clave])),
+    ORDEN_ARCHIVOS.map((clave) => leerArchivo(clave, archivos[clave], lector)),
   );
   const ahora = new Date();
   const estado = {};

@@ -1,59 +1,8 @@
-// Lectura de Google Sheets con la API oficial y el token de la sesión.
-// Solo lectura: el panel nunca llama a métodos que escriben.
+// Utilidades sobre las cuadrículas leídas de Google Sheets: columnas,
+// rangos A1, enlaces a celdas, celdas vacías o con error y búsqueda por
+// encabezado.
 
 import { normalizar } from './fechas.js';
-
-const API = 'https://sheets.googleapis.com/v4/spreadsheets';
-
-export class ErrorLectura extends Error {
-  constructor(mensaje, { estado = null, tipo = 'lectura' } = {}) {
-    super(mensaje);
-    this.estado = estado;
-    this.tipo = tipo;
-  }
-}
-
-async function pedir(url, token) {
-  let respuesta;
-  try {
-    respuesta = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  } catch {
-    throw new ErrorLectura('Sin conexión con Google Sheets. Revisa tu internet.', { tipo: 'red' });
-  }
-  if (respuesta.ok) return respuesta.json();
-  let detalle = '';
-  try { detalle = (await respuesta.json())?.error?.message ?? ''; } catch { /* sin cuerpo */ }
-  const s = respuesta.status;
-  if (s === 401) throw new ErrorLectura('La sesión de Google expiró. Toca «Actualizar» para entrar de nuevo.', { estado: s, tipo: 'sesion' });
-  if (s === 403) throw new ErrorLectura('Tu cuenta de Google no tiene acceso a este archivo, o falta habilitar la API de Google Sheets.', { estado: s, tipo: 'permiso' });
-  if (s === 404) throw new ErrorLectura('No encontré el archivo. Revisa el enlace en «Fuentes».', { estado: s, tipo: 'archivo' });
-  if (s === 400) throw new ErrorLectura(`Rango no válido: ¿cambió el nombre de una pestaña? ${detalle}`.trim(), { estado: s, tipo: 'rango' });
-  if (s === 429) throw new ErrorLectura('Google limitó las lecturas por un momento. Intenta en un minuto.', { estado: s, tipo: 'limite' });
-  throw new ErrorLectura(`Error ${s} de Google Sheets. ${detalle}`.trim(), { estado: s });
-}
-
-/** Título, zona horaria y pestañas (con su gid) de un archivo. */
-export async function leerMetadatos(token, id) {
-  const campos = 'properties(title,timeZone),sheets.properties(sheetId,title)';
-  const datos = await pedir(`${API}/${encodeURIComponent(id)}?fields=${encodeURIComponent(campos)}`, token);
-  return {
-    titulo: datos.properties?.title ?? '',
-    zona: datos.properties?.timeZone ?? '',
-    pestanas: Object.fromEntries((datos.sheets ?? []).map((s) => [s.properties.title, s.properties.sheetId])),
-  };
-}
-
-/** Varios rangos de un archivo, con valores sin formato (números y fechas como número de serie). */
-export async function leerRangos(token, id, rangos) {
-  const params = new URLSearchParams({
-    valueRenderOption: 'UNFORMATTED_VALUE',
-    dateTimeRenderOption: 'SERIAL_NUMBER',
-    majorDimension: 'ROWS',
-  });
-  for (const r of rangos) params.append('ranges', r);
-  const datos = await pedir(`${API}/${encodeURIComponent(id)}/values:batchGet?${params}`, token);
-  return (datos.valueRanges ?? []).map((v) => v.values ?? []);
-}
 
 // ---------- utilidades sobre la cuadrícula leída ----------
 

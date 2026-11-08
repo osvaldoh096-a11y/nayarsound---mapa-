@@ -1,10 +1,9 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
 import {
-  leerConfig, guardarConfig, borrarConfig, configDesdeHash, codificarConfig, idDesdeEnlace,
-  validarConfig, leerPreferencias, guardarPreferencias,
+  leerConfig, guardarConfig, borrarConfig, validarConfig, leerPreferencias, guardarPreferencias,
 } from './config.js';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js';
+import { descifrar, ContrasenaIncorrecta } from './acceso.js';
 import { leerTodo, datosDisponibles } from './carga.js';
 import { construirModelo } from './modelo.js';
 import {
@@ -31,6 +30,8 @@ const COLOR_CIUDAD = { '🟣': 'violeta', '🟠': 'naranja', '🔵': 'azul', '�
 
 const E = {
   cfg: null,
+  paquete: null,
+  errorAcceso: null,
   pref: leerPreferencias(),
   demo: false,
   fuentes: {},
@@ -39,8 +40,7 @@ const E = {
   mes: null,
   filtro: null,
   cargando: false,
-  sesion: 'sin-sesion',
-  errorSesion: null,
+  abriendo: false,
   ultimaCompleta: null,
   ultimoIntento: 0,
   pendientes: new Map(),
@@ -56,51 +56,30 @@ function rutaDesdeHash() {
   return m && VISTAS[m[1]] ? m[1] : 'inicio';
 }
 
-/** Guarda la configuración que llega en el enlace (#config=…) y la quita de la barra de direcciones. */
-function tomarConfigDelEnlace() {
-  const desdeEnlace = configDesdeHash(location.hash);
-  if (!desdeEnlace) return false;
-  if (desdeEnlace.errores.length === 0) {
-    guardarConfig(desdeEnlace.cfg);
-    sessionStorage.setItem('panel.aviso', 'Configuración guardada en este dispositivo.');
-  } else {
-    sessionStorage.setItem('panel.aviso', desdeEnlace.errores.join(' '));
-  }
-  history.replaceState(null, '', `${location.pathname}${location.search}#/inicio`);
-  return true;
-}
-
 async function arrancar() {
   E.demo = new URLSearchParams(location.search).has('demo');
-  tomarConfigDelEnlace();
-  try { E.avisoConfig = sessionStorage.getItem('panel.aviso'); sessionStorage.removeItem('panel.aviso'); } catch { /* sin almacenamiento */ }
   E.ruta = rutaDesdeHash();
-  window.addEventListener('hashchange', () => {
-    if (tomarConfigDelEnlace()) { location.reload(); return; }
-    E.ruta = rutaDesdeHash(); E.filtro = null; pintar(); window.scrollTo(0, 0);
-  });
+  window.addEventListener('hashchange', () => { E.ruta = rutaDesdeHash(); E.filtro = null; pintar(); window.scrollTo(0, 0); });
   document.addEventListener('click', alHacerClic);
   document.addEventListener('change', alCambiar);
   document.addEventListener('submit', alEnviar);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
 
-  if (E.demo) {
-    cargarDemo();
-    return;
-  }
+  if (E.demo) { cargarDemo(); return; }
   E.cfg = leerConfig();
-  pintar();
-  if (E.cfg) await prepararGoogle();
+  if (E.cfg) { actualizar(); return; }
+  await cargarPaquete();
 }
 
-async function prepararGoogle() {
+/** acceso.json: enlaces de tus hojas cifrados con tu contraseña. */
+async function cargarPaquete() {
   try {
-    await prepararSesion(E.cfg.clienteId);
-    E.sesion = 'lista';
+    const r = await fetch('acceso.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status === 404 ? 'Falta el archivo panel/acceso.json.' : `Error ${r.status} al leer acceso.json.`);
+    E.paquete = await r.json();
   } catch (error) {
-    E.sesion = 'error';
-    E.errorSesion = error.message;
+    E.errorAcceso = error.message;
   }
   pintar();
 }
@@ -117,30 +96,16 @@ function cargarDemo() {
 
 // ------------------------------------------------------------------ actualizar
 
-async function actualizar({ interactivo = false } = {}) {
+async function actualizar() {
   if (E.cargando) return;
   if (E.demo) { cargarDemo(); return; }
   if (!E.cfg) return;
-  let token = tokenVigente();
-  if (!token) {
-    if (!interactivo) { E.sesion = 'expirada'; pintar(); return; }
-    try {
-      token = await iniciarSesion();
-      E.sesion = 'lista';
-      E.errorSesion = null;
-    } catch (error) {
-      E.errorSesion = error.message;
-      pintar();
-      return;
-    }
-  }
   E.cargando = true;
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    E.fuentes = await leerTodo(token, E.cfg.archivos, E.fuentes);
+    E.fuentes = await leerTodo(E.cfg.archivos, E.fuentes);
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
-    if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }
     if (!errores.length) E.ultimaCompleta = new Date();
     E.modelo = construirModelo(datosDisponibles(E.fuentes), hoyCDMX());
   } finally {
@@ -153,7 +118,7 @@ function revisarAuto() {
   if (document.visibilityState !== 'visible' || E.cargando || E.demo || !E.cfg) return;
   const minutos = Number(E.pref.autoMinutos) || 0;
   if (!minutos || !E.ultimoIntento) return;
-  if (Date.now() - E.ultimoIntento >= minutos * 60000) actualizar({ interactivo: false });
+  if (Date.now() - E.ultimoIntento >= minutos * 60000) actualizar();
 }
 
 // ------------------------------------------------------------------ eventos
@@ -172,16 +137,13 @@ function alHacerClic(evento) {
   if (el.dataset.pendiente) { abrirPendiente(E.pendientes.get(el.dataset.pendiente)); return; }
   if (el.dataset.dia) { abrirDia(Number(el.dataset.dia)); return; }
   const accion = el.dataset.accion;
-  if (accion === 'actualizar' || accion === 'entrar') actualizar({ interactivo: true });
-  if (accion === 'salir') { cerrarSesion(); E.modelo = null; E.fuentes = {}; E.sesion = 'lista'; location.hash = '#/inicio'; pintar(); }
-  if (accion === 'olvidar') {
-    if (confirm('¿Borrar la configuración de este dispositivo? Tendrás que abrir de nuevo el enlace de configuración.')) {
-      cerrarSesion(); borrarConfig(); location.replace(location.pathname);
-    }
+  if (accion === 'actualizar') actualizar();
+  if (accion === 'salir') {
+    borrarConfig();
+    Object.assign(E, { cfg: null, modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
+    location.hash = '#/inicio';
+    if (E.paquete) pintar(); else cargarPaquete();
   }
-  if (accion === 'editar-config') { E.editandoConfig = true; pintar(); }
-  if (accion === 'cancelar-config') { E.editandoConfig = false; E.erroresConfig = null; pintar(); }
-  if (accion === 'copiar-enlace') copiarEnlace(el);
   if (accion === 'tabla') { const t = $(`#${el.dataset.objetivo}`); if (t) t.hidden = !t.hidden; }
 }
 
@@ -195,32 +157,26 @@ function alCambiar(evento) {
   }
 }
 
-function alEnviar(evento) {
-  if (evento.target.id !== 'form-config') return;
+async function alEnviar(evento) {
+  if (evento.target.id !== 'form-acceso') return;
   evento.preventDefault();
+  if (E.abriendo) return;
   const f = new FormData(evento.target);
-  const cfg = {
-    clienteId: String(f.get('clienteId') ?? '').trim(),
-    archivos: Object.fromEntries(ORDEN_ARCHIVOS.map((k) => [k, idDesdeEnlace(f.get(k))])),
-  };
-  const errores = validarConfig(cfg);
-  if (errores.length) { E.erroresConfig = errores; pintar(); return; }
-  guardarConfig(cfg);
-  E.cfg = cfg;
-  E.editandoConfig = false;
-  E.erroresConfig = null;
-  E.avisoConfig = 'Configuración guardada en este dispositivo.';
-  prepararGoogle();
-}
-
-async function copiarEnlace(boton) {
-  const enlace = `${location.origin}${location.pathname}#config=${codificarConfig(E.cfg)}`;
+  E.abriendo = true;
+  E.errorAcceso = null;
+  pintar();
   try {
-    await navigator.clipboard.writeText(enlace);
-    boton.textContent = 'Enlace copiado';
-  } catch {
-    prompt('Copia este enlace y ábrelo en tu celular:', enlace);
+    const cfg = await descifrar(E.paquete, String(f.get('contrasena') ?? ''));
+    const errores = validarConfig(cfg);
+    if (errores.length) throw new Error(errores.join(' '));
+    E.cfg = cfg;
+    if (f.get('recordar')) guardarConfig(cfg);
+  } catch (error) {
+    E.errorAcceso = error instanceof ContrasenaIncorrecta ? 'Contraseña incorrecta.' : error.message;
+  } finally {
+    E.abriendo = false;
   }
+  if (E.cfg) actualizar(); else pintar();
 }
 
 // ------------------------------------------------------------------ pintar
@@ -235,9 +191,9 @@ function pintar() {
   const vista = $('#vista');
   vista.setAttribute('aria-busy', E.cargando ? 'true' : 'false');
   document.title = `${VISTAS[E.ruta].titulo} · Panel`;
-  if (!E.demo && (!E.cfg || E.editandoConfig)) { vista.innerHTML = vistaConfiguracion(); return; }
+  if (!E.demo && !E.cfg) { vista.innerHTML = vistaContrasena(); $('#contrasena')?.focus(); return; }
   if (E.ruta === 'fuentes') { vista.innerHTML = vistaFuentes(); return; }
-  if (!E.modelo) { vista.innerHTML = E.cargando ? vistaCargando() : vistaEntrar(); return; }
+  if (!E.modelo) { vista.innerHTML = vistaCargando(); return; }
   const banda = bandaEstado(VISTAS[E.ruta].archivos);
   const contenido = { inicio: vistaInicio, nayarsound: vistaNayarsound, prestamos: vistaPrestamos, finanzas: vistaFinanzas }[E.ruta](E.modelo);
   vista.innerHTML = banda + contenido;
@@ -269,11 +225,6 @@ function pintarAvisoGlobal() {
   if (E.demo) {
     partes.push('<div class="banda banda-demo"><b>DATOS DE EJEMPLO.</b> Nombres y cifras inventados para probar el panel. No son tus datos reales.</div>');
   }
-  if (E.avisoConfig) { partes.push(`<div class="banda banda-info">${esc(E.avisoConfig)}</div>`); E.avisoConfig = null; }
-  if (E.sesion === 'expirada' && E.modelo) {
-    partes.push('<div class="banda banda-alerta">La sesión de Google expiró. Los datos en pantalla no se están actualizando. <button class="boton-texto" data-accion="actualizar">Entrar y actualizar</button></div>');
-  }
-  if (E.errorSesion && E.modelo) partes.push(`<div class="banda banda-error">${esc(E.errorSesion)}</div>`);
   $('#aviso-global').innerHTML = partes.join('');
 }
 
@@ -666,12 +617,12 @@ function vistaFuentes() {
     const rangos = Object.values(def.rangos).map((r) => {
       const pestana = r.match(/^'(.+)'!/)?.[1];
       const gid = meta?.pestanas?.[pestana];
-      const url = E.cfg ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(E.cfg.archivos[k])}/edit${gid !== undefined ? `#gid=${gid}` : ''}` : null;
+      const id = E.cfg?.archivos?.[k]?.id;
+      const url = id ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/edit${gid !== undefined ? `#gid=${gid}` : ''}` : null;
       return url && !E.demo ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(r)}</a>` : `<span>${esc(r)}</span>`;
     }).join('<br>');
-    const aviso = meta && !f.datos.nombreCoincide ? `<br><small class="mal">El archivo se llama «${esc(meta.titulo)}».</small>` : '';
     const zona = meta?.zona ? `<br><small>Zona horaria del archivo: ${esc(meta.zona)}${meta.zona !== 'America/Mexico_City' ? ' (distinta a CDMX)' : ''}</small>` : '';
-    return `<tr><td><b>${esc(def.nombre)}</b>${aviso}${zona}</td><td class="rangos">${rangos}</td><td>${estado}</td></tr>`;
+    return `<tr><td><b>${esc(def.nombre)}</b>${zona}</td><td class="rangos">${rangos}</td><td>${estado}</td></tr>`;
   }).join('');
   const m = E.modelo;
   const avisos = m ? [...m.nayarsound.avisos, ...m.prestamos.avisos, ...m.finanzas.avisos] : [];
@@ -687,46 +638,32 @@ function vistaFuentes() {
   <article class="tarjeta">
     <header class="tarjeta-cab"><h2>Ajustes</h2></header>
     <label class="selector">Actualización automática <select id="sel-auto">${autos}</select></label>
-    <p class="nota">Solo se actualiza con la página abierta y la sesión vigente (dura cerca de una hora).</p>
+    <p class="nota">Solo se actualiza mientras la página está abierta.</p>
     ${E.demo ? '' : `<div class="botones">
-      <button class="boton" data-accion="copiar-enlace">Copiar enlace para el celular</button>
-      <button class="boton" data-accion="editar-config">Cambiar archivos</button>
-      <button class="boton" data-accion="salir">Cerrar sesión</button>
-      <button class="boton boton-peligro" data-accion="olvidar">Borrar configuración de este dispositivo</button>
+      <button class="boton boton-peligro" data-accion="salir">Salir y olvidar en este dispositivo</button>
     </div>
-    <p class="nota">El enlace para el celular contiene los ID de tus archivos: no lo compartas.</p>`}
+    <p class="nota">Al salir, el panel vuelve a pedir la contraseña en este dispositivo.</p>`}
   </article>`;
 }
 
-function vistaConfiguracion() {
-  const c = E.cfg ?? { clienteId: '', archivos: {} };
-  const campo = (k, etiqueta) => `<label>${esc(etiqueta)}<input name="${k}" required value="${esc(c.archivos?.[k] ? `https://docs.google.com/spreadsheets/d/${c.archivos[k]}/edit` : '')}" placeholder="https://docs.google.com/spreadsheets/d/…"></label>`;
-  return `
-  <h1 class="titulo-vista">Configurar el panel</h1>
-  <article class="tarjeta formulario">
-    <p>Esto se guarda solo en este navegador. Lo más fácil es abrir el <b>enlace de configuración</b> que te di; o llena los campos.</p>
-    ${E.erroresConfig ? `<div class="banda banda-error">${E.erroresConfig.map(esc).join('<br>')}</div>` : ''}
-    <form id="form-config">
-      <label>ID de cliente de Google (OAuth)<input name="clienteId" required value="${esc(c.clienteId)}" placeholder="123…apps.googleusercontent.com"></label>
-      ${ORDEN_ARCHIVOS.map((k) => campo(k, ARCHIVOS[k].nombre)).join('')}
-      <div class="botones"><button class="boton boton-primario" type="submit">Guardar</button>
-      ${E.cfg ? '<button class="boton" type="button" data-accion="cancelar-config">Cancelar</button>' : ''}</div>
-    </form>
-    <p class="nota">¿Solo quieres ver cómo se ve? <a href="?demo#/inicio">Abrir con datos de ejemplo</a>.</p>
-  </article>`;
-}
-
-function vistaEntrar() {
-  if (E.sesion === 'error') {
-    return `<article class="tarjeta formulario"><h1 class="titulo-vista">No se pudo preparar el inicio de sesión</h1><p class="mal">${esc(E.errorSesion)}</p></article>`;
+function vistaContrasena() {
+  if (!E.paquete) {
+    return E.errorAcceso
+      ? `<article class="tarjeta formulario"><h1 class="titulo-vista">No se pudo abrir el panel</h1><p class="mal">${esc(E.errorAcceso)}</p></article>`
+      : vistaCargando();
   }
   return `
   <article class="tarjeta formulario entrar">
-    <h1 class="titulo-vista">Panel privado</h1>
-    <p>Entra con la cuenta de Google que tiene tus hojas. El panel solo pide permiso de <b>lectura</b>; no puede modificar tus archivos.</p>
-    ${E.errorSesion ? `<p class="mal">${esc(E.errorSesion)}</p>` : ''}
-    <button class="boton boton-primario boton-grande" data-accion="entrar" ${E.sesion !== 'lista' ? 'disabled' : ''}>Entrar con Google</button>
-    <p class="nota">Si otra persona abre esta página, Google no le entrega tus datos.</p>
+    <h1 class="titulo-vista">Panel personal</h1>
+    <form id="form-acceso" autocomplete="on">
+      <input type="text" name="usuario" value="panel" autocomplete="username" hidden>
+      <label for="contrasena">Contraseña</label>
+      <input id="contrasena" name="contrasena" type="password" required autocomplete="current-password" ${E.abriendo ? 'disabled' : ''}>
+      <label class="casilla"><input type="checkbox" name="recordar" checked> Recordar en este dispositivo</label>
+      ${E.errorAcceso ? `<p class="mal" role="alert">${esc(E.errorAcceso)}</p>` : ''}
+      <button class="boton boton-primario boton-grande" type="submit" ${E.abriendo ? 'disabled' : ''}>${E.abriendo ? 'Abriendo…' : 'Entrar'}</button>
+    </form>
+    <p class="nota"><a href="?demo#/inicio">Ver con datos de ejemplo</a></p>
   </article>`;
 }
 

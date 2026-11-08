@@ -1,12 +1,11 @@
-// Prueba de la interfaz en Chromium con el simulador de Google.
+// Prueba de la interfaz en Chromium con el simulador de Google Sheets (gviz).
 //   node panel/test/ui.check.mjs                      → datos de ejemplo (sintéticos)
 //   node panel/test/ui.check.mjs --snapshot ruta.json --hoy 2026-11-07 --esperado ruta.json
 // El snapshot real y las cifras esperadas se guardan FUERA del repositorio.
 
 import { readFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { servir, simularGoogle, datosDesdeFuentes, IDS, CLIENTE } from './simulador.mjs';
-import { codificarConfig } from '../js/config.js';
+import { servir, simularGoogle, datosDesdeFuentes, IDS, CONTRASENA } from './simulador.mjs';
 import { fuentesDemo } from '../js/demo.js';
 import { construirModelo } from '../js/modelo.js';
 import { idxDesdeYMD } from '../js/fechas.js';
@@ -45,7 +44,6 @@ const extra = opcion('--esperado') ? JSON.parse(readFileSync(opcion('--esperado'
 
 const { servidor, url } = await servir();
 const navegador = await chromium.launch();
-const enlaceConfig = `${url}/panel/#config=${codificarConfig({ clienteId: CLIENTE, archivos: IDS })}`;
 
 async function nuevaPagina({ ancho = 1280, alto = 900, fallas = {}, movil = false } = {}) {
   const contexto = await navegador.newContext({ viewport: { width: ancho, height: alto }, locale: 'es-MX', isMobile: movil, hasTouch: movil });
@@ -58,9 +56,10 @@ async function nuevaPagina({ ancho = 1280, alto = 900, fallas = {}, movil = fals
   return { contexto, pagina, errores, lecturas };
 }
 
-async function entrar(pagina) {
-  await pagina.goto(enlaceConfig);
-  await pagina.getByRole('button', { name: 'Entrar con Google' }).click();
+async function entrar(pagina, contrasena = CONTRASENA) {
+  await pagina.goto(`${url}/panel/`);
+  await pagina.fill('#contrasena', contrasena);
+  await pagina.getByRole('button', { name: 'Entrar' }).click();
   await pagina.waitForSelector('.rejilla-resumen');
 }
 
@@ -71,7 +70,13 @@ try {
   {
     const { pagina, errores, lecturas, contexto } = await nuevaPagina();
     await pagina.goto(`${url}/panel/`);
-    revisar(await pagina.locator('#form-config').isVisible(), 'Sin configuración muestra el formulario (no datos)');
+    await pagina.waitForSelector('#form-acceso');
+    revisar(await pagina.locator('.rejilla-resumen').count() === 0, 'Sin contraseña no se muestran datos');
+    await pagina.fill('#contrasena', 'otra-cosa');
+    await pagina.getByRole('button', { name: 'Entrar' }).click();
+    await pagina.waitForSelector('#form-acceso [role="alert"]');
+    revisar(/incorrecta/.test(await texto(pagina, '#form-acceso')), 'Contraseña incorrecta: aviso y sin datos');
+    revisar(lecturas.length === 0, `Sin la contraseña no se consulta ninguna hoja (${lecturas.length} consultas)`);
     await entrar(pagina);
     const total = await texto(pagina, '.kpi .cifra-xl');
     revisar(total === String(esperado.pendientes.length), `Pendientes en Inicio: ${total} (esperado ${esperado.pendientes.length})`);
@@ -88,7 +93,10 @@ try {
     revisar(JSON.stringify(tiles) === JSON.stringify(esperadoTiles), `Finanzas del mes en Inicio: ${tiles.join(' · ')} (esperado ${esperadoTiles.join(' · ')})`);
     if (extra?.inicio) revisar(JSON.stringify(tiles) === JSON.stringify(extra.inicio), `  coincide con la hoja: ${extra.inicio.join(' · ')}`);
     revisar(/Actualizado/.test(await texto(pagina, '#estado-lectura')), 'Muestra fecha y hora de la última actualización');
-    revisar(lecturas.every((l) => l.metodo === 'GET'), 'Todas las llamadas a Sheets son de lectura (GET)');
+    revisar(lecturas.length > 0 && lecturas.every((l) => l.metodo === 'GET'), `Todas las consultas a Sheets son de lectura (${lecturas.length} GET)`);
+    await pagina.reload();
+    await pagina.waitForSelector('.rejilla-resumen');
+    revisar(true, '«Recordar en este dispositivo»: al recargar no pide la contraseña');
 
     // detalle con origen
     await pagina.locator('.bloque-alertas .fila-pend').first().click();
@@ -145,6 +153,12 @@ try {
       }
     }
     revisar(errores.length === 0, `Sin errores de JavaScript${errores.length ? `: ${errores.join(' | ')}` : ''}`);
+    await pagina.goto(`${url}/panel/#/fuentes`);
+    await pagina.getByRole('button', { name: /Salir/ }).click();
+    await pagina.waitForSelector('#form-acceso');
+    await pagina.reload();
+    await pagina.waitForSelector('#form-acceso');
+    revisar(true, '«Salir» olvida el acceso: vuelve a pedir la contraseña');
     await contexto.close();
   }
 
@@ -175,7 +189,8 @@ try {
   }
   {
     let veces = 0;
-    const { pagina, contexto } = await nuevaPagina({ fallas: { prestamos: () => (veces++ >= 2 ? 500 : 0) } });
+    // La primera lectura completa son 5 consultas; después, préstamos falla.
+    const { pagina, contexto } = await nuevaPagina({ fallas: { prestamos: () => (veces++ >= 5 ? 500 : 0) } });
     await entrar(pagina);
     await pagina.getByRole('button', { name: /Actualizar/ }).click();
     await pagina.waitForSelector('.banda-alerta');
@@ -195,8 +210,7 @@ try {
     await simularGoogle(contexto, copia);
     const pagina = await contexto.newPage();
     await pagina.clock.setFixedTime(relojFijo);
-    await pagina.goto(enlaceConfig);
-    await pagina.getByRole('button', { name: 'Entrar con Google' }).click();
+    await entrar(pagina);
     await pagina.goto(`${url}/panel/#/finanzas`);
     await pagina.waitForSelector('#sel-mes');
     await pagina.selectOption('#sel-mes', String(esperado.finanzas.meses.length - 1));
@@ -209,7 +223,6 @@ try {
   {
     const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 } });
     const pagina = await contexto.newPage();
-    await pagina.route('https://accounts.google.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
     await pagina.goto(`${url}/panel/?demo#/inicio`);
     await pagina.waitForSelector('.rejilla-resumen');
     revisar(/DATOS DE EJEMPLO/.test(await texto(pagina, '#aviso-global')), 'Modo de ejemplo identificado con una banda visible');

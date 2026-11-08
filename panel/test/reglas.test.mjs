@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '../js/parsers.js';
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
-import { idDesdeEnlace, codificarConfig, configDesdeHash, validarConfig } from '../js/config.js';
+import { idDesdeEnlace, validarConfig } from '../js/config.js';
+import { cifrar, descifrar, ContrasenaIncorrecta } from '../js/acceso.js';
+import { valorCelda, filasDesdeGviz, rangosDeTramos } from '../js/gviz.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
 import { construirModelo } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
@@ -103,13 +105,32 @@ test('busca textos y columnas por encabezado, sin depender de la posición', () 
   assert.deepEqual(leerEtiquetaMes('NOVIEMBRE 2026'), { y: 2026, m: 11 });
 });
 
-test('configuración: enlaces, validación y enlace para el celular', () => {
+test('configuración: enlaces y validación', () => {
   const id = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789';
   assert.equal(idDesdeEnlace(`https://docs.google.com/spreadsheets/d/${id}/edit#gid=0`), id);
-  const cfg = { clienteId: '123-abc.apps.googleusercontent.com', archivos: { nayarsound: id, agenda: id, prestamos: id, gastos: id } };
+  const archivo = { id, pestanas: { DASHBOARD: 1 }, zona: 'America/Mexico_City' };
+  const cfg = { archivos: { nayarsound: archivo, agenda: archivo, prestamos: archivo, gastos: archivo } };
   assert.deepEqual(validarConfig(cfg), []);
-  assert.deepEqual(configDesdeHash(`#config=${codificarConfig(cfg)}`).cfg, cfg);
-  assert.ok(validarConfig({ ...cfg, clienteId: 'x' }).length > 0);
+  assert.ok(validarConfig({ archivos: { nayarsound: archivo } }).length > 0);
+});
+
+test('contraseña: cifra y descifra; con otra contraseña falla', async () => {
+  const datos = { archivos: { nayarsound: { id: 'x'.repeat(30) } } };
+  const paquete = await cifrar(datos, 'clave correcta', { vueltas: 1000 });
+  assert.ok(!JSON.stringify(paquete).includes('xxxxxxxx'));
+  assert.deepEqual(await descifrar(paquete, 'clave correcta'), datos);
+  await assert.rejects(descifrar(paquete, 'otra'), ContrasenaIncorrecta);
+});
+
+test('gviz: fechas, horas y tramos al formato de la API de Sheets', () => {
+  assert.equal(valorCelda({ v: 'Date(2026,10,7)' }, 'date'), 46333);
+  assert.equal(valorCelda({ v: [20, 0, 0, 0] }, 'timeofday'), 20 / 24);
+  assert.equal(valorCelda({ v: 'Date(2026,10,7)' }, 'string'), 'Date(2026,10,7)');
+  assert.equal(valorCelda(null, 'number'), '');
+  assert.deepEqual(rangosDeTramos("'AGENDA Y VENTAS'!A11:U", [11, 12, 13]).map((t) => t.a1), ['A11:U11', 'A12:U12', 'A13:U']);
+  const filas = filasDesdeGviz({ status: 'ok', table: { cols: [{ type: 'string' }, { type: 'date' }], rows: [{ c: [{ v: 'A' }, { v: 'Date(2026,10,8)' }] }, { c: [null, null] }] } }, 3);
+  assert.deepEqual(filas, [['A', 46334], []]);
+  assert.throws(() => filasDesdeGviz({ status: 'error', errors: [{ message: 'x' }] }, 1), /error/);
 });
 
 test('modelo con datos de ejemplo: pendientes únicos y separados de los eventos', () => {

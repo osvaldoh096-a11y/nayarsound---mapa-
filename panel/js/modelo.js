@@ -62,10 +62,10 @@ function filasAgenda(fuente) {
   if (encabezado < 0) return { eventos: null, controles: [], encabezado, error: 'No encontré los encabezados de AGENDA.' };
   const { registros, faltan } = tablaPorEncabezados(filas, encabezado, {
     ciudad: 'CIUDAD', dj: 'DJ', fecha: 'FECHA', tipo: 'TIPO EVENTO', inicio: 'INICIO DEL EVENTO',
-    horas: 'TOT.HORAS', total: 'TOTAL EVENTO', gas: 'GAS A COBRAR', realizado: 'REALIZADO',
+    horas: 'TOT.HORAS', total: 'TOTAL EVENTO', gas: 'GAS A COBRAR', realizado: 'REALIZADO', op: 'OP',
   }, inicio);
   const eventos = registros
-    .map((r) => ({ ...r, idx: idxDesdeSerial(r.fecha), realizado: normalizar(r.realizado) }))
+    .map((r) => ({ ...r, fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha), realizado: normalizar(r.realizado) }))
     .filter((r) => r.idx !== null);
   for (const e of eventos) {
     e.hora = horaDesdeFraccion(e.inicio);
@@ -86,6 +86,13 @@ function filasAgenda(fuente) {
     });
   }
   return { eventos, controles, faltan, encabezado };
+}
+
+// La columna OP de tus hojas es el número de fila menos un desfase
+// (AGENDA: ROW()-12; REGISTRO PRESTAMOS: ROW()-8). Si está, es la fila exacta.
+function filaPorOp(registro, desfase) {
+  return typeof registro.op === 'number' && Number.isInteger(registro.op) && registro.op > 0
+    ? registro.op + desfase : registro.fila;
 }
 
 function etiquetaControl(c) {
@@ -109,7 +116,7 @@ function tablaVentas(fuente) {
   if (encabezado < 0) return null;
   const { registros } = tablaPorEncabezados(filas, encabezado, {
     dj: ['DJ', 1], fecha: 'FECHA', ciudad: 'CIUDAD', entregar: 'ENTREGAR A OSVALDO',
-    pagado: 'PAGADO', pagoDj: ['DJ', 2], realizado: 'REALIZADO',
+    pagado: 'PAGADO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP',
   }, inicio);
   const controles = [];
   const nombres = filas[encabezado] ?? [];
@@ -120,7 +127,7 @@ function tablaVentas(fuente) {
       controles.push({ ...control, a1: `${letraColumna(inicio.col + c)}${inicio.fila + f}`, columna: String(nombres[c] ?? '').trim() });
     });
   }
-  return { registros: registros.map((r) => ({ ...r, idx: idxDesdeSerial(r.fecha) })), controles };
+  return { registros: registros.map((r) => ({ ...r, fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha) })), controles };
 }
 
 export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
@@ -255,10 +262,12 @@ function tablaPrestamos(fuente, clave, encabezadosClave) {
   const inicio = inicioRango(ARCHIVOS.prestamos.rangos[clave]);
   const encabezado = buscarFilaEncabezado(filas, encabezadosClave);
   if (encabezado < 0) return null;
-  return tablaPorEncabezados(filas, encabezado, {
+  const { registros } = tablaPorEncabezados(filas, encabezado, {
     op: 'OP.', nombre: 'NOMBRE', divisa: 'DIVISA', capital: 'CANTIDAD', compromiso: 'FECHA COMPROMISO',
     estado: 'ESTADO', pagoMes: 'PAGO MES', dinamica: 'FECHA DINAMICA',
-  }, inicio).registros;
+  }, inicio);
+  // En REGISTRO PRESTAMOS, OP = fila − 8. En inversores OP es un conteo, no una fila.
+  return clave === 'registro' ? registros.map((r) => ({ ...r, fila: filaPorOp(r, 8) })) : registros;
 }
 
 function tomarFila(candidatos, usadas) {
