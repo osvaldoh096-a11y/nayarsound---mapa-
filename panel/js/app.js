@@ -21,7 +21,7 @@ const VISTAS = {
 };
 
 const URG = {
-  vencido: 'Vencido', hoy: 'Hoy', proximo: 'Próximo', 'sin-fecha': 'Sin fecha límite', aviso: 'Aviso',
+  vencido: 'Vencido', hoy: 'Hoy', proximo: 'Próximo', 'sin-fecha': 'Cobros de eventos pendientes', aviso: 'Aviso',
 };
 
 const COLOR_CIUDAD = { '🟣': 'violeta', '🟠': 'naranja', '🔵': 'azul', '🟢': 'verde' };
@@ -232,8 +232,20 @@ function bandaEstado(claves) {
 
 // ------------------------------------------------------------------ piezas
 
+/** Días desde el evento más antiguo que se debe. */
+function diasDeuda(p, hoyIdx) {
+  const fechas = (p.fechas ?? []).map((f) => f.idx).filter((x) => typeof x === 'number');
+  return fechas.length ? hoyIdx - Math.min(...fechas) : null;
+}
+
+function textoDias(n) {
+  return n === 0 ? 'Hoy' : `${n} ${n === 1 ? 'día' : 'días'}`;
+}
+
 function chipUrgencia(p, hoyIdx) {
-  const texto = p.fechaIdx === null || p.fechaIdx === undefined ? URG[p.urgencia] : diasRelativos(p.fechaIdx - hoyIdx);
+  const dias = p.tipo === 'deuda' ? diasDeuda(p, hoyIdx) : null;
+  const texto = dias !== null ? textoDias(dias)
+    : p.fechaIdx === null || p.fechaIdx === undefined ? URG[p.urgencia] : diasRelativos(p.fechaIdx - hoyIdx);
   return `<span class="chip u-${p.urgencia}"><i class="punto" aria-hidden="true"></i>${esc(texto)}</span>`;
 }
 
@@ -449,16 +461,17 @@ function tarjetaDeuda(deuda) {
     return `<tr data-pendiente="${esc(id)}" tabindex="0">
       <td><b>${esc(p.nombre)}</b></td>
       <td class="num">${p.eventos}</td>
+      <td class="num">${(() => { const n = diasDeuda(p, E.modelo.hoy.idx); return n === null ? '—' : esc(textoDias(n)); })()}</td>
       <td>${p.fechas.map((f) => `<span class="fecha-mini">${esc(fechaCorta(f.idx))}</span>`).join(' ')}</td>
       <td class="num">${esc(dinero(p.monto, 0))}</td></tr>`;
   }).join('');
   const cruce = deuda.cruce ? `<p class="nota ${deuda.cruce.coincide ? 'ok' : 'mal'}">${deuda.cruce.coincide ? '✓' : '⚠'} ${deuda.cruce.eventos} eventos por liquidar; tu hoja marca «${esc(deuda.cruce.texto.replace(/[❌✅]/gu, '').trim())}».</p>` : '';
   return `<article class="tarjeta">${cab}
     <div class="cifra-linea"><span class="cifra">${esc(dinero(deuda.total, 0))}</span><span class="sub">total por cobrar a ${plural(deuda.personas.length, 'persona', 'personas')}</span></div>
-    <table class="tabla"><thead><tr><th>Persona</th><th class="num">Eventos</th><th>Fechas</th><th class="num">Importe</th></tr></thead>
+    <table class="tabla"><thead><tr><th>Persona</th><th class="num">Eventos</th><th class="num">Debe hace</th><th>Fechas</th><th class="num">Importe</th></tr></thead>
     <tbody>${filas}</tbody>
-    <tfoot><tr><td colspan="3">Total general por cobrar</td><td class="num">${esc(dinero(deuda.total, 0))}</td></tr></tfoot></table>
-    <p class="nota">Sin fecha límite. Importes redondeados a pesos, como en tu hoja.</p>${cruce}
+    <tfoot><tr><td colspan="4">Total general por cobrar</td><td class="num">${esc(dinero(deuda.total, 0))}</td></tr></tfoot></table>
+    <p class="nota">Días desde el evento más antiguo que se debe. Importes redondeados a pesos, como en tu hoja.</p>${cruce}
   </article>`;
 }
 
@@ -675,7 +688,7 @@ function abrirPendiente(p) {
   filas.push([p.tipo === 'agenda' ? 'DJ' : 'Nombre', `<b>${esc(p.titulo)}</b>`]);
   if (p.tipo === 'agenda') filas.push(['Ciudad', esc(p.subtitulo)]);
   if (p.fechaIdx !== null && p.fechaIdx !== undefined) filas.push(['Fecha', `${esc(capitalizar(fechaLarga(p.fechaIdx)))} · ${esc(diasRelativos(p.fechaIdx - hoyIdx))}`]);
-  else filas.push(['Fecha límite', 'Sin fecha límite']);
+  else if (p.tipo === 'deuda' && diasDeuda(p, hoyIdx) !== null) filas.push(['Debe desde hace', textoDias(diasDeuda(p, hoyIdx))]);
   if (typeof p.monto === 'number') filas.push(['Importe', `<b>${esc(dinero(p.monto, p.decimales ?? 2))}</b> MXN${p.usdt ? ` (${esc(monto(p.usdt, 'USDT'))} × ${TIPO_CAMBIO_USDT})` : ''}`]);
   if (p.eventos) filas.push(['Eventos', String(p.eventos)]);
   if (p.op) filas.push(['Operación', `op. ${esc(p.op)}`]);

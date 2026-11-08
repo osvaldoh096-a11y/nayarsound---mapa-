@@ -20,7 +20,7 @@ El panel toma los **textos de recordatorio que ya generan tus DASHBOARD** y la *
 | Hora del evento y enlace a su fila | AMAL AGENDA | AGENDA | Fila 12 en adelante: CIUDAD, DJ, FECHA, INICIO DEL EVENTO | Se cruza fecha, ciudad y DJ |
 | Evento que requiere acción (resaltado) | AMAL AGENDA | AGENDA | Mismas columnas | Las reglas de D9, D10, G11, L11 y N11: DJ «buscar» o vacío en evento por realizar, sin hora de inicio, sin total, o Guadalajara sin gas a cobrar |
 | Avisos de captura | AMAL AGENDA / 🐯NAYARSOUND | AGENDA D9:N11 / AGENDA Y VENTAS L11 | Celdas con ❌ o ✅ | Se muestran tal cual |
-| Recordatorio de deuda (persona, eventos, fechas, importe, total) | 🐯NAYARSOUND - PERSONAL | DASHBOARD | Celda bajo «RECORDATORIO DE DEUDA» (B79) | El texto de la hoja: filas con PAGADO = DEUDOR. Sin fecha límite. |
+| Recordatorio de deuda (persona, eventos, fechas, importe, total) | 🐯NAYARSOUND - PERSONAL | DASHBOARD | Celda bajo «RECORDATORIO DE DEUDA» (B79) | El texto de la hoja: filas con PAGADO = DEUDOR. Días desde el evento más antiguo. |
 | Enlace a cada evento adeudado | 🐯NAYARSOUND - PERSONAL | AGENDA Y VENTAS | DJ, FECHA, ENTREGAR A OSVALDO, PAGADO | Se cruza DJ y fecha. Se compara con «FALTAN N DE PAGAR» (S11). |
 | COBRAR / PAGAR en los próximos 5 días | 💵REGISTRO DE PRESTAMOS | DASHBOARD | Celda bajo «RESUMEN GENERAL» (B18) | El texto de la hoja. COBRAR: préstamos ACTIVO por FECHA COMPROMISO. PAGAR: inversores ACTIVO por FECHA DINAMICA. USDT × 18. |
 | Capital por liquidar a inversores | 💵REGISTRO DE PRESTAMOS | DASHBOARD | Misma celda | Compromisos de los próximos 30 días |
@@ -43,7 +43,7 @@ Los eventos se cuentan aparte. Colores:
 
 - **Hoy:** acciones de hoy.
 - **Próximo:** acciones de días siguientes.
-- **Sin fecha límite:** deudas de DJs.
+- **Cobros de eventos pendientes:** deudas de DJs; cada una muestra los días desde el evento más antiguo que se debe.
 - **Vencido:** ninguna de tus hojas marca vencidos, así que queda en 0.
 
 **Mes actual.** Hoy, mañana y el mes actual se calculan con la hora de Ciudad de México. El selector de mes ofrece los meses que tiene la tabla de tu hoja.
