@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611082157';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611082208';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -68,8 +68,9 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     ['', '', '', '', '', '', '', '', '', '', '', '❌ HAY 1 ERRORES', '', '', '', '', '', '', '❌ FALTAN 3 DE PAGAR'],
     ['OP', 'SONIDO DE', 'CIUDAD', 'DJ', 'FECHA', 'TIPO EVENTO', 'TOT.HORAS', 'CLIENTE', 'TOTAL EVENTO', 'ANTICIPO',
       'GAS A COBRAR', 'DJ ', 'GANANCIA', 'GANANCIA 2', 'ENTREGAR A OSVALDO', 'REALIZADO', 'DIA', 'MES', 'PAGADO', 'PAGO'],
-    ...deudas.map(([dj, idx, entregar], i) => [i + 1, 'EJEMPLO', 'GUADALAJARA', dj, serial(idx), 'XV AÑOS', 5, 'CLIENTE DEMO',
-      3000, 500, 0, 800, 2200, 2200, entregar, 'SI', '', '', 'DEUDOR', 'NO']),
+    // Sonido de OSVALDO: entregar = total − anticipo − DJ + gas (fórmula de la hoja).
+    ...deudas.map(([dj, idx, entregar], i) => [i + 1, 'OSVALDO', 'GUADALAJARA', dj, serial(idx), 'XV AÑOS', 5, 'CLIENTE DEMO',
+      entregar + 1000, 500, 300, 800, entregar + 500, entregar + 500, entregar, 'SI', '', '', 'DEUDOR', 'NO']),
     [4, 'EJEMPLO', 'TEPIC', 'DJ DELTA', serial(h - 1), 'BODA', 5, 'CLIENTE DEMO', 2500, 500, 0, 700, 1300, 650, 650, 'SI', '', '', 'PAGADO', 'SI'],
   ];
   const fmt = (n) => n.toLocaleString('en-US');

@@ -132,6 +132,16 @@ try {
       await pagina.locator('.tabla tbody tr').first().click();
       await pagina.waitForSelector('#detalle[open]');
       const campo = pagina.locator('input[data-fila-pagodj]').first();
+      const filaCampo = await campo.getAttribute('data-fila-pagodj');
+      const vista = pagina.locator(`[data-enviar-fila="${filaCampo}"]`);
+      if (await vista.count()) {
+        const antesVista = await vista.innerText();
+        const pagoActual = Number(await campo.inputValue() || 0);
+        await campo.fill(String(pagoActual + 100));
+        const despues = await vista.innerText();
+        const num = (t) => Number(t.replace(/[$,]/g, ''));
+        revisar(Math.abs(num(antesVista) - num(despues) - 100) < 0.01, `Vista previa: subir 100 el pago al DJ baja «Enviar» de ${antesVista} a ${despues}`);
+      }
       await campo.fill('1234');
       pagina.once('dialog', (d) => d.accept());
       const previo = lecturas.length;

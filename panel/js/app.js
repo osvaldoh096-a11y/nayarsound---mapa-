@@ -1,18 +1,18 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082157';
-import { escribirCelda, leerRangos } from './api.js?v=202611082157';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082157';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611082157';
-import { construirModelo } from './modelo.js?v=202611082157';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082208';
+import { escribirCelda, leerRangos } from './api.js?v=202611082208';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082208';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611082208';
+import { construirModelo, entregarCon } from './modelo.js?v=202611082208';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611082157';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082157';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082157';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082157';
-import { fuentesDemo } from './demo.js?v=202611082157';
-import { icono } from './iconos.js?v=202611082157';
+} from './fechas.js?v=202611082208';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082208';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082208';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082208';
+import { fuentesDemo } from './demo.js?v=202611082208';
+import { icono } from './iconos.js?v=202611082208';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -77,6 +77,7 @@ async function arrancar() {
   window.addEventListener('hashchange', () => { E.ruta = rutaDesdeHash(); E.filtro = null; pintar(); window.scrollTo(0, 0); });
   document.addEventListener('click', alHacerClic);
   document.addEventListener('change', alCambiar);
+  document.addEventListener('input', alEscribir);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
 
@@ -294,6 +295,23 @@ async function copiarMensaje(boton) {
   }
   boton.textContent = ok ? '¡Copiado!' : 'No se pudo copiar';
   setTimeout(() => { boton.textContent = 'Copiar'; }, 1800);
+}
+
+/** Vista previa: al editar el pago al DJ, recalcula «Enviar» con la fórmula de la hoja. */
+function alEscribir(evento) {
+  const el = evento.target;
+  if (!el.matches?.('input[data-fila-pagodj]')) return;
+  const p = E.pendientes.get(el.dataset.pendientePago);
+  const r = p?.registros?.find((x) => String(x.fila) === el.dataset.filaPagodj);
+  const salida = document.querySelector(`[data-enviar-fila="${el.dataset.filaPagodj}"]`);
+  if (!r || !salida) return;
+  const texto = String(el.value).trim();
+  const valor = texto === '' ? 0 : Number(texto);
+  if (!Number.isFinite(valor)) return;
+  const nuevo = entregarCon(r, valor);
+  if (nuevo === null) return;
+  salida.textContent = dinero(nuevo);
+  salida.classList.toggle('cambio', valor !== (typeof r.pagoDj === 'number' ? r.pagoDj : 0));
 }
 
 function alCambiar(evento) {
@@ -919,10 +937,13 @@ function abrirPendiente(p) {
         ? ` <button class="boton-texto" data-accion="marcar-pagado" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Marcar pagado</button>` : '';
       const editar = p.pago?.columnas?.pagoDj && r
         ? (esPrivado() ? '<div class="pago-dj nota">Muestra los importes (ojo) para editar el pago al DJ.</div>'
-          : `<div class="pago-dj"><label>Pago al DJ <span class="campo-dinero">$<input type="number" inputmode="decimal" min="0" step="1" value="${typeof r.pagoDj === 'number' ? r.pagoDj : ''}" placeholder="Sin registro" data-fila-pagodj="${r.fila}"></span></label>
+          : `<div class="pago-dj"><label>Pago al DJ <span class="campo-dinero">$<input type="number" inputmode="decimal" min="0" step="1" value="${typeof r.pagoDj === 'number' ? r.pagoDj : ''}" placeholder="Sin registro" data-fila-pagodj="${r.fila}" data-pendiente-pago="${esc(p.id)}"></span></label>
             <button class="boton boton-chico" data-accion="guardar-pagodj" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Guardar</button></div>`)
         : '';
-      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · Enviar ${esc(dinero(r.importe.valor))}` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}${editar}</li>`;
+      // La vista previa solo se activa si la fórmula replicada da lo mismo que la hoja.
+      const previa = r && typeof r.importe?.valor === 'number' && entregarCon(r, r.pagoDj) !== null
+        && Math.abs(entregarCon(r, r.pagoDj) - r.importe.valor) < 0.01;
+      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · Enviar <b class="enviar-valor" ${previa ? `data-enviar-fila="${r.fila}"` : ''}>${esc(dinero(r.importe.valor))}</b>` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}${editar}</li>`;
     }).join('')}</ul></section>`;
   } else if (p.registros?.length) {
     registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.hora ? `${esc(r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;

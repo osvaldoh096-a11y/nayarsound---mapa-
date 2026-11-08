@@ -6,15 +6,15 @@
 // añadir hora y enlace a la fila, nunca para cambiar una cifra.
 
 import {
-  normalizar, idxDesdeSerial, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611082157';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082157';
+  normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
+} from './fechas.js?v=202611082208';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082208';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611082157';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082157';
-import { dinero } from './formato.js?v=202611082157';
+} from './sheets.js?v=202611082208';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082208';
+import { dinero } from './formato.js?v=202611082208';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -117,7 +117,7 @@ function tablaVentas(fuente) {
   const { registros, indices } = tablaPorEncabezados(filas, encabezado, {
     dj: ['DJ', 1], fecha: 'FECHA', ciudad: 'CIUDAD', entregar: 'ENTREGAR A OSVALDO',
     total: 'TOTAL EVENTO', anticipo: 'ANTICIPO', gas: 'GAS A COBRAR', horas: 'TOT.HORAS', dia: 'DIA',
-    pagado: 'PAGADO', pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP',
+    pagado: 'PAGADO', pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP', sonido: 'SONIDO DE',
   }, inicio);
   const letra = (clave) => (indices[clave] >= 0 ? letraColumna(inicio.col + indices[clave]) : null);
   const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago'), pagoDj: letra('pagoDj') };
@@ -144,6 +144,24 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
  * suma de ENTREGAR de los eventos con pago de DJ registrado. Los eventos de
  * lunes a jueves van en mayúsculas, como en la hoja.
  */
+/**
+ * «ENTREGAR A OSVALDO» con la fórmula de AGENDA Y VENTAS (columnas M, N y O)
+ * para un pago al DJ dado. Sirve para la vista previa al editar el pago.
+ *   Sonido de OSVALDO: total − anticipo − DJ (+ gas desde feb 2026).
+ *   Otro sonido: total − anticipo − DJ − ganancia del socio, donde la
+ *   ganancia es (total − DJ) y se divide entre 2 si el sonido es de JORGE o PAUL.
+ */
+export function entregarCon(r, pagoDj) {
+  if (normalizar(r.realizado) !== 'SI') return null;
+  const sonido = normalizar(r.sonido);
+  const desdeFebrero = typeof r.fecha === 'number' && r.fecha >= idxDesdeYMD(2026, 2, 1) + 25569;
+  const I = num(r.total); const J = num(r.anticipo); const K = num(r.gas); const L = num(pagoDj);
+  if (sonido === 'OSVALDO') return desdeFebrero ? I - J - L + K : I - J - L;
+  const ganancia = I - L;
+  const socio = ganancia / (sonido === 'JORGE' || sonido === 'PAUL' ? 2 : 1);
+  return I - J - L - socio;
+}
+
 export function mensajeDeuda(nombre, filas) {
   const bloques = filas.map((r) => {
     const idx = typeof r.fecha === 'number' ? Math.floor(r.fecha) - 25569 : null;

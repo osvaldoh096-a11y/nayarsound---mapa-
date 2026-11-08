@@ -140,3 +140,13 @@ test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => 
     '━━━━━━━━━━━━━━', '💰 *TOTAL A ENVIAR: $2,100*',
   ].join('\n'));
 });
+
+test('vista previa de «Enviar» con la fórmula de AGENDA Y VENTAS', async () => {
+  const { entregarCon } = await import('../js/modelo.js');
+  const nov = idxDesdeYMD(2026, 11, 7) + 25569;
+  const base = { realizado: 'SI', fecha: nov, total: 3500, anticipo: 100, gas: 200 };
+  assert.equal(entregarCon({ ...base, sonido: 'OSVALDO' }, 1500), 2100); // 3500 − 100 − 1500 + 200
+  assert.equal(entregarCon({ ...base, sonido: 'OSVALDO', fecha: idxDesdeYMD(2026, 1, 10) + 25569 }, 1500), 1900);
+  assert.equal(entregarCon({ ...base, sonido: 'JORGE' }, 1000), 3500 - 100 - 1000 - 1250); // socio: (3500 − 1000) / 2
+  assert.equal(entregarCon({ ...base, sonido: 'OSVALDO', realizado: 'NO' }, 1500), null);
+});
