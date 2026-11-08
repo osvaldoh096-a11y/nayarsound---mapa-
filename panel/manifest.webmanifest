@@ -1,0 +1,14 @@
+{
+  "name": "Panel personal",
+  "short_name": "Panel",
+  "start_url": "./#/inicio",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f6f4",
+  "theme_color": "#2a78d6",
+  "lang": "es-MX",
+  "icons": [
+    { "src": "icono.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icono-180.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

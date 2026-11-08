@@ -1,0 +1,10 @@
+{
+  "name": "panel-personal",
+  "private": true,
+  "type": "module",
+  "description": "Panel privado de pendientes y finanzas que lee Google Sheets (solo lectura).",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "ui": "node test/ui.check.mjs"
+  }
+}
