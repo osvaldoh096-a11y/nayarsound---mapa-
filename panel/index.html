@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://docs.google.com; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Panel">
+<title>Panel</title>
+<link rel="icon" href="icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icono-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/panel.css">
+<script type="module" src="js/app.js"></script>
+</head>
+<body>
+<a class="saltar" href="#vista">Ir al contenido</a>
+<header class="barra">
+  <div class="barra-fila">
+    <a class="marca" href="#/inicio">Panel <span>personal</span></a>
+    <nav class="pestanas" aria-label="Secciones">
+      <a href="#/inicio" data-ruta="inicio">Inicio</a>
+      <a href="#/nayarsound" data-ruta="nayarsound">NayarSound</a>
+      <a href="#/prestamos" data-ruta="prestamos">Préstamos e inversores</a>
+      <a href="#/finanzas" data-ruta="finanzas">Finanzas</a>
+    </nav>
+    <span id="estado-lectura" class="estado-lectura" aria-live="polite"></span>
+    <div class="barra-acciones">
+      <button id="btn-actualizar" class="boton boton-primario" data-accion="actualizar" disabled>
+        <span class="icono-actualizar" aria-hidden="true">↻</span><span id="btn-actualizar-texto">Actualizar</span>
+      </button>
+      <a class="boton boton-icono" href="#/fuentes" data-ruta="fuentes" aria-label="Fuentes y ajustes" title="Fuentes y ajustes">⚙</a>
+    </div>
+  </div>
+</header>
+<div id="aviso-global"></div>
+<main id="vista" tabindex="-1"></main>
+<nav class="pestanas-movil" aria-label="Secciones">
+  <a href="#/inicio" data-ruta="inicio"><span aria-hidden="true">◉</span>Inicio</a>
+  <a href="#/nayarsound" data-ruta="nayarsound"><span aria-hidden="true">♫</span>NayarSound</a>
+  <a href="#/prestamos" data-ruta="prestamos"><span aria-hidden="true">⇄</span>Préstamos</a>
+  <a href="#/finanzas" data-ruta="finanzas"><span aria-hidden="true">$</span>Finanzas</a>
+</nav>
+<dialog id="detalle" aria-label="Detalle">
+  <div class="detalle-marco">
+    <button class="detalle-cerrar" data-cerrar aria-label="Cerrar">✕</button>
+    <div id="detalle-cuerpo"></div>
+  </div>
+</dialog>
+<noscript><p class="noscript">El panel necesita JavaScript.</p></noscript>
+</body>
+</html>
