@@ -334,9 +334,13 @@ function tilesFinanzas(mes, { conOrigen = true } = {}) {
 
 function vistaInicio(m) {
   const hoyIdx = m.hoy.idx;
+  // Total que te deben: el «TOTAL DE DEUDA» de tu hoja (o la suma por persona si no viene).
+  const deudas = m.pendientes.filter((p) => p.tipo === 'deuda');
+  const totalDeuda = typeof m.nayarsound.deuda?.total === 'number' ? m.nayarsound.deuda.total
+    : deudas.reduce((t, p) => t + (p.monto ?? 0), 0);
   const chips = ['hoy', 'proximo', 'sin-fecha'].map((u) => `
     <a href="#/inicio" class="chip chip-filtro u-${u} ${E.filtro === u ? 'activo' : ''}" data-filtro="${u}" aria-pressed="${E.filtro === u}">
-      <i class="punto" aria-hidden="true"></i>${URG[u]} <b>${m.conteo[u]}</b></a>`).join('');
+      <i class="punto" aria-hidden="true"></i>${URG[u]} <b>${m.conteo[u]}</b>${u === 'sin-fecha' && deudas.length ? ` · <b>${esc(dinero(totalDeuda, 0))}</b>` : ''}</a>`).join('');
   return `
   <h1 class="titulo-vista">${esc(capitalizar(fechaLarga(hoyIdx)))}</h1>
   <section class="rejilla-resumen">
