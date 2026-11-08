@@ -372,7 +372,9 @@ function alertasPorNegocio(m) {
     const delDia = ns.filter((p) => p.grupo === `agenda|${dia.idx}`);
     if (delDia.length) filasNs.push({ urg: delDia[0].urgencia, fecha: dia.idx, html: filaDiaAgenda(dia, delDia, hoyIdx) });
   }
-  for (const p of ns.filter((x) => x.tipo !== 'agenda')) filasNs.push({ urg: p.urgencia, fecha: p.fechaIdx, html: filaPendiente(p, hoyIdx) });
+  // Las deudas de DJs no saturan la lista: se ven al tocar «Cobros de eventos pendientes».
+  const otros = ns.filter((x) => x.tipo !== 'agenda' && (x.tipo !== 'deuda' || E.filtro === 'sin-fecha'));
+  for (const p of otros) filasNs.push({ urg: p.urgencia, fecha: p.fechaIdx, html: filaPendiente(p, hoyIdx) });
   const controles = (m.nayarsound.controles ?? []).filter((c) => c.estado !== 'ok');
   if ((!E.filtro || E.filtro === 'aviso') && controles.length) {
     filasNs.push({ urg: 'aviso', fecha: null, html: `<a class="fila-pend u-aviso" href="#/nayarsound">
