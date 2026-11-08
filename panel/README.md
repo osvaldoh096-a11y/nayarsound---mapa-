@@ -6,7 +6,7 @@ Panel privado de pendientes y finanzas. Se publica en GitHub Pages como el mapa 
 
 - **Fuente de datos:** tus Google Sheets. El panel no tiene base de datos propia.
 - **Acceso:** iniciar sesión con tu cuenta de Google.
-- **Hojas privadas:** Google solo entrega los datos a cuentas con acceso a tus archivos. Las hojas pueden estar como **Restringido**. Permiso pedido: `spreadsheets.readonly` (solo lectura).
+- **Hojas privadas:** Google solo entrega los datos a cuentas con acceso a tus archivos. Las hojas pueden estar como **Restringido**. Permiso pedido: `spreadsheets` (lectura y edición). El panel solo escribe cuando marcas un pago: «SI» en la columna PAGO de AGENDA Y VENTAS, después de comprobar que la fila sigue siendo ese evento deudor y que la celda no tiene fórmula.
 - **Qué se publica:** solo código. Los IDs de las hojas están en `js/fuentes.js`, pero no dan acceso porque las hojas están restringidas.
 - **Datos de ejemplo:** `…/panel/?demo` muestra datos inventados, siempre con la banda «DATOS DE EJEMPLO».
 

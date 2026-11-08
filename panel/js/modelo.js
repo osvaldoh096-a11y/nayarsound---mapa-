@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611082119';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082119';
+} from './fechas.js?v=202611082128';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082128';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611082119';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082119';
-import { dinero } from './formato.js?v=202611082119';
+} from './sheets.js?v=202611082128';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082128';
+import { dinero } from './formato.js?v=202611082128';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -114,11 +114,13 @@ function tablaVentas(fuente) {
   const inicio = inicioRango(ARCHIVOS.nayarsound.rangos.ventas);
   const encabezado = buscarFilaEncabezado(filas, ['FECHA', 'PAGADO', 'ENTREGAR A OSVALDO']);
   if (encabezado < 0) return null;
-  const { registros } = tablaPorEncabezados(filas, encabezado, {
+  const { registros, indices } = tablaPorEncabezados(filas, encabezado, {
     dj: ['DJ', 1], fecha: 'FECHA', ciudad: 'CIUDAD', entregar: 'ENTREGAR A OSVALDO',
     total: 'TOTAL EVENTO', anticipo: 'ANTICIPO', gas: 'GAS A COBRAR', horas: 'TOT.HORAS', dia: 'DIA',
-    pagado: 'PAGADO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP',
+    pagado: 'PAGADO', pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP',
   }, inicio);
+  const letra = (clave) => (indices[clave] >= 0 ? letraColumna(inicio.col + indices[clave]) : null);
+  const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago') };
   const controles = [];
   const nombres = filas[encabezado] ?? [];
   for (let f = 0; f < encabezado; f++) {
@@ -128,7 +130,7 @@ function tablaVentas(fuente) {
       controles.push({ ...control, a1: `${letraColumna(inicio.col + c)}${inicio.fila + f}`, columna: String(nombres[c] ?? '').trim() });
     });
   }
-  return { registros: registros.map((r) => ({ ...r, fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha) })), controles };
+  return { registros: registros.map((r) => ({ ...r, fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha) })), controles, columnas };
 }
 
 const MESES_TEXTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
@@ -255,6 +257,8 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
         fechaIdx: null, urgencia: 'sin-fecha', eventos: p.eventos, monto: p.monto, moneda: 'MXN', decimales: 0,
         fechas: p.fechas, registros: p.registros, origen: origenDeuda, linea: p.lineas.join('\n'),
         mensaje: p.registros?.length ? mensajeDeuda(p.nombre, p.registros) : null,
+        pago: ventas?.columnas?.pago && !nayarsound.demo
+          ? { archivo: nayarsound.id, pestana: 'AGENDA Y VENTAS', columnas: ventas.columnas } : null,
       });
     }
     if (deuda.cuadraTotal === false) {

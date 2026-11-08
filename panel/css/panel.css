@@ -404,6 +404,9 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .det-mensaje-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
 .det-mensaje-cab h3 { margin: 0; }
 .boton-chico { padding: 6px 14px; font-size: 13px; border-radius: 9px; }
+.boton-exito { background: var(--verde); border-color: var(--verde); color: #fff; }
+.boton-exito:hover { background: var(--verde-tinta); border-color: var(--verde-tinta); }
+.boton-ancho { width: 100%; margin-top: 16px; padding: 12px 16px; font-size: 15px; }
 
 /* ---------- carga ---------- */
 .cargando { padding: 8px 0; color: var(--tenue); }

@@ -128,6 +128,20 @@ try {
       const copiado = await pagina.evaluate(() => navigator.clipboard.readText());
       revisar(copiado === msg, 'Deuda: «Copiar» pone el mensaje completo en el portapapeles');
       await pagina.locator('[data-cerrar]').click();
+      // Marcar como pagado: confirma, verifica la fila y escribe SI en PAGO.
+      await pagina.locator('.tabla tbody tr').first().click();
+      await pagina.waitForSelector('#detalle[open]');
+      pagina.once('dialog', (d) => d.accept());
+      const antes = lecturas.length;
+      await pagina.locator('button.boton-exito[data-accion="marcar-pagado"]').click();
+      await pagina.waitForSelector('#detalle:not([open])', { state: 'hidden' });
+      await pagina.waitForSelector('.fila-1, .inicio-rejilla, .dia');
+      const primera = deuda.personas[0];
+      for (let i = 0; i < 30 && lecturas.slice(antes).filter((l) => l.metodo === 'PUT').length < primera.eventos; i++) await pagina.waitForTimeout(100);
+      const escrituras = lecturas.slice(antes).filter((l) => l.metodo === 'PUT');
+      revisar(escrituras.length === primera.eventos && escrituras.every((e) => e.valor === 'SI' && /^'AGENDA Y VENTAS'!T\d+$/.test(e.celda)),
+        `Marcar pagado: escribe «SI» en PAGO de ${primera.eventos} evento(s) (${escrituras.map((e) => e.celda).join(', ')})`);
+      revisar(lecturas.every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT').every((l) => /!T\d+$/.test(l.celda)), 'Solo se escribe en la columna PAGO');
     }
     const djs = await pagina.locator('.dia').first().locator('.dj').count();
     const primerDia = esperado.nayarsound.agenda.dias[0];

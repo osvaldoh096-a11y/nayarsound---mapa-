@@ -1,9 +1,10 @@
 // Inicio de sesión con Google (Google Identity Services, modelo de token).
-// Permiso pedido: solo lectura de hojas de cálculo. El token dura ~1 hora; se
+// Permiso pedido: hojas de cálculo (lectura y edición). El panel solo escribe
+// cuando marcas un pago, en la columna PAGO de AGENDA Y VENTAS. El token dura ~1 hora; se
 // guarda en este navegador hasta que expira para no pedir la cuenta en cada
 // recarga. «Cerrar sesión» lo borra. Solo se envía a Google.
 
-export const PERMISO = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+export const PERMISO = 'https://www.googleapis.com/auth/spreadsheets';
 
 let cliente = null;
 const CLAVE = 'panel.sesion.v1';
@@ -11,12 +12,12 @@ let token = null;
 let expira = 0;
 try {
   const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
-  if (guardado?.token && guardado.expira > Date.now()) ({ token, expira } = guardado);
+  if (guardado?.token && guardado.expira > Date.now() && guardado.permiso === PERMISO) ({ token, expira } = guardado);
 } catch { /* sin almacenamiento */ }
 
 function recordar() {
   try {
-    if (token) localStorage.setItem(CLAVE, JSON.stringify({ token, expira }));
+    if (token) localStorage.setItem(CLAVE, JSON.stringify({ token, expira, permiso: PERMISO }));
     else localStorage.removeItem(CLAVE);
   } catch { /* sin almacenamiento */ }
 }
@@ -43,7 +44,7 @@ export async function prepararSesion(clienteId) {
       if (!p) return;
       if (respuesta.error) return p.reject(new Error(mensajeError(respuesta.error)));
       if (!oauth2.hasGrantedAllScopes(respuesta, PERMISO)) {
-        return p.reject(new Error('Necesito el permiso de lectura de tus hojas para mostrar los datos.'));
+        return p.reject(new Error('Necesito el permiso de tus hojas de cálculo para mostrar los datos y marcar pagos.'));
       }
       token = respuesta.access_token;
       expira = Date.now() + (Number(respuesta.expires_in || 3600) - 60) * 1000;

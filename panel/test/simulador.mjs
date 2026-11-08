@@ -53,21 +53,57 @@ export async function simularGoogle(contexto, datos, { fallas = {} } = {}) {
   await contexto.route('https://accounts.google.com/**', (ruta) => ruta.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
   const porId = Object.fromEntries(Object.entries(IDS).map(([k, id]) => [id, k]));
   const lecturas = [];
-  await contexto.route('https://sheets.googleapis.com/**', (ruta) => {
+  const num = (l) => [...l].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
+  const partir = (r) => {
+    const m = r.match(/^'?(.+?)'?!([A-Z]+)(\d+)(?::([A-Z]+)(\d+)?)?$/);
+    return { hoja: m[1], c1: num(m[2]), f1: Number(m[3]), c2: m[4] ? num(m[4]) : num(m[2]), f2: m[5] ? Number(m[5]) : (m[4] ? null : Number(m[3])) };
+  };
+  // Cuadrícula completa de una pestaña y su esquina superior izquierda.
+  const cuadricula = (clave, hoja) => {
+    const rangos = Object.values(ARCHIVOS[clave].rangos);
+    const i = rangos.findIndex((r) => partir(r).hoja === hoja);
+    if (i < 0) return null;
+    const base = partir(rangos[i]);
+    return { filas: datos[clave].valores[i] ?? (datos[clave].valores[i] = []), base };
+  };
+  const recorte = (clave, rango) => {
+    const esperados = Object.values(ARCHIVOS[clave].rangos);
+    const exacto = esperados.indexOf(rango);
+    if (exacto >= 0) return datos[clave].valores[exacto] ?? [];
+    const r = partir(rango);
+    const g = cuadricula(clave, r.hoja);
+    if (!g) return [];
+    const salida = [];
+    for (let f = r.f1; f <= (r.f2 ?? r.f1 + g.filas.length); f++) {
+      const fila = g.filas[f - g.base.f1] ?? [];
+      salida.push(Array.from({ length: r.c2 - r.c1 + 1 }, (_, k) => fila[r.c1 - g.base.c1 + k] ?? ''));
+    }
+    return salida;
+  };
+  await contexto.route('https://sheets.googleapis.com/**', async (ruta) => {
     const url = new URL(ruta.request().url());
     const metodo = ruta.request().method();
-    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization' };
-    if (metodo === 'OPTIONS') return ruta.fulfill({ status: 204, headers: { ...cors, 'Access-Control-Allow-Methods': 'GET' } });
-    const m = url.pathname.match(/\/v4\/spreadsheets\/([^/:]+)\/values:batchGet$/);
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, PUT' };
+    if (metodo === 'OPTIONS') return ruta.fulfill({ status: 204, headers: cors });
+    const m = url.pathname.match(/\/v4\/spreadsheets\/([^/:]+)\/values(?::batchGet|\/(.+))$/);
     const clave = m && porId[decodeURIComponent(m[1])];
-    lecturas.push({ metodo, clave });
-    if (metodo !== 'GET') return ruta.fulfill({ status: 405, headers: cors, body: 'solo lectura' });
     if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });
     if (!clave) return ruta.fulfill({ status: 404, headers: cors, contentType: 'application/json', body: '{"error":{"message":"no existe"}}' });
+    if (metodo === 'PUT' && m[2]) {
+      const celda = decodeURIComponent(m[2]);
+      const valor = JSON.parse(ruta.request().postData() ?? '{}').values?.[0]?.[0];
+      lecturas.push({ metodo, clave, celda, valor });
+      const r = partir(celda);
+      const g = cuadricula(clave, r.hoja);
+      const fila = g.filas[r.f1 - g.base.f1] ?? (g.filas[r.f1 - g.base.f1] = []);
+      fila[r.c1 - g.base.c1] = valor;
+      return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ updatedCells: 1 }) });
+    }
+    lecturas.push({ metodo, clave });
+    if (metodo !== 'GET') return ruta.fulfill({ status: 405, headers: cors, body: 'no permitido' });
     const falla = typeof fallas[clave] === 'function' ? fallas[clave]() : fallas[clave];
     if (falla) return ruta.fulfill({ status: falla, headers: cors, contentType: 'application/json', body: '{"error":{"message":"simulado"}}' });
-    const esperados = Object.values(ARCHIVOS[clave].rangos);
-    const valueRanges = url.searchParams.getAll('ranges').map((r) => ({ range: r, values: datos[clave].valores[esperados.indexOf(r)] ?? [] }));
+    const valueRanges = url.searchParams.getAll('ranges').map((r) => ({ range: r, values: recorte(clave, r) }));
     return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ valueRanges }) });
   });
   return lecturas;

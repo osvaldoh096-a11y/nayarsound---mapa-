@@ -1,17 +1,18 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082119';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082119';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611082119';
-import { construirModelo } from './modelo.js?v=202611082119';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082128';
+import { escribirCelda, leerRangos } from './api.js?v=202611082128';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082128';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611082128';
+import { construirModelo } from './modelo.js?v=202611082128';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611082119';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082119';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082119';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082119';
-import { fuentesDemo } from './demo.js?v=202611082119';
-import { icono } from './iconos.js?v=202611082119';
+} from './fechas.js?v=202611082128';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082128';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082128';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082128';
+import { fuentesDemo } from './demo.js?v=202611082128';
+import { icono } from './iconos.js?v=202611082128';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -179,7 +180,56 @@ function alHacerClic(evento) {
     pintar();
   }
   if (accion === 'copiar-mensaje') copiarMensaje(el);
+  if (accion === 'marcar-pagado') marcarPagado(el);
   if (accion === 'tabla') { const t = $(`#${el.dataset.objetivo}`); if (t) t.hidden = !t.hidden; }
+}
+
+/**
+ * Escribe SI en la columna PAGO de los eventos elegidos. Antes de escribir
+ * vuelve a leer cada fila y comprueba que sigue siendo el mismo DJ, la misma
+ * fecha y DEUDOR, y que la celda PAGO no tiene fórmula.
+ */
+async function marcarPagado(boton) {
+  const p = E.pendientes.get(boton.dataset.pendientePago);
+  if (!p?.pago || !p.registros?.length) return;
+  const filas = boton.dataset.fila ? p.registros.filter((r) => String(r.fila) === boton.dataset.fila) : p.registros;
+  const texto = filas.length === 1
+    ? `¿Marcar como pagado el evento de ${p.titulo} del ${fechaLarga(filas[0].idx)}?`
+    : `¿Marcar como pagados los ${filas.length} eventos de ${p.titulo}?`;
+  if (!confirm(`${texto}\n\nSe escribirá «SI» en la columna PAGO de AGENDA Y VENTAS.`)) return;
+  let token = tokenVigente();
+  try {
+    if (!token) token = await iniciarSesion();
+  } catch (error) { alert(error.message); return; }
+  const { archivo, pestana, columnas } = p.pago;
+  const botones = [...document.querySelectorAll('[data-accion="marcar-pagado"]')];
+  botones.forEach((b) => { b.disabled = true; });
+  boton.textContent = 'Guardando…';
+  const hechos = [];
+  try {
+    for (const r of filas) {
+      const rango = `'${pestana}'!${columnas.dj}${r.fila}:${columnas.pago}${r.fila}`;
+      const [valores] = await leerRangos(token, archivo, [rango]);
+      const fila = valores?.[0] ?? [];
+      const col = (letra) => fila[[...letra].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - [...columnas.dj].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0)];
+      const coincide = normalizar(col(columnas.dj)) === normalizar(p.titulo)
+        && Math.floor(Number(col(columnas.fecha))) - 25569 === r.idx
+        && normalizar(col(columnas.pagado)) === 'DEUDOR';
+      if (!coincide) throw new Error(`La fila ${r.fila} cambió en tu hoja (ya no es el evento de ${p.titulo} del ${fechaLarga(r.idx)} como deudor). No se escribió nada en ella.`);
+      const celda = `'${pestana}'!${columnas.pago}${r.fila}`;
+      const [formula] = await leerRangos(token, archivo, [celda], { modo: 'FORMULA' });
+      if (String(formula?.[0]?.[0] ?? '').startsWith('=')) throw new Error(`La celda PAGO de la fila ${r.fila} tiene una fórmula; no se modificó.`);
+      await escribirCelda(token, archivo, celda, 'SI');
+      hechos.push(r.fila);
+    }
+    $('#detalle').close();
+    E.avisoTemporal = `Listo: ${hechos.length === 1 ? 'se marcó 1 evento' : `se marcaron ${hechos.length} eventos`} de ${p.titulo} como pagado.`;
+  } catch (error) {
+    alert(`${hechos.length ? `Se marcaron ${hechos.length} de ${filas.length} eventos. ` : ''}${error.message}`);
+  } finally {
+    botones.forEach((b) => { b.disabled = false; });
+  }
+  await actualizar({ interactivo: true });
 }
 
 async function copiarMensaje(boton) {
@@ -272,6 +322,7 @@ function pintarAvisoGlobal() {
   if (E.demo) {
     partes.push('<div class="banda banda-demo"><b>DATOS DE EJEMPLO.</b> Nombres y cifras inventados para probar el panel. No son tus datos reales.</div>');
   }
+  if (E.avisoTemporal) { partes.push(`<div class="banda banda-info">${esc(E.avisoTemporal)}</div>`); E.avisoTemporal = null; }
   if (E.sesion === 'expirada' && E.modelo) {
     partes.push('<div class="banda banda-alerta">La sesión de Google expiró; los datos en pantalla no se están actualizando. <button class="boton-texto" data-accion="actualizar">Entrar y actualizar</button></div>');
   }
@@ -752,7 +803,7 @@ function vistaEntrarGoogle() {
   return `
   <article class="tarjeta formulario entrar">
     <h1 class="titulo-vista">Panel personal</h1>
-    <p>Entra con tu cuenta de Google para leer tus hojas. Solo se pide permiso de <b>lectura</b>.</p>
+    <p>Entra con tu cuenta de Google para leer tus hojas. El panel solo escribe cuando marcas un pago.</p>
     ${E.errorSesion ? `<p class="mal" role="alert">${esc(E.errorSesion)}</p>` : ''}
     <button class="boton boton-primario boton-grande" data-accion="entrar" ${E.sesion !== 'lista' ? 'disabled' : ''}>${E.sesion === 'preparando' ? 'Preparando…' : `${icono('google')}Entrar con Google`}</button>
     <p class="nota">Si otra persona abre la página, Google no le entrega tus datos.</p>
@@ -800,7 +851,9 @@ function abrirPendiente(p) {
     registros = `<section><h3>Eventos por liquidar</h3><ul class="det-lista">${p.fechas.map((f) => {
       const r = p.registros?.find((x) => x.idx === f.idx && !usados.has(x.fila));
       if (r) usados.add(r.fila);
-      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · ${esc(dinero(r.importe.valor))}` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}</li>`;
+      const unoSolo = p.pago && r && p.registros.length > 1
+        ? ` <button class="boton-texto" data-accion="marcar-pagado" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Marcar pagado</button>` : '';
+      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · ${esc(dinero(r.importe.valor))}` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}</li>`;
     }).join('')}</ul></section>`;
   } else if (p.registros?.length) {
     registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.hora ? `${esc(r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;
@@ -811,9 +864,12 @@ function abrirPendiente(p) {
       <pre class="linea-hoja">${esc(ocultarImportes(p.mensaje))}</pre>
       <p class="nota">Mismo texto que arma tu hoja en AGENDA Y VENTAS (celda I3).</p>
     </section>` : '';
+  const pagar = p.tipo === 'deuda' && p.pago && p.registros?.length
+    ? `<button class="boton boton-exito boton-ancho" data-accion="marcar-pagado" data-pendiente-pago="${esc(p.id)}">${icono('pendientes')}${p.registros.length === 1 ? 'Marcar como pagado' : `Marcar los ${p.registros.length} eventos como pagados`}</button>` : '';
   abrirDialogo(`
     <header class="det-cab">${chipUrgencia(p, hoyIdx)}<h2>${esc(p.negocio)}</h2></header>
     <dl class="det-datos">${filas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('')}</dl>
+    ${pagar}
     ${mensaje}
     ${registros}
     ${bloqueOrigen(p)}`);
