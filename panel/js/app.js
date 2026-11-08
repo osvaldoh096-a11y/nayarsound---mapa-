@@ -1,18 +1,18 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082128';
-import { escribirCelda, leerRangos } from './api.js?v=202611082128';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082128';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611082128';
-import { construirModelo } from './modelo.js?v=202611082128';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082131';
+import { escribirCelda, leerRangos } from './api.js?v=202611082131';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082131';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611082131';
+import { construirModelo } from './modelo.js?v=202611082131';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611082128';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082128';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082128';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082128';
-import { fuentesDemo } from './demo.js?v=202611082128';
-import { icono } from './iconos.js?v=202611082128';
+} from './fechas.js?v=202611082131';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082131';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082131';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082131';
+import { fuentesDemo } from './demo.js?v=202611082131';
+import { icono } from './iconos.js?v=202611082131';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -380,6 +380,11 @@ function accionTag(accion) {
   return `<span class="accion-tag ${accion === 'COBRAR' ? 'cobrar' : 'pagar'}">${accion === 'COBRAR' ? 'Cobrar' : 'Pagar'}</span>`;
 }
 
+const COLOR_POR_CIUDAD = { GUADALAJARA: 'violeta', LEON: 'naranja', TEPIC: 'azul', MONTERREY: 'verde' };
+function etiquetaCiudad(ciudad) {
+  return `<span class="ciudad-tag"><i class="punto-ciudad c-${COLOR_POR_CIUDAD[normalizar(ciudad)] ?? 'gris'}" aria-hidden="true"></i>${esc(capitalizar(String(ciudad).toLowerCase()))}</span>`;
+}
+
 const ICONO_TIPO = { agenda: 'calendario', deuda: 'dinero', cobrar: 'cobrar', pagar: 'pagar', liquidar: 'pagar' };
 
 function filaPendiente(p, hoyIdx) {
@@ -394,7 +399,7 @@ function filaPendiente(p, hoyIdx) {
     ? `<span class="fp-monto ${p.accion === 'COBRAR' ? 'monto-cobrar' : p.accion === 'PAGAR' ? 'monto-pagar' : ''}">${esc(dinero(p.monto, p.decimales ?? 2))}${p.usdt ? `<small>${esc(monto(p.usdt, 'USDT'))}</small>` : ''}</span>` : '';
   return `<button class="fila-pend u-${p.urgencia}" data-pendiente="${esc(p.id)}">
     <span class="fp-icono tipo-${p.tipo}">${icono(ICONO_TIPO[p.tipo] ?? 'pendientes')}</span>
-    <span class="fp-texto"><span class="fp-titulo">${esc(p.titulo)} ${accionTag(p.accion)}</span><small>${esc(detalle)}</small></span>
+    <span class="fp-texto"><span class="fp-titulo">${esc(p.titulo)}${(p.ciudades ?? []).map(etiquetaCiudad).join('')} ${accionTag(p.accion)}</span><small>${esc(detalle)}</small></span>
     <span class="fp-derecha">${importe}${chipUrgencia(p, hoyIdx)}</span>
   </button>`;
 }
@@ -612,7 +617,7 @@ function tarjetaDeuda(deuda) {
   const filas = deuda.personas.map((p) => {
     const id = `deuda|${normalizar(p.nombre)}`;
     return `<tr data-pendiente="${esc(id)}" tabindex="0">
-      <td><b>${esc(p.nombre)}</b></td>
+      <td><b>${esc(p.nombre)}</b>${(E.pendientes.get(id)?.ciudades ?? []).map(etiquetaCiudad).join('')}</td>
       <td class="num">${p.eventos}</td>
       <td class="num">${(() => { const n = diasDeuda(p, E.modelo.hoy.idx); return n === null ? '—' : esc(textoDias(n)); })()}</td>
       <td>${p.fechas.map((f) => `<span class="fecha-mini">${esc(fechaCorta(f.idx))}</span>`).join(' ')}</td>
@@ -838,6 +843,7 @@ function abrirPendiente(p) {
   if (p.accion) filas.push(['Acción', accionTag(p.accion)]);
   filas.push([p.tipo === 'agenda' ? 'DJ' : 'Nombre', `<b>${esc(p.titulo)}</b>`]);
   if (p.tipo === 'agenda') filas.push(['Ciudad', esc(p.subtitulo)]);
+  if (p.tipo === 'deuda' && p.ciudades?.length) filas.push(['Ciudad', p.ciudades.map(etiquetaCiudad).join(' ')]);
   if (p.fechaIdx !== null && p.fechaIdx !== undefined) filas.push(['Fecha', `${esc(capitalizar(fechaLarga(p.fechaIdx)))} · ${esc(diasRelativos(p.fechaIdx - hoyIdx))}`]);
   else if (p.tipo === 'deuda' && diasDeuda(p, hoyIdx) !== null) filas.push(['Debe desde hace', textoDias(diasDeuda(p, hoyIdx))]);
   if (typeof p.monto === 'number') filas.push(['Importe', `<b>${esc(dinero(p.monto, p.decimales ?? 2))}</b> MXN${p.usdt ? ` (${esc(monto(p.usdt, 'USDT'))} × ${TIPO_CAMBIO_USDT})` : ''}`]);

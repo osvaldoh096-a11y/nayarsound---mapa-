@@ -282,6 +282,10 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 .chip.u-vencido { background: var(--rojo-fondo); color: var(--rojo-tinta); }
 .chip.u-sin-fecha { background: var(--verde-fondo); color: var(--verde-tinta); }
 .chip.u-aviso { background: var(--coral-fondo); color: var(--coral-tinta); }
+.ciudad-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 500; color: var(--tenue); margin-left: 8px; }
+.ciudad-tag .punto-ciudad { width: 7px; height: 7px; }
+.det-datos .ciudad-tag, .tabla .ciudad-tag { margin-left: 0; }
+.tabla .ciudad-tag { display: flex; margin-top: 2px; }
 .accion-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.01em; }
 .accion-tag.cobrar { color: var(--verde-tinta); background: var(--verde-fondo); }
 .accion-tag.pagar { color: var(--coral-tinta); background: var(--coral-fondo); }
