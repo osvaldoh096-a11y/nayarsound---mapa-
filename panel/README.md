@@ -44,7 +44,6 @@ Los eventos se cuentan aparte. Colores:
 - **Hoy:** acciones de hoy.
 - **Próximo:** acciones de días siguientes.
 - **Cobros de eventos pendientes:** deudas de DJs; cada una muestra los días desde el evento más antiguo que se debe.
-- **Vencido:** ninguna de tus hojas marca vencidos, así que queda en 0.
 
 **Mes actual.** Hoy, mañana y el mes actual se calculan con la hora de Ciudad de México. El selector de mes ofrece los meses que tiene la tabla de tu hoja.
 

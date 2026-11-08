@@ -74,7 +74,7 @@ try {
     await entrar(pagina);
     const total = await texto(pagina, '.kpi .cifra-xl');
     revisar(total === String(esperado.pendientes.length), `Pendientes en Inicio: ${total} (esperado ${esperado.pendientes.length})`);
-    for (const u of ['vencido', 'hoy', 'proximo', 'sin-fecha']) {
+    for (const u of ['hoy', 'proximo', 'sin-fecha']) {
       const n = await texto(pagina, `.chip-filtro.u-${u} b`);
       revisar(n === String(esperado.conteo[u]), `  ${u}: ${n} (esperado ${esperado.conteo[u]})`);
     }

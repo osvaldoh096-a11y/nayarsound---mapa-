@@ -334,7 +334,7 @@ function tilesFinanzas(mes, { conOrigen = true } = {}) {
 
 function vistaInicio(m) {
   const hoyIdx = m.hoy.idx;
-  const chips = ['vencido', 'hoy', 'proximo', 'sin-fecha'].map((u) => `
+  const chips = ['hoy', 'proximo', 'sin-fecha'].map((u) => `
     <a href="#/inicio" class="chip chip-filtro u-${u} ${E.filtro === u ? 'activo' : ''}" data-filtro="${u}" aria-pressed="${E.filtro === u}">
       <i class="punto" aria-hidden="true"></i>${URG[u]} <b>${m.conteo[u]}</b></a>`).join('');
   return `
