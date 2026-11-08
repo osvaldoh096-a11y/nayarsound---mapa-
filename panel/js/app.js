@@ -1,18 +1,18 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082208';
-import { escribirCelda, leerRangos } from './api.js?v=202611082208';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082208';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611082208';
-import { construirModelo, entregarCon } from './modelo.js?v=202611082208';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082218';
+import { escribirCelda, leerRangos } from './api.js?v=202611082218';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082218';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611082218';
+import { construirModelo, entregarCon } from './modelo.js?v=202611082218';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611082208';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082208';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082208';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082208';
-import { fuentesDemo } from './demo.js?v=202611082208';
-import { icono } from './iconos.js?v=202611082208';
+} from './fechas.js?v=202611082218';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082218';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082218';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082218';
+import { fuentesDemo } from './demo.js?v=202611082218';
+import { icono } from './iconos.js?v=202611082218';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -312,6 +312,33 @@ function alEscribir(evento) {
   if (nuevo === null) return;
   salida.textContent = dinero(nuevo);
   salida.classList.toggle('cambio', valor !== (typeof r.pagoDj === 'number' ? r.pagoDj : 0));
+  salida.classList.toggle('negativo-num', nuevo < 0);
+}
+
+/** Pinta en rojo todo importe negativo («-$2,100.00») dentro de un contenedor. */
+const RE_NEGATIVO = /[-−]\s?\$\s?[\d][\d.,]*/g;
+function marcarNegativos(raiz) {
+  const recorrido = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.parentElement?.closest('svg, script, style, textarea, .negativo-num') || !RE_NEGATIVO.test(n.nodeValue)
+      ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+  const nodos = [];
+  for (let n = recorrido.nextNode(); n; n = recorrido.nextNode()) nodos.push(n);
+  for (const n of nodos) {
+    const trozo = document.createDocumentFragment();
+    let ultimo = 0;
+    n.nodeValue.replace(RE_NEGATIVO, (m, i) => {
+      trozo.append(n.nodeValue.slice(ultimo, i));
+      const span = document.createElement('span');
+      span.className = 'negativo-num';
+      span.textContent = m;
+      trozo.append(span);
+      ultimo = i + m.length;
+      return m;
+    });
+    trozo.append(n.nodeValue.slice(ultimo));
+    n.parentNode.replaceChild(trozo, n);
+  }
 }
 
 function alCambiar(evento) {
@@ -342,6 +369,7 @@ function pintar() {
   const contenido = { inicio: vistaInicio, nayarsound: vistaNayarsound, prestamos: vistaPrestamos, finanzas: vistaFinanzas }[E.ruta](E.modelo);
   vista.innerHTML = banda + contenido;
   activarTips(vista);
+  marcarNegativos(vista);
   if (E.ruta === 'finanzas') montarGraficaMensual();
 }
 
@@ -901,6 +929,7 @@ function vistaCargando() {
 function abrirDialogo(html) {
   const d = $('#detalle');
   $('#detalle-cuerpo').innerHTML = html;
+  marcarNegativos($('#detalle-cuerpo'));
   if (!d.open) d.showModal();
 }
 
