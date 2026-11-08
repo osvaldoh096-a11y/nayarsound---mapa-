@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
@@ -124,4 +124,19 @@ test('modelo con datos de ejemplo: pendientes únicos y separados de los eventos
   // Banderas de acción según las reglas actuales de la agenda
   const gama = m.pendientes.find((p) => p.titulo === 'DJ GAMA' && p.tipo === 'agenda');
   assert.deepEqual(gama.banderas.map((b) => b.id), ['sin-inicio']);
+});
+
+test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {
+  const sabado = idxDesdeYMD(2026, 11, 7) + 25569;
+  const jueves = idxDesdeYMD(2026, 11, 5) + 25569;
+  const texto = mensajeDeuda('DJ PRUEBA', [
+    { fecha: sabado, dia: 'sábado', horas: 6, total: 3500, anticipo: 100, gas: 200, pagoDj: 1500, entregar: 2100 },
+    { fecha: jueves, dia: 'jueves', horas: '', total: 2000, anticipo: 0, gas: '', pagoDj: '', entregar: 900 },
+  ]);
+  assert.equal(texto, [
+    '*PAGOS PENDIENTES - DJ PRUEBA*', '',
+    '🎵 *07-nov (sábado, 6h)*', '💵 $3,600', '➖ DJ: $1,500', '✅ Enviar: *$2,100*', '',
+    '🎵 *05-NOV (JUEVES)*', '⚠️ *NO HAY REGISTRO DE PAGO DEL DJ*', '',
+    '━━━━━━━━━━━━━━', '💰 *TOTAL A ENVIAR: $2,100*',
+  ].join('\n'));
 });

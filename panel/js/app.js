@@ -178,7 +178,30 @@ function alHacerClic(evento) {
     location.hash = '#/inicio';
     pintar();
   }
+  if (accion === 'copiar-mensaje') copiarMensaje(el);
   if (accion === 'tabla') { const t = $(`#${el.dataset.objetivo}`); if (t) t.hidden = !t.hidden; }
+}
+
+async function copiarMensaje(boton) {
+  const texto = E.pendientes.get(boton.dataset.pendienteMsg)?.mensaje;
+  if (!texto) return;
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(texto);
+    ok = true;
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = texto;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    boton.closest('dialog').appendChild(area);
+    area.select();
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    area.parentNode.removeChild(area);
+  }
+  boton.textContent = ok ? '¡Copiado!' : 'No se pudo copiar';
+  setTimeout(() => { boton.textContent = 'Copiar'; }, 1800);
 }
 
 function alCambiar(evento) {
@@ -783,9 +806,16 @@ function abrirPendiente(p) {
   } else if (p.registros?.length) {
     registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.hora ? `${esc(r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;
   }
+  const mensaje = p.mensaje ? `<section class="det-mensaje">
+      <div class="det-mensaje-cab"><h3>Mensaje para enviar</h3>
+        <button class="boton boton-primario boton-chico" data-accion="copiar-mensaje" data-pendiente-msg="${esc(p.id)}">Copiar</button></div>
+      <pre class="linea-hoja">${esc(ocultarImportes(p.mensaje))}</pre>
+      <p class="nota">Mismo texto que arma tu hoja en AGENDA Y VENTAS (celda I3).</p>
+    </section>` : '';
   abrirDialogo(`
     <header class="det-cab">${chipUrgencia(p, hoyIdx)}<h2>${esc(p.negocio)}</h2></header>
     <dl class="det-datos">${filas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('')}</dl>
+    ${mensaje}
     ${registros}
     ${bloqueOrigen(p)}`);
 }

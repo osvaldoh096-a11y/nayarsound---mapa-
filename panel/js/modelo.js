@@ -116,6 +116,7 @@ function tablaVentas(fuente) {
   if (encabezado < 0) return null;
   const { registros } = tablaPorEncabezados(filas, encabezado, {
     dj: ['DJ', 1], fecha: 'FECHA', ciudad: 'CIUDAD', entregar: 'ENTREGAR A OSVALDO',
+    total: 'TOTAL EVENTO', anticipo: 'ANTICIPO', gas: 'GAS A COBRAR', horas: 'TOT.HORAS', dia: 'DIA',
     pagado: 'PAGADO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP',
   }, inicio);
   const controles = [];
@@ -128,6 +129,35 @@ function tablaVentas(fuente) {
     });
   }
   return { registros: registros.map((r) => ({ ...r, fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha) })), controles };
+}
+
+const MESES_TEXTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+const DIAS_TEXTO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const miles = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+
+/**
+ * Mensaje «PAGOS PENDIENTES» con la misma fórmula de AGENDA Y VENTAS!I3:
+ * filas DEUDOR del DJ; cobrado = TOTAL − ANTICIPO + GAS; total a enviar =
+ * suma de ENTREGAR de los eventos con pago de DJ registrado. Los eventos de
+ * lunes a jueves van en mayúsculas, como en la hoja.
+ */
+export function mensajeDeuda(nombre, filas) {
+  const bloques = filas.map((r) => {
+    const idx = typeof r.fecha === 'number' ? Math.floor(r.fecha) - 25569 : null;
+    const f = idx === null ? null : new Date(idx * 86400000);
+    const fecha = f ? `${String(f.getUTCDate()).padStart(2, '0')}-${MESES_TEXTO[f.getUTCMonth()]}` : '';
+    const dia = String(r.dia ?? '').trim() || (f ? DIAS_TEXTO[f.getUTCDay()] : '');
+    const horas = vacio(r.horas) ? '' : `, ${r.horas}h`;
+    const pagoDj = num(r.pagoDj);
+    let bloque = `🎵 *${fecha} (${dia}${horas})*\n`;
+    bloque += pagoDj <= 0 ? '⚠️ *NO HAY REGISTRO DE PAGO DEL DJ*'
+      : `💵 $${miles.format(num(r.total) - num(r.anticipo) + num(r.gas))}\n➖ DJ: $${miles.format(pagoDj)}\n✅ Enviar: *$${miles.format(num(r.entregar))}*`;
+    const semana = f ? ((f.getUTCDay() + 6) % 7) + 1 : 7; // WEEKDAY(fecha, 2): lunes = 1
+    return semana <= 4 ? bloque.toUpperCase() : bloque;
+  });
+  const total = filas.filter((r) => num(r.pagoDj) > 0).reduce((t, r) => t + num(r.entregar), 0);
+  return `*PAGOS PENDIENTES - ${nombre}*\n\n${bloques.join('\n\n')}\n\n━━━━━━━━━━━━━━\n💰 *TOTAL A ENVIAR: $${miles.format(total)}*`;
 }
 
 export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
@@ -224,6 +254,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
         titulo: p.nombre, subtitulo: `Debe ${p.eventos === 1 ? '1 evento' : `${p.eventos} eventos`}`,
         fechaIdx: null, urgencia: 'sin-fecha', eventos: p.eventos, monto: p.monto, moneda: 'MXN', decimales: 0,
         fechas: p.fechas, registros: p.registros, origen: origenDeuda, linea: p.lineas.join('\n'),
+        mensaje: p.registros?.length ? mensajeDeuda(p.nombre, p.registros) : null,
       });
     }
     if (deuda.cuadraTotal === false) {

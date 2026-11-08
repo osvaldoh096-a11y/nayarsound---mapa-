@@ -117,6 +117,18 @@ try {
       revisar(totalDeuda === dinero(deuda.total, 0), `Total de deuda: ${totalDeuda} (esperado ${dinero(deuda.total, 0)})`);
       if (extra?.deuda) revisar(totalDeuda === extra.deuda, `  coincide con la hoja: ${extra.deuda}`);
     }
+    if (deuda?.estado === 'ok') {
+      await pagina.locator('.tabla tbody tr').first().click();
+      await pagina.waitForSelector('#detalle[open]');
+      const msg = await pagina.locator('.det-mensaje pre').innerText();
+      revisar(msg.startsWith('*PAGOS PENDIENTES - ') && msg.includes('TOTAL A ENVIAR'), 'Deuda: mensaje «PAGOS PENDIENTES» listo para copiar');
+      await pagina.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+      await pagina.locator('[data-accion="copiar-mensaje"]').click();
+      await pagina.waitForTimeout(150);
+      const copiado = await pagina.evaluate(() => navigator.clipboard.readText());
+      revisar(copiado === msg, 'Deuda: «Copiar» pone el mensaje completo en el portapapeles');
+      await pagina.locator('[data-cerrar]').click();
+    }
     const djs = await pagina.locator('.dia').first().locator('.dj').count();
     const primerDia = esperado.nayarsound.agenda.dias[0];
     const esperadosDj = primerDia.ciudades.reduce((s, c) => s + c.djs.length, 0) + (primerDia.eventosSinDj ?? 0);
