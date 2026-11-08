@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611082131';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082131';
+} from './fechas.js?v=202611082134';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611082134';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611082131';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082131';
-import { dinero } from './formato.js?v=202611082131';
+} from './sheets.js?v=202611082134';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611082134';
+import { dinero } from './formato.js?v=202611082134';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));

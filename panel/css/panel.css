@@ -281,6 +281,17 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 .chip.u-proximo { background: var(--azul-fondo); color: var(--azul); }
 .chip.u-vencido { background: var(--rojo-fondo); color: var(--rojo-tinta); }
 .chip.u-sin-fecha { background: var(--verde-fondo); color: var(--verde-tinta); }
+.chip.chip-rojo { background: var(--rojo-fondo); color: var(--rojo-tinta); }
+.chip.chip-rojo .punto { background: var(--rojo); }
+.texto-rojo { color: var(--rojo-tinta); font-weight: 700; }
+.grupo-ciudad {
+  display: flex; align-items: center; gap: 10px; padding: 14px 10px 6px; margin-top: 4px;
+  font-size: 13px; color: var(--tenue); border-top: 1px solid var(--borde);
+}
+.grupo-ciudad:first-child { border-top: 0; margin-top: 0; padding-top: 4px; }
+.grupo-ciudad .ciudad-tag { margin: 0; font-size: 14px; font-weight: 700; color: var(--tinta); }
+.grupo-ciudad .ciudad-tag .punto-ciudad { width: 9px; height: 9px; }
+.grupo-ciudad b { margin-left: auto; font-size: 14px; }
 .chip.u-aviso { background: var(--coral-fondo); color: var(--coral-tinta); }
 .ciudad-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 500; color: var(--tenue); margin-left: 8px; }
 .ciudad-tag .punto-ciudad { width: 7px; height: 7px; }
