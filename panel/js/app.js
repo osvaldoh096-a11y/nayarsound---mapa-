@@ -777,7 +777,6 @@ function bloqueOrigen(p) {
   return `<section class="det-origen">
     <h3>Origen</h3>
     <p>${esc(o?.archivo || '')} › ${esc(o?.pestana || '')}${o?.a1 ? ` › ${esc(o.a1)}` : ''} ${enlaceOrigen(o, 'Abrir celda')}</p>
-    ${p.linea ? `<pre class="linea-hoja">${esc(ocultarImportes(p.linea))}</pre>` : ''}
   </section>`;
 }
 
