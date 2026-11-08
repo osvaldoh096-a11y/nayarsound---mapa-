@@ -51,7 +51,7 @@ Los eventos se cuentan aparte. Colores:
 ## 2. Acceso y seguridad
 
 - **Google:** el proyecto de Google Cloud «dashboard personal» tiene un ID de cliente en `js/fuentes.js` (no es secreto) y solo acepta el origen `https://osvaldoh096-a11y.github.io`.
-  - El token de Google dura cerca de una hora y vive solo en la memoria de la pestaña.
+  - El token de Google dura cerca de una hora y se guarda en ese navegador hasta que expira, para no pedir la cuenta en cada recarga. «Cerrar sesión» lo borra.
   - Si expira, el panel lo avisa y basta con tocar «Actualizar».
 - **Otro proyecto en otro dominio:** agrega su origen en https://console.cloud.google.com/auth/clients (cliente «dashboard personal» → Orígenes de JavaScript autorizados). Los proyectos en `osvaldoh096-a11y.github.io` ya funcionan.
 - **Usuarios:** la app está en modo de prueba. Solo entran las cuentas agregadas en https://console.cloud.google.com/auth/audience.

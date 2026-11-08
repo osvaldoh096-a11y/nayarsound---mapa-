@@ -88,6 +88,9 @@ try {
     if (extra?.inicio) revisar(JSON.stringify(tiles) === JSON.stringify(extra.inicio), `  coincide con la hoja: ${extra.inicio.join(' · ')}`);
     revisar(/Actualizado/.test(await texto(pagina, '#estado-lectura')), 'Muestra fecha y hora de la última actualización');
     revisar(lecturas.length > 0 && lecturas.every((l) => l.metodo === 'GET'), `Todas las consultas a Sheets son de lectura (${lecturas.length} GET)`);
+    await pagina.reload();
+    await pagina.waitForSelector('.rejilla-resumen');
+    revisar(await pagina.locator('[data-accion="entrar"]').count() === 0, 'Al recargar con la sesión vigente no pide la cuenta otra vez');
 
     // detalle con origen
     await pagina.locator('.bloque-alertas .fila-pend').first().click();

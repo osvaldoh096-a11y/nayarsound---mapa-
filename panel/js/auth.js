@@ -1,13 +1,25 @@
 // Inicio de sesión con Google (Google Identity Services, modelo de token).
-// Permiso pedido: solo lectura de hojas de cálculo. El token dura ~1 hora y
-// vive únicamente en la memoria de esta pestaña: no se guarda en el
-// navegador ni se envía a otro servidor que no sea Google.
+// Permiso pedido: solo lectura de hojas de cálculo. El token dura ~1 hora; se
+// guarda en este navegador hasta que expira para no pedir la cuenta en cada
+// recarga. «Cerrar sesión» lo borra. Solo se envía a Google.
 
 export const PERMISO = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 
 let cliente = null;
+const CLAVE = 'panel.sesion.v1';
 let token = null;
 let expira = 0;
+try {
+  const guardado = JSON.parse(localStorage.getItem(CLAVE) ?? 'null');
+  if (guardado?.token && guardado.expira > Date.now()) ({ token, expira } = guardado);
+} catch { /* sin almacenamiento */ }
+
+function recordar() {
+  try {
+    if (token) localStorage.setItem(CLAVE, JSON.stringify({ token, expira }));
+    else localStorage.removeItem(CLAVE);
+  } catch { /* sin almacenamiento */ }
+}
 let pendiente = null;
 
 function esperarGIS(limiteMs = 15000) {
@@ -35,6 +47,7 @@ export async function prepararSesion(clienteId) {
       }
       token = respuesta.access_token;
       expira = Date.now() + (Number(respuesta.expires_in || 3600) - 60) * 1000;
+      recordar();
       p.resolve(token);
     },
     error_callback: (error) => {
@@ -67,6 +80,7 @@ export function tokenVigente() {
 export function olvidarToken() {
   token = null;
   expira = 0;
+  recordar();
 }
 
 export function cerrarSesion() {

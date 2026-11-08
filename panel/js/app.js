@@ -65,6 +65,8 @@ async function arrancar() {
   if (E.demo) { cargarDemo(); return; }
   pintar();
   prepararGoogle();
+  // Sesión de Google todavía vigente (de una visita anterior): leer sin pedir la cuenta.
+  if (tokenVigente()) actualizar();
 }
 
 async function prepararGoogle() {
