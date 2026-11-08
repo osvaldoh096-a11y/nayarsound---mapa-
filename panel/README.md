@@ -80,6 +80,8 @@ Para las finanzas no hace falta código: si agregas una columna del negocio en D
 
 ## 5. Desarrollo
 
+Antes de publicar un cambio, ejecuta `node panel/herramientas/version.mjs`: pone un número de versión en las rutas de CSS y JS para que los navegadores no usen archivos viejos del caché.
+
 ```bash
 cd panel
 npm test                       # reglas y lectura, con datos sintéticos (Node 20+)

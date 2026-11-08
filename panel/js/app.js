@@ -1,17 +1,17 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js';
-import { leerTodo, datosDisponibles } from './carga.js';
-import { construirModelo } from './modelo.js';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082119';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082119';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611082119';
+import { construirModelo } from './modelo.js?v=202611082119';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js';
-import { fuentesDemo } from './demo.js';
-import { icono } from './iconos.js';
+} from './fechas.js?v=202611082119';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082119';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082119';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082119';
+import { fuentesDemo } from './demo.js?v=202611082119';
+import { icono } from './iconos.js?v=202611082119';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
