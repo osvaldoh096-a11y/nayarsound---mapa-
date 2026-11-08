@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "kdf": "PBKDF2-SHA256",
+  "vueltas": 600000,
+  "sal": "XjASJVp6EGyHrAflnAjBOg==",
+  "iv": "za036bOOwiZ8krVr",
+  "datos": "pFWHIpeXht7xqVcqzkceJVkVngkT90mgyQMk+tvcnxufN2SD/gP3IpL06p+Ng6k+KTWecZjFWTPcyyhFYH3pJnTOfVRlx5Yao1OYzo9FrN4d2oCCCZ6nO2Wj4R9bXN/xKWJnSY0UIDjxccWxL0b6DHwwr1O3M/Kl7Y/coMNK3WqipFDl1yS6mfNe810LLzh1JfhoWPKKj9L8fPMqbLTIr4A4zroxfV5MlJqX1wJIktkVIcDGsiwMGZAuWA3rl9j9w+CSesCkDCg5YiHRcXXRNm8qFu+qGxqIHvYMPkrv576r23a6wYCW9P5tYfvxFZkMfrwCmXosLY8U+vB3g+dGpNRyoa/xOCa/HGsNPKTPkGHmUUY545fGbWxvk+8rbAYy5CIptI6TqGO2M+vT2A/x1KBtgdbg8JSGK9rvfzS+wtjfI9oJEqkkHgvtKyzkw727IAKaygwbPV0qpKcfS6ymuQ9jDUwnHSqGWN1C2twLt5aLxmPs6+zpwWhLsnCTZ8zTayYZtkfN5/sQhQndTTXpLLbiLimb5HyZ4OYKC6i1bIj3GDGzEmyS33tIXnunTnUbulsnw1oAy5ZddpcueIdt1eaAsaagFzkscaxeIKjZwF5VQyv7BjkXfzEi3eKfuERoZqtjWp2yK7pyPGVGgVfubJSueIQRoYpeUFDMo240s/FAy86Hah199Jq561uVOJURD0Nylu5CvNTF+52IgC3clPgBU+MGpl6VO8gP9LHMVxXXIoAN/tbR+p37qmt9Y+koHBzeu5hNbA3ApcnkRa+g1e+u22J2n5kMAvqgmiO2Ibbfb45JTlpc2nS5SVHtXWCcmcyxTmYj3mZ7YtfcHhX2t30IbIyu8ELGdQnM3IkJ7hXyXzmPe0eGtcDa542AZvZeNATpB1c="
+}
