@@ -7,7 +7,6 @@ import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, lee
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { idDesdeEnlace, validarConfig } from '../js/config.js';
 import { cifrar, descifrar, ContrasenaIncorrecta } from '../js/acceso.js';
-import { valorCelda, filasDesdeGviz, rangosDeTramos } from '../js/gviz.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
 import { construirModelo } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
@@ -120,20 +119,6 @@ test('contraseña: cifra y descifra; con otra contraseña falla', async () => {
   assert.ok(!JSON.stringify(paquete).includes('xxxxxxxx'));
   assert.deepEqual(await descifrar(paquete, 'clave correcta'), datos);
   await assert.rejects(descifrar(paquete, 'otra'), ContrasenaIncorrecta);
-});
-
-test('gviz: fechas, horas y tramos al formato de la API de Sheets', () => {
-  assert.equal(valorCelda({ v: 'Date(2026,10,7)' }, 'date'), 46333);
-  assert.equal(valorCelda({ v: [20, 0, 0, 0] }, 'timeofday'), 20 / 24);
-  assert.equal(valorCelda({ v: 'Date(2026,10,7)' }, 'string'), 'Date(2026,10,7)');
-  assert.equal(valorCelda(null, 'number'), '');
-  assert.deepEqual(rangosDeTramos("'AGENDA Y VENTAS'!A11:U", [11, 12, 13]).map((t) => t.a1), ['A11:U11', 'A12:U12', 'A13:U']);
-  const filas = filasDesdeGviz({ status: 'ok', table: { cols: [{ type: 'string' }, { type: 'date' }], rows: [{ c: [{ v: 'A' }, { v: 'Date(2026,10,8)' }] }, { c: [null, null] }] } }, 3);
-  assert.deepEqual(filas, [['A', 46334], []]);
-  assert.throws(() => filasDesdeGviz({ status: 'error', errors: [{ message: 'x' }] }, 1), /error/);
-  // Si gviz omite columnas vacías, cada valor va a su letra.
-  const omitidas = filasDesdeGviz({ status: 'ok', table: { cols: [{ id: 'D', type: 'string' }, { id: 'G', type: 'number' }], rows: [{ c: [{ v: 'X' }, { v: 5 }] }] } }, 7, 'A');
-  assert.deepEqual(omitidas, [['', '', '', 'X', '', '', 5]]);
 });
 
 test('modelo con datos de ejemplo: pendientes únicos y separados de los eventos', () => {

@@ -1,4 +1,4 @@
-// Prueba de la interfaz en Chromium con el simulador de Google Sheets (gviz).
+// Prueba de la interfaz en Chromium con el simulador de Google (sesión y API de Sheets).
 //   node panel/test/ui.check.mjs                      → datos de ejemplo (sintéticos)
 //   node panel/test/ui.check.mjs --snapshot ruta.json --hoy 2026-11-07 --esperado ruta.json
 // El snapshot real y las cifras esperadas se guardan FUERA del repositorio.
@@ -59,7 +59,8 @@ async function nuevaPagina({ ancho = 1280, alto = 900, fallas = {}, movil = fals
 async function entrar(pagina, contrasena = CONTRASENA) {
   await pagina.goto(`${url}/panel/`);
   await pagina.fill('#contrasena', contrasena);
-  await pagina.getByRole('button', { name: 'Entrar' }).click();
+  await pagina.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await pagina.getByRole('button', { name: 'Entrar con Google' }).click();
   await pagina.waitForSelector('.rejilla-resumen');
 }
 
@@ -73,7 +74,7 @@ try {
     await pagina.waitForSelector('#form-acceso');
     revisar(await pagina.locator('.rejilla-resumen').count() === 0, 'Sin contraseña no se muestran datos');
     await pagina.fill('#contrasena', 'otra-cosa');
-    await pagina.getByRole('button', { name: 'Entrar' }).click();
+    await pagina.getByRole('button', { name: 'Entrar', exact: true }).click();
     await pagina.waitForSelector('#form-acceso [role="alert"]');
     revisar(/incorrecta/.test(await texto(pagina, '#form-acceso')), 'Contraseña incorrecta: aviso y sin datos');
     revisar(lecturas.length === 0, `Sin la contraseña no se consulta ninguna hoja (${lecturas.length} consultas)`);
@@ -95,8 +96,9 @@ try {
     revisar(/Actualizado/.test(await texto(pagina, '#estado-lectura')), 'Muestra fecha y hora de la última actualización');
     revisar(lecturas.length > 0 && lecturas.every((l) => l.metodo === 'GET'), `Todas las consultas a Sheets son de lectura (${lecturas.length} GET)`);
     await pagina.reload();
+    await pagina.getByRole('button', { name: 'Entrar con Google' }).click();
     await pagina.waitForSelector('.rejilla-resumen');
-    revisar(true, '«Recordar en este dispositivo»: al recargar no pide la contraseña');
+    revisar(await pagina.locator('#form-acceso').count() === 0, '«Recordar en este dispositivo»: al recargar no pide la contraseña, solo Google');
 
     // detalle con origen
     await pagina.locator('.bloque-alertas .fila-pend').first().click();
@@ -189,8 +191,8 @@ try {
   }
   {
     let veces = 0;
-    // La primera lectura completa son 5 consultas; después, préstamos falla.
-    const { pagina, contexto } = await nuevaPagina({ fallas: { prestamos: () => (veces++ >= 5 ? 500 : 0) } });
+    // La primera lectura funciona; en la siguiente, préstamos falla.
+    const { pagina, contexto } = await nuevaPagina({ fallas: { prestamos: () => (veces++ >= 1 ? 500 : 0) } });
     await entrar(pagina);
     await pagina.getByRole('button', { name: /Actualizar/ }).click();
     await pagina.waitForSelector('.banda-alerta');

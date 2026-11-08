@@ -4,6 +4,7 @@ import {
   leerConfig, guardarConfig, borrarConfig, validarConfig, leerPreferencias, guardarPreferencias,
 } from './config.js';
 import { descifrar, ContrasenaIncorrecta } from './acceso.js';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js';
 import { leerTodo, datosDisponibles } from './carga.js';
 import { construirModelo } from './modelo.js';
 import {
@@ -11,7 +12,7 @@ import {
 } from './fechas.js';
 import { dinero, monto, esc, plural, capitalizar } from './formato.js';
 import { barras, lineas, activarTips, ocultarTip } from './graficas.js';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js';
 import { fuentesDemo } from './demo.js';
 
 const VISTAS = {
@@ -41,6 +42,8 @@ const E = {
   filtro: null,
   cargando: false,
   abriendo: false,
+  sesion: 'preparando',
+  errorSesion: null,
   ultimaCompleta: null,
   ultimoIntento: 0,
   pendientes: new Map(),
@@ -67,9 +70,21 @@ async function arrancar() {
   setInterval(revisarAuto, 30000);
 
   if (E.demo) { cargarDemo(); return; }
+  prepararGoogle();
   E.cfg = leerConfig();
-  if (E.cfg) { actualizar(); return; }
+  if (E.cfg) { pintar(); return; }
   await cargarPaquete();
+}
+
+async function prepararGoogle() {
+  try {
+    await prepararSesion(CLIENTE_GOOGLE);
+    E.sesion = 'lista';
+  } catch (error) {
+    E.sesion = 'error';
+    E.errorSesion = error.message;
+  }
+  pintar();
 }
 
 /** acceso.json: enlaces de tus hojas cifrados con tu contraseña. */
@@ -96,16 +111,31 @@ function cargarDemo() {
 
 // ------------------------------------------------------------------ actualizar
 
-async function actualizar() {
+/** interactivo: viene de un toque (puede abrir la ventana de Google). */
+async function actualizar({ interactivo = false } = {}) {
   if (E.cargando) return;
   if (E.demo) { cargarDemo(); return; }
   if (!E.cfg) return;
+  let token = tokenVigente();
+  if (!token) {
+    if (!interactivo) { E.sesion = 'expirada'; pintar(); return; }
+    try {
+      token = await iniciarSesion();
+      E.sesion = 'lista';
+      E.errorSesion = null;
+    } catch (error) {
+      E.errorSesion = error.message;
+      pintar();
+      return;
+    }
+  }
   E.cargando = true;
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    E.fuentes = await leerTodo(E.cfg.archivos, E.fuentes);
+    E.fuentes = await leerTodo(token, E.cfg.archivos, E.fuentes);
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
+    if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }
     if (!errores.length) E.ultimaCompleta = new Date();
     E.modelo = construirModelo(datosDisponibles(E.fuentes), hoyCDMX());
   } finally {
@@ -118,7 +148,7 @@ function revisarAuto() {
   if (document.visibilityState !== 'visible' || E.cargando || E.demo || !E.cfg) return;
   const minutos = Number(E.pref.autoMinutos) || 0;
   if (!minutos || !E.ultimoIntento) return;
-  if (Date.now() - E.ultimoIntento >= minutos * 60000) actualizar();
+  if (Date.now() - E.ultimoIntento >= minutos * 60000) actualizar({ interactivo: false });
 }
 
 // ------------------------------------------------------------------ eventos
@@ -137,8 +167,9 @@ function alHacerClic(evento) {
   if (el.dataset.pendiente) { abrirPendiente(E.pendientes.get(el.dataset.pendiente)); return; }
   if (el.dataset.dia) { abrirDia(Number(el.dataset.dia)); return; }
   const accion = el.dataset.accion;
-  if (accion === 'actualizar') actualizar();
+  if (accion === 'actualizar' || accion === 'entrar') actualizar({ interactivo: true });
   if (accion === 'salir') {
+    cerrarSesion();
     borrarConfig();
     Object.assign(E, { cfg: null, modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
     location.hash = '#/inicio';
@@ -176,7 +207,7 @@ async function alEnviar(evento) {
   } finally {
     E.abriendo = false;
   }
-  if (E.cfg) actualizar(); else pintar();
+  pintar();
 }
 
 // ------------------------------------------------------------------ pintar
@@ -193,7 +224,7 @@ function pintar() {
   document.title = `${VISTAS[E.ruta].titulo} · Panel`;
   if (!E.demo && !E.cfg) { vista.innerHTML = vistaContrasena(); $('#contrasena')?.focus(); return; }
   if (E.ruta === 'fuentes') { vista.innerHTML = vistaFuentes(); return; }
-  if (!E.modelo) { vista.innerHTML = vistaCargando(); return; }
+  if (!E.modelo) { vista.innerHTML = E.cargando ? vistaCargando() : vistaEntrarGoogle(); return; }
   const banda = bandaEstado(VISTAS[E.ruta].archivos);
   const contenido = { inicio: vistaInicio, nayarsound: vistaNayarsound, prestamos: vistaPrestamos, finanzas: vistaFinanzas }[E.ruta](E.modelo);
   vista.innerHTML = banda + contenido;
@@ -225,6 +256,10 @@ function pintarAvisoGlobal() {
   if (E.demo) {
     partes.push('<div class="banda banda-demo"><b>DATOS DE EJEMPLO.</b> Nombres y cifras inventados para probar el panel. No son tus datos reales.</div>');
   }
+  if (E.sesion === 'expirada' && E.modelo) {
+    partes.push('<div class="banda banda-alerta">La sesión de Google expiró; los datos en pantalla no se están actualizando. <button class="boton-texto" data-accion="actualizar">Entrar y actualizar</button></div>');
+  }
+  if (E.errorSesion && E.modelo) partes.push(`<div class="banda banda-error">${esc(E.errorSesion)}</div>`);
   $('#aviso-global').innerHTML = partes.join('');
 }
 
@@ -643,6 +678,17 @@ function vistaFuentes() {
       <button class="boton boton-peligro" data-accion="salir">Salir y olvidar en este dispositivo</button>
     </div>
     <p class="nota">Al salir, el panel vuelve a pedir la contraseña en este dispositivo.</p>`}
+  </article>`;
+}
+
+function vistaEntrarGoogle() {
+  return `
+  <article class="tarjeta formulario entrar">
+    <h1 class="titulo-vista">Panel personal</h1>
+    <p>Entra con tu cuenta de Google para leer tus hojas. Solo se pide permiso de <b>lectura</b>.</p>
+    ${E.errorSesion ? `<p class="mal" role="alert">${esc(E.errorSesion)}</p>` : ''}
+    <button class="boton boton-primario boton-grande" data-accion="entrar" ${E.sesion !== 'lista' ? 'disabled' : ''}>${E.sesion === 'preparando' ? 'Preparando…' : 'Entrar con Google'}</button>
+    <p class="nota">Si otra persona abre la página, Google no le entrega tus datos.</p>
   </article>`;
 }
 

@@ -1,9 +1,9 @@
 // Qué se lee de cada archivo. Aquí no hay IDs ni datos: los IDs van cifrados
 // en acceso.json (ver acceso.js).
-//
-// «tramos»: filas donde empieza cada parte de un rango (controles,
-// encabezados, datos). gviz da un solo tipo por columna y así no se pierden
-// textos dentro de columnas numéricas.
+
+// ID de cliente de Google (proyecto «dashboard personal»). No es secreto:
+// solo funciona desde los sitios autorizados en Google Cloud.
+export const CLIENTE_GOOGLE = '3490475474-q4pacirai8eifh03o7ulisha461tb1ku.apps.googleusercontent.com';
 //
 // Para conectar otro negocio: agrega su archivo aquí (nombre y rangos) y un
 // lector en modelo.js que convierta esos rangos en pendientes o cifras.
@@ -19,14 +19,12 @@ export const ARCHIVOS = {
       dashboard: "'DASHBOARD'!A1:E200",
       ventas: "'AGENDA Y VENTAS'!A11:U",
     },
-    tramos: { ventas: [11, 12, 13] },
   },
   agenda: {
     nombre: 'AMAL AGENDA',
     rangos: {
       agenda: "'AGENDA'!A9:T",
     },
-    tramos: { agenda: [9, 12, 13] },
   },
   prestamos: {
     nombre: '💵REGISTRO DE PRESTAMOS',
@@ -35,7 +33,6 @@ export const ARCHIVOS = {
       registro: "'REGISTRO PRESTAMOS'!A8:M",
       inversores: "'REGISTRO DE INVERSORES'!A9:R",
     },
-    tramos: { registro: [8, 9], inversores: [9, 10] },
   },
   gastos: {
     nombre: '🚹GASTOS PERSONALES - OSVALDO',
@@ -43,7 +40,6 @@ export const ARCHIVOS = {
       balance: "'DASHBOARD BALANCE GENERAL'!A7:N80",
       gastos: "'ANALISIS GASTOS PERSONALES'!A3:H",
     },
-    tramos: { balance: [7, 8], gastos: [3, 4] },
   },
 };
 
