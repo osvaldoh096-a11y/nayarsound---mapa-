@@ -5,47 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https://sheets.googleapis.com https://accounts.google.com/gsi/ https://oauth2.googleapis.com; frame-src https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
-<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https://sheets.googleapis.com https://accounts.google.com/gsi/ https://oauth2.googleapis.com; frame-src https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#F5F7FA">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Panel">
 <title>Panel</title>
 <link rel="icon" href="icono.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icono-180.png">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="css/panel.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script type="module" src="js/app.js"></script>
 </head>
 <body>
 <a class="saltar" href="#vista">Ir al contenido</a>
-<header class="barra">
-  <div class="barra-fila">
-    <a class="marca" href="#/inicio">Panel <span>personal</span></a>
-    <nav class="pestanas" aria-label="Secciones">
-      <a href="#/inicio" data-ruta="inicio">Inicio</a>
-      <a href="#/nayarsound" data-ruta="nayarsound">NayarSound</a>
-      <a href="#/prestamos" data-ruta="prestamos">Préstamos e inversores</a>
-      <a href="#/finanzas" data-ruta="finanzas">Finanzas</a>
-    </nav>
-    <span id="estado-lectura" class="estado-lectura" aria-live="polite"></span>
-    <div class="barra-acciones">
-      <button id="btn-actualizar" class="boton boton-primario" data-accion="actualizar" disabled>
-        <span class="icono-actualizar" aria-hidden="true">↻</span><span id="btn-actualizar-texto">Actualizar</span>
-      </button>
-      <a class="boton boton-icono" href="#/fuentes" data-ruta="fuentes" aria-label="Fuentes y ajustes" title="Fuentes y ajustes">⚙</a>
+<div class="app">
+  <aside class="lateral" aria-label="Navegación">
+    <a class="marca" href="#/inicio"><span class="marca-logo" aria-hidden="true"></span><span>Panel<small>personal</small></span></a>
+    <nav class="menu" id="menu"></nav>
+    <div class="lateral-pie">
+      <a class="menu-item" href="#/fuentes" data-ruta="fuentes" id="menu-ajustes"></a>
+      <div class="usuario"><span class="avatar" aria-hidden="true">O</span><span><b>Osvaldo</b><small id="usuario-estado">Panel personal</small></span></div>
     </div>
+  </aside>
+  <div class="principal">
+    <header class="cabecera">
+      <div class="cabecera-texto">
+        <h1 id="titulo-cabecera">Tu día, en un vistazo.</h1>
+        <p id="fecha-cabecera"></p>
+      </div>
+      <div class="cabecera-acciones">
+        <span id="estado-lectura" class="estado-conexion" aria-live="polite"></span>
+        <button id="btn-actualizar" class="boton boton-primario" data-accion="actualizar" disabled>
+          <span id="icono-actualizar"></span><span id="btn-actualizar-texto">Actualizar</span>
+        </button>
+      </div>
+    </header>
+    <div id="aviso-global"></div>
+    <main id="vista" tabindex="-1"></main>
   </div>
-</header>
-<div id="aviso-global"></div>
-<main id="vista" tabindex="-1"></main>
-<nav class="pestanas-movil" aria-label="Secciones">
-  <a href="#/inicio" data-ruta="inicio"><span aria-hidden="true">◉</span>Inicio</a>
-  <a href="#/nayarsound" data-ruta="nayarsound"><span aria-hidden="true">♫</span>NayarSound</a>
-  <a href="#/prestamos" data-ruta="prestamos"><span aria-hidden="true">⇄</span>Préstamos</a>
-  <a href="#/finanzas" data-ruta="finanzas"><span aria-hidden="true">$</span>Finanzas</a>
-</nav>
+</div>
+<nav class="pestanas-movil" id="menu-movil" aria-label="Secciones"></nav>
 <dialog id="detalle" aria-label="Detalle">
   <div class="detalle-marco">
     <button class="detalle-cerrar" data-cerrar aria-label="Cerrar">✕</button>

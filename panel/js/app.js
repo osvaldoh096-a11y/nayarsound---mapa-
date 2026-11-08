@@ -11,6 +11,7 @@ import { dinero, monto, esc, plural, capitalizar } from './formato.js';
 import { barras, lineas, activarTips, ocultarTip } from './graficas.js';
 import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js';
 import { fuentesDemo } from './demo.js';
+import { icono } from './iconos.js';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -53,7 +54,22 @@ function rutaDesdeHash() {
   return m && VISTAS[m[1]] ? m[1] : 'inicio';
 }
 
+const MENU = [
+  { ruta: 'inicio', texto: 'Inicio', corto: 'Inicio', icono: 'inicio' },
+  { ruta: 'nayarsound', texto: 'NayarSound', corto: 'NayarSound', icono: 'musica' },
+  { ruta: 'prestamos', texto: 'Préstamos e inversores', corto: 'Préstamos', icono: 'prestamos' },
+  { ruta: 'finanzas', texto: 'Finanzas', corto: 'Finanzas', icono: 'finanzas' },
+];
+
+function montarMenu() {
+  $('#menu').innerHTML = MENU.map((m) => `<a class="menu-item" href="#/${m.ruta}" data-ruta="${m.ruta}">${icono(m.icono)}<span>${m.texto}</span></a>`).join('');
+  $('#menu-movil').innerHTML = MENU.map((m) => `<a href="#/${m.ruta}" data-ruta="${m.ruta}">${icono(m.icono)}<span>${m.corto}</span></a>`).join('');
+  $('#menu-ajustes').innerHTML = `${icono('ajustes')}<span>Fuentes y ajustes</span>`;
+  $('#icono-actualizar').innerHTML = icono('actualizar', 'icono-actualizar');
+}
+
 async function arrancar() {
+  montarMenu();
   E.demo = new URLSearchParams(location.search).has('demo');
   E.ruta = rutaDesdeHash();
   window.addEventListener('hashchange', () => { E.ruta = rutaDesdeHash(); E.filtro = null; pintar(); window.scrollTo(0, 0); });
@@ -196,15 +212,23 @@ function pintarCabecera() {
   boton.disabled = E.cargando || (!E.demo && E.sesion === 'preparando');
   boton.classList.toggle('girando', E.cargando);
   $('#btn-actualizar-texto').textContent = E.cargando ? 'Actualizando…' : 'Actualizar';
+  $('#titulo-cabecera').textContent = E.ruta === 'inicio' ? 'Tu día, en un vistazo.' : VISTAS[E.ruta].titulo;
+  $('#fecha-cabecera').textContent = capitalizar(fechaLarga(hoyCDMX().idx));
   const estado = $('#estado-lectura');
   const errores = ORDEN_ARCHIVOS.filter((k) => E.fuentes[k]?.estado === 'error');
-  if (E.cargando) estado.innerHTML = 'Leyendo tus hojas…';
-  else if (!E.modelo) estado.innerHTML = '';
-  else if (errores.length) {
-    estado.innerHTML = `<span class="estado-error">⚠ ${errores.length === ORDEN_ARCHIVOS.length ? 'Sin actualizar' : 'Actualización parcial'}</span>${E.ultimaCompleta ? ` · última completa ${esc(hora(E.ultimaCompleta))}` : ''}`;
-  } else {
-    estado.innerHTML = `Actualizado <time>${esc(momento(E.ultimaCompleta))}</time>${E.pref.autoMinutos ? ` · auto ${E.pref.autoMinutos} min` : ''}`;
-  }
+  let tono = 'gris';
+  let texto = 'Sin conectar';
+  let detalle = '';
+  if (E.cargando) { tono = 'azul'; texto = 'Leyendo tus hojas…'; }
+  else if (E.demo) { tono = 'ambar'; texto = 'Datos de ejemplo'; }
+  else if (E.sesion === 'expirada' && E.modelo) { tono = 'ambar'; texto = 'Sesión expirada'; }
+  else if (!E.modelo) { texto = E.sesion === 'preparando' ? 'Preparando…' : 'Sin iniciar sesión'; }
+  else if (errores.length === ORDEN_ARCHIVOS.length) { tono = 'rojo'; texto = 'Sin conexión'; detalle = E.ultimaCompleta ? `Última lectura ${hora(E.ultimaCompleta)}` : ''; }
+  else if (errores.length) { tono = 'ambar'; texto = 'Actualización parcial'; detalle = `${errores.length} de ${ORDEN_ARCHIVOS.length} hojas sin leer`; }
+  else { tono = 'verde'; texto = 'Conectado'; detalle = `Actualizado ${momento(E.ultimaCompleta)}`; }
+  estado.className = `estado-conexion tono-${tono}`;
+  estado.innerHTML = `<i class="punto" aria-hidden="true"></i><span><b>${esc(texto)}</b>${detalle ? `<small>${esc(detalle)}</small>` : ''}</span>`;
+  $('#usuario-estado').textContent = E.modelo && !E.demo ? 'Con Google' : 'Panel personal';
 }
 
 function pintarAvisoGlobal() {
@@ -266,8 +290,10 @@ function valorCelda(c, { decimales = 2 } = {}) {
 
 function accionTag(accion) {
   if (!accion) return '';
-  return `<span class="accion-tag ${accion === 'COBRAR' ? 'cobrar' : 'pagar'}">${accion}</span>`;
+  return `<span class="accion-tag ${accion === 'COBRAR' ? 'cobrar' : 'pagar'}">${accion === 'COBRAR' ? 'Cobrar' : 'Pagar'}</span>`;
 }
+
+const ICONO_TIPO = { agenda: 'calendario', deuda: 'dinero', cobrar: 'cobrar', pagar: 'pagar', liquidar: 'pagar' };
 
 function filaPendiente(p, hoyIdx) {
   const fecha = p.fechaIdx !== null && p.fechaIdx !== undefined ? fechaCorta(p.fechaIdx) : '';
@@ -278,11 +304,11 @@ function filaPendiente(p, hoyIdx) {
     p.tipo === 'deuda' && p.fechas?.length ? p.fechas.map((f) => fechaCorta(f.idx)).join(', ') : '',
   ].filter(Boolean).join(' · ');
   const importe = typeof p.monto === 'number'
-    ? `<span class="fp-monto">${esc(dinero(p.monto, p.decimales ?? 2))}${p.usdt ? `<small>${esc(monto(p.usdt, 'USDT'))}</small>` : ''}</span>` : '';
+    ? `<span class="fp-monto ${p.accion === 'COBRAR' ? 'monto-cobrar' : p.accion === 'PAGAR' ? 'monto-pagar' : ''}">${esc(dinero(p.monto, p.decimales ?? 2))}${p.usdt ? `<small>${esc(monto(p.usdt, 'USDT'))}</small>` : ''}</span>` : '';
   return `<button class="fila-pend u-${p.urgencia}" data-pendiente="${esc(p.id)}">
-    ${chipUrgencia(p, hoyIdx)}
-    <span class="fp-texto">${accionTag(p.accion)}<span class="fp-titulo">${esc(p.titulo)}</span><small>${esc(detalle)}</small></span>
-    ${importe}
+    <span class="fp-icono tipo-${p.tipo}">${icono(ICONO_TIPO[p.tipo] ?? 'pendientes')}</span>
+    <span class="fp-texto"><span class="fp-titulo">${esc(p.titulo)} ${accionTag(p.accion)}</span><small>${esc(detalle)}</small></span>
+    <span class="fp-derecha">${importe}${chipUrgencia(p, hoyIdx)}</span>
   </button>`;
 }
 
@@ -296,71 +322,80 @@ function filaDiaAgenda(dia, pendientes, hoyIdx) {
   const detalle = [plural(djs, 'DJ', 'DJs'), plural(dia.eventos ?? 0, 'evento', 'eventos'), plural(ciudades, 'ciudad', 'ciudades'),
     sinDj ? `${sinDj} sin DJ` : '', conAccion ? `${conAccion} requieren acción` : ''].filter(Boolean).join(' · ');
   return `<button class="fila-pend u-${urgencia}" data-dia="${dia.idx}">
-    ${chipUrgencia({ urgencia, fechaIdx: dia.idx }, hoyIdx)}
+    <span class="fp-icono tipo-agenda">${icono('calendario')}</span>
     <span class="fp-texto"><span class="fp-titulo">${esc(titulo)}</span><small>${esc(detalle)}</small></span>
-    <span class="fp-monto fp-conteo">${pendientes.length}<small>pendientes</small></span>
+    <span class="fp-derecha"><span class="fp-monto fp-conteo">${dia.eventos ?? pendientes.length}<small>${(dia.eventos ?? 0) === 1 ? 'evento' : 'eventos'}</small></span>${chipUrgencia({ urgencia, fechaIdx: dia.idx }, hoyIdx)}</span>
   </button>`;
 }
 
 function tilesFinanzas(mes, { conOrigen = true } = {}) {
   if (!mes) {
     const f = E.fuentes.gastos;
-    return `<article class="tarjeta tarjeta-error">No hay datos de finanzas${f?.error ? `: ${esc(f.error.mensaje)}` : '.'}</article>`;
+    return `<article class="tarjeta tarjeta-error tile-ancha">No hay datos de finanzas${f?.error ? `: ${esc(f.error.mensaje)}` : '.'}</article>`;
   }
-  const nombre = mes.y ? nombreMes(mes.y, mes.m) : mes.etiqueta;
   const sinGastos = mes.registrosGastos === 0;
-  return `
-  <article class="tarjeta tile">
-    <h3 class="etq">Ganancia mensual</h3>
-    <div class="cifra">${valorCelda(mes.ganancia)}</div>
-    <div class="sub">${esc(nombre)} · suma de tus negocios</div>
-    ${conOrigen ? enlaceOrigen(mes.ganancia.origen) : ''}
-  </article>
-  <article class="tarjeta tile">
-    <h3 class="etq">Gastos personales</h3>
-    <div class="cifra">${valorCelda(mes.gastos)}</div>
-    <div class="sub">${sinGastos ? '<span class="marca-aviso">Sin gastos registrados este mes</span>' : esc(`${mes.registrosGastos ?? '—'} registros`)}</div>
-    ${conOrigen ? enlaceOrigen(mes.gastos.origen) : ''}
-  </article>
-  <article class="tarjeta tile tile-resultado">
-    <h3 class="etq">Sobrante mensual</h3>
-    <div class="cifra ${mes.sobrante.valor < 0 ? 'negativo' : ''}">${valorCelda(mes.sobrante)}</div>
-    <div class="sub">Ganancia − gastos personales. Resultado calculado, no saldo bancario.</div>
-    ${conOrigen ? enlaceOrigen(mes.sobrante.origen) : ''}
+  const negativo = typeof mes.sobrante.valor === 'number' && mes.sobrante.valor < 0;
+  const tile = (clase, ico, etiqueta, celda, sub) => `
+  <article class="tarjeta tile ${clase}">
+    <div class="tile-cab"><span class="tile-icono">${icono(ico)}</span><h3 class="etq">${etiqueta}</h3></div>
+    <div class="cifra">${valorCelda(celda)}</div>
+    <div class="sub">${sub}</div>
+    ${conOrigen ? enlaceOrigen(celda.origen) : ''}
   </article>`;
+  return tile('tile-ganancia', 'ganancia', 'Ganancia del mes', mes.ganancia, 'Suma de tus negocios, según tu hoja')
+    + tile('tile-gasto', 'gasto', 'Gastos personales', mes.gastos,
+      sinGastos ? '<span class="marca-aviso">Sin gastos registrados este mes</span>' : esc(`${mes.registrosGastos ?? '—'} registros`))
+    + tile(`tile-sobrante ${negativo ? 'negativo' : ''}`, 'sobrante', 'Sobrante del mes', mes.sobrante, 'Ganancia − gastos. Resultado calculado, no saldo bancario.');
+}
+
+function selectorMes(fi) {
+  if (!fi?.meses?.length) return '';
+  if (E.mes === null || !fi.meses[E.mes]) E.mes = fi.indiceActual >= 0 ? fi.indiceActual : fi.meses.length - 1;
+  const opciones = fi.meses.map((x, i) => `<option value="${i}" ${i === E.mes ? 'selected' : ''}>${esc(x.y ? nombreMes(x.y, x.m) : x.etiqueta)}${i === fi.indiceActual ? ' (actual)' : ''}</option>`).join('');
+  return `<label class="selector">${icono('calendario')}<span class="oculto">Mes</span><select id="sel-mes">${opciones}</select></label>`;
 }
 
 // ------------------------------------------------------------------ Inicio
 
 function vistaInicio(m) {
-  const hoyIdx = m.hoy.idx;
-  // Total que te deben: el «TOTAL DE DEUDA» de tu hoja (o la suma por persona si no viene).
   const deudas = m.pendientes.filter((p) => p.tipo === 'deuda');
+  // Total que te deben: el «TOTAL DE DEUDA» de tu hoja (o la suma por persona si no viene).
   const totalDeuda = typeof m.nayarsound.deuda?.total === 'number' ? m.nayarsound.deuda.total
     : deudas.reduce((t, p) => t + (p.monto ?? 0), 0);
-  const chips = ['hoy', 'proximo', 'sin-fecha'].map((u) => `
-    <a href="#/inicio" class="chip chip-filtro u-${u} ${E.filtro === u ? 'activo' : ''}" data-filtro="${u}" aria-pressed="${E.filtro === u}">
-      <i class="punto" aria-hidden="true"></i>${URG[u]} <b>${m.conteo[u]}</b>${u === 'sin-fecha' && deudas.length ? ` · <b>${esc(dinero(totalDeuda, 0))}</b>` : ''}</a>`).join('');
+  const filtro = (u, etiqueta, valor, extra = '') => `
+    <button class="clase u-${u} ${E.filtro === u ? 'activo' : ''}" data-filtro="${u}" aria-pressed="${E.filtro === u}">
+      <span class="clase-num">${valor}</span><span class="clase-etq"><i class="punto" aria-hidden="true"></i>${etiqueta}</span>${extra}
+    </button>`;
+  const fi = m.finanzas;
+  const sel = selectorMes(fi);
+  const mes = fi.meses?.[E.mes] ?? m.mesActual;
   return `
-  <h1 class="titulo-vista">${esc(capitalizar(fechaLarga(hoyIdx)))}</h1>
-  <section class="rejilla-resumen">
-    <article class="tarjeta kpi">
-      <h2 class="etq">Pendientes</h2>
+  <section class="fila-1">
+    <article class="tarjeta protagonista">
+      <div class="tarjeta-cab"><h2 class="etq-cab">${icono('pendientes')}Pendientes</h2>${E.filtro ? `<button class="boton-texto" data-filtro="${E.filtro}">Quitar filtro</button>` : ''}</div>
       <div class="cifra cifra-xl">${m.pendientes.length}</div>
-      <div class="chips">${chips}</div>
+      <div class="clases">
+        ${filtro('hoy', 'Hoy', m.conteo.hoy)}
+        ${filtro('proximo', 'Próximos', m.conteo.proximo)}
+        ${filtro('vencido', 'Vencidos', m.conteo.vencido)}
+        ${filtro('sin-fecha', 'Cobros de eventos', m.conteo['sin-fecha'], deudas.length ? `<span class="clase-monto">${esc(dinero(totalDeuda, 0))}</span>` : '')}
+      </div>
     </article>
-    <article class="tarjeta kpi">
-      <h2 class="etq">Eventos NayarSound</h2>
+    <article class="tarjeta eventos">
+      <div class="tarjeta-cab"><h2 class="etq-cab">${icono('musica')}NayarSound</h2><a class="enlace-vista" href="#/nayarsound">Agenda ${icono('flecha')}</a></div>
       ${m.eventos.agendaDisponible ? `<div class="par">
-        <div><div class="cifra">${m.eventos.hoy}</div><div class="sub">hoy</div></div>
-        <div><div class="cifra">${m.eventos.manana}</div><div class="sub">mañana</div></div>
-      </div><p class="nota">Se cuentan aparte de los pendientes.</p>` : '<p class="sin-dato">Sin datos de agenda.</p>'}
+        <div><div class="cifra cifra-l">${m.eventos.hoy}</div><div class="sub">eventos hoy</div></div>
+        <div><div class="cifra cifra-l">${m.eventos.manana}</div><div class="sub">eventos mañana</div></div>
+      </div><p class="nota">Los eventos se cuentan aparte de los pendientes.</p>` : '<p class="sin-dato">Sin datos de agenda.</p>'}
     </article>
   </section>
-  <section class="rejilla-tiles compacta">${tilesFinanzas(m.mesActual, { conOrigen: false })}</section>
+  <section class="bloque-finanzas">
+    <div class="seccion-cab"><h2 class="titulo-seccion">Finanzas${mes?.y ? ` de ${esc(nombreMes(mes.y, mes.m).toLowerCase())}` : ''}</h2>${sel}</div>
+    <div class="rejilla-tiles">${tilesFinanzas(mes, { conOrigen: false })}</div>
+  </section>
   <section>
-    <h2 class="titulo-seccion">Alertas por negocio${E.filtro ? ` · ${URG[E.filtro]} <button class="boton-texto" data-filtro="${E.filtro}">quitar filtro</button>` : ''}</h2>
-    ${alertasPorNegocio(m)}
+    <div class="seccion-cab"><h2 class="titulo-seccion">Lo que requiere tu atención${E.filtro ? ` · ${esc(URG[E.filtro])}` : ''}</h2></div>
+    <div class="rejilla-alertas">${alertasPorNegocio(m)}</div>
   </section>`;
 }
 
@@ -379,12 +414,20 @@ function alertasPorNegocio(m) {
   // Las deudas de DJs no saturan la lista: se ven al tocar «Cobros de eventos pendientes».
   const otros = ns.filter((x) => x.tipo !== 'agenda' && (x.tipo !== 'deuda' || E.filtro === 'sin-fecha'));
   for (const p of otros) filasNs.push({ urg: p.urgencia, fecha: p.fechaIdx, html: filaPendiente(p, hoyIdx) });
+  const deudas = m.pendientes.filter((p) => p.tipo === 'deuda');
+  if (!E.filtro && deudas.length) {
+    const total = typeof m.nayarsound.deuda?.total === 'number' ? m.nayarsound.deuda.total : deudas.reduce((t, p) => t + (p.monto ?? 0), 0);
+    filasNs.push({ urg: 'sin-fecha', fecha: null, html: `<button class="fila-pend u-sin-fecha" data-filtro="sin-fecha">
+      <span class="fp-icono tipo-deuda">${icono('dinero')}</span>
+      <span class="fp-texto"><span class="fp-titulo">Cobros de eventos pendientes</span><small>${esc(deudas.map((p) => p.titulo).join(', '))}</small></span>
+      <span class="fp-derecha"><span class="fp-monto monto-cobrar">${esc(dinero(total, 0))}</span><span class="chip u-sin-fecha"><i class="punto" aria-hidden="true"></i>${plural(deudas.length, 'persona', 'personas')}</span></span></button>` });
+  }
   const controles = (m.nayarsound.controles ?? []).filter((c) => c.estado !== 'ok');
   if ((!E.filtro || E.filtro === 'aviso') && controles.length) {
     filasNs.push({ urg: 'aviso', fecha: null, html: `<a class="fila-pend u-aviso" href="#/nayarsound">
-      <span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>Captura</span>
+      <span class="fp-icono tipo-aviso">${icono('aviso')}</span>
       <span class="fp-texto"><span class="fp-titulo">Avisos de captura en tus hojas</span><small>${esc(controles.map((c) => c.etiqueta).join(' · '))}</small></span>
-      <span class="fp-monto fp-conteo">${controles.length}<small>${controles.length === 1 ? 'aviso' : 'avisos'}</small></span></a>` });
+      <span class="fp-derecha"><span class="fp-monto fp-conteo">${controles.length}<small>${controles.length === 1 ? 'aviso' : 'avisos'}</small></span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>Revisar</span></span></a>` });
   }
   bloques.push({ nombre: 'NayarSound', ruta: 'nayarsound', filas: filasNs, disponible: m.nayarsound.disponible });
 
@@ -394,11 +437,11 @@ function alertasPorNegocio(m) {
 
   const rango = { vencido: 0, hoy: 1, proximo: 2, 'sin-fecha': 3, aviso: 4 };
   for (const b of bloques) b.filas.sort((a, z) => (rango[a.urg] - rango[z.urg]) || ((a.fecha ?? Infinity) - (z.fecha ?? Infinity)));
-  bloques.sort((a, z) => (rango[a.filas[0]?.urg] ?? 9) - (rango[z.filas[0]?.urg] ?? 9));
 
+  const iconos = { nayarsound: 'musica', prestamos: 'prestamos' };
   return bloques.map((b) => `
     <article class="tarjeta bloque-alertas">
-      <header class="tarjeta-cab"><h3>${esc(b.nombre)}</h3><a class="enlace-vista" href="#/${b.ruta}">Ver sección →</a></header>
+      <header class="tarjeta-cab"><h3 class="etq-cab">${icono(iconos[b.ruta])}${esc(b.nombre)}</h3><a class="enlace-vista" href="#/${b.ruta}">Ver todo ${icono('flecha')}</a></header>
       ${!b.disponible ? '<p class="sin-dato">No se pudo leer este negocio.</p>'
     : b.filas.length ? `<div class="lista-pend">${b.filas.map((f) => f.html).join('')}</div>`
       : `<p class="vacio">${E.filtro ? 'Nada con este filtro.' : 'Sin pendientes.'}</p>`}
@@ -475,10 +518,10 @@ function tarjetaDeuda(deuda) {
   }).join('');
   const cruce = deuda.cruce ? `<p class="nota ${deuda.cruce.coincide ? 'ok' : 'mal'}">${deuda.cruce.coincide ? '✓' : '⚠'} ${deuda.cruce.eventos} eventos por liquidar; tu hoja marca «${esc(deuda.cruce.texto.replace(/[❌✅]/gu, '').trim())}».</p>` : '';
   return `<article class="tarjeta">${cab}
-    <div class="cifra-linea"><span class="cifra">${esc(dinero(deuda.total, 0))}</span><span class="sub">total por cobrar a ${plural(deuda.personas.length, 'persona', 'personas')}</span></div>
-    <table class="tabla"><thead><tr><th>Persona</th><th class="num">Eventos</th><th class="num">Debe hace</th><th>Fechas</th><th class="num">Importe</th></tr></thead>
+    <div class="cifra-linea"><span class="cifra monto-cobrar">${esc(dinero(deuda.total, 0))}</span><span class="sub">total por cobrar a ${plural(deuda.personas.length, 'persona', 'personas')}</span></div>
+    <div class="tabla-desliza"><table class="tabla"><thead><tr><th>Persona</th><th class="num">Eventos</th><th class="num">Debe hace</th><th>Fechas</th><th class="num">Importe</th></tr></thead>
     <tbody>${filas}</tbody>
-    <tfoot><tr><td colspan="4">Total general por cobrar</td><td class="num">${esc(dinero(deuda.total, 0))}</td></tr></tfoot></table>
+    <tfoot><tr><td colspan="4">Total general por cobrar</td><td class="num">${esc(dinero(deuda.total, 0))}</td></tr></tfoot></table></div>
     <p class="nota">Días desde el evento más antiguo que se debe. Importes redondeados a pesos, como en tu hoja.</p>${cruce}
   </article>`;
 }
@@ -551,9 +594,8 @@ function vistaFinanzas(m) {
   if (!fi.disponible || !fi.meses.length) {
     return `<h1 class="titulo-vista">Finanzas</h1><article class="tarjeta tarjeta-error">No hay datos de finanzas.</article>${listaAvisos(fi.avisos, 'Revisión de la lectura')}`;
   }
-  if (E.mes === null || !fi.meses[E.mes]) E.mes = fi.indiceActual >= 0 ? fi.indiceActual : fi.meses.length - 1;
+  const sel = selectorMes(fi);
   const mes = fi.meses[E.mes];
-  const opciones = fi.meses.map((x, i) => `<option value="${i}" ${i === E.mes ? 'selected' : ''}>${esc(x.y ? nombreMes(x.y, x.m) : x.etiqueta)}${i === fi.indiceActual ? ' (actual)' : ''}</option>`).join('');
   const negocios = mes.negocios.map((n) => ({ nombre: n.nombre, valor: n.valor, nota: n.estado === 'vacia' ? 'Celda vacía' : n.estado === 'error' ? n.texto : '' }));
   const top = 8;
   const cats = mes.categorias ?? [];
@@ -566,7 +608,7 @@ function vistaFinanzas(m) {
   return `
   <div class="cab-vista">
     <h1 class="titulo-vista">Finanzas</h1>
-    <label class="selector">Mes <select id="sel-mes">${opciones}</select></label>
+    ${sel}
   </div>
   <section class="rejilla-tiles">${tilesFinanzas(mes)}</section>
   <section class="rejilla-dos">
@@ -661,7 +703,7 @@ function vistaEntrarGoogle() {
     <h1 class="titulo-vista">Panel personal</h1>
     <p>Entra con tu cuenta de Google para leer tus hojas. Solo se pide permiso de <b>lectura</b>.</p>
     ${E.errorSesion ? `<p class="mal" role="alert">${esc(E.errorSesion)}</p>` : ''}
-    <button class="boton boton-primario boton-grande" data-accion="entrar" ${E.sesion !== 'lista' ? 'disabled' : ''}>${E.sesion === 'preparando' ? 'Preparando…' : 'Entrar con Google'}</button>
+    <button class="boton boton-primario boton-grande" data-accion="entrar" ${E.sesion !== 'lista' ? 'disabled' : ''}>${E.sesion === 'preparando' ? 'Preparando…' : `${icono('google')}Entrar con Google`}</button>
     <p class="nota">Si otra persona abre la página, Google no le entrega tus datos.</p>
     <p class="nota"><a href="?demo#/inicio">Ver con datos de ejemplo</a></p>
   </article>`;

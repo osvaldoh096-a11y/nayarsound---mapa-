@@ -59,7 +59,7 @@ async function nuevaPagina({ ancho = 1280, alto = 900, fallas = {}, movil = fals
 async function entrar(pagina) {
   await pagina.goto(`${url}/panel/`);
   await pagina.getByRole('button', { name: 'Entrar con Google' }).click();
-  await pagina.waitForSelector('.rejilla-resumen');
+  await pagina.waitForSelector('.fila-1');
 }
 
 const texto = async (pagina, sel) => (await pagina.locator(sel).first().innerText()).trim();
@@ -70,15 +70,15 @@ try {
     const { pagina, errores, lecturas, contexto } = await nuevaPagina();
     await pagina.goto(`${url}/panel/`);
     await pagina.waitForSelector('[data-accion="entrar"]');
-    revisar(await pagina.locator('.rejilla-resumen').count() === 0 && lecturas.length === 0, 'Sin iniciar sesión no se consulta ni se muestra nada');
+    revisar(await pagina.locator('.fila-1').count() === 0 && lecturas.length === 0, 'Sin iniciar sesión no se consulta ni se muestra nada');
     await entrar(pagina);
-    const total = await texto(pagina, '.kpi .cifra-xl');
+    const total = await texto(pagina, '.protagonista .cifra-xl');
     revisar(total === String(esperado.pendientes.length), `Pendientes en Inicio: ${total} (esperado ${esperado.pendientes.length})`);
-    for (const u of ['hoy', 'proximo', 'sin-fecha']) {
-      const n = await texto(pagina, `.chip-filtro.u-${u} b:first-of-type`);
+    for (const u of ['hoy', 'proximo', 'vencido', 'sin-fecha']) {
+      const n = await texto(pagina, `.clase.u-${u} .clase-num`);
       revisar(n === String(esperado.conteo[u]), `  ${u}: ${n} (esperado ${esperado.conteo[u]})`);
     }
-    const eventos = await pagina.locator('.kpi .par .cifra').allInnerTexts();
+    const eventos = await pagina.locator('.eventos .par .cifra').allInnerTexts();
     revisar(eventos[0] === String(esperado.eventos.hoy) && eventos[1] === String(esperado.eventos.manana),
       `Eventos hoy/mañana: ${eventos.join('/')} (esperado ${esperado.eventos.hoy}/${esperado.eventos.manana})`);
     const tiles = await pagina.locator('.rejilla-tiles .cifra').allInnerTexts();
@@ -89,13 +89,13 @@ try {
     revisar(/Actualizado/.test(await texto(pagina, '#estado-lectura')), 'Muestra fecha y hora de la última actualización');
     revisar(lecturas.length > 0 && lecturas.every((l) => l.metodo === 'GET'), `Todas las consultas a Sheets son de lectura (${lecturas.length} GET)`);
     await pagina.reload();
-    await pagina.waitForSelector('.rejilla-resumen');
+    await pagina.waitForSelector('.fila-1');
     revisar(await pagina.locator('[data-accion="entrar"]').count() === 0, 'Al recargar con la sesión vigente no pide la cuenta otra vez');
 
     // detalle con origen
     await pagina.locator('.bloque-alertas .fila-pend').first().click();
     await pagina.waitForSelector('#detalle[open]');
-    revisar(/Origen/.test(await texto(pagina, '#detalle')), 'El detalle muestra el origen de la información');
+    revisar(/Origen/i.test(await texto(pagina, '#detalle')), 'El detalle muestra el origen de la información');
     await pagina.locator('[data-cerrar]').click();
 
     // NayarSound
@@ -216,7 +216,7 @@ try {
     const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 } });
     const pagina = await contexto.newPage();
     await pagina.goto(`${url}/panel/?demo#/inicio`);
-    await pagina.waitForSelector('.rejilla-resumen');
+    await pagina.waitForSelector('.fila-1');
     revisar(/DATOS DE EJEMPLO/.test(await texto(pagina, '#aviso-global')), 'Modo de ejemplo identificado con una banda visible');
     await contexto.close();
   }
