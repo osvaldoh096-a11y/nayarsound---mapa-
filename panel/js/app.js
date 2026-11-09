@@ -1,20 +1,20 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092151';
-import { escribirCelda, leerRangos } from './api.js?v=202611092151';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092151';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092151';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092151';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092154';
+import { escribirCelda, leerRangos } from './api.js?v=202611092154';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092154';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092154';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092154';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611092151';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092151';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092151';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092151';
-import { fuentesDemo } from './demo.js?v=202611092151';
-import { leerCashflow } from './dashprestamos.js?v=202611092151';
-import { icono } from './iconos.js?v=202611092151';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092151';
+} from './fechas.js?v=202611092154';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092154';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092154';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092154';
+import { fuentesDemo } from './demo.js?v=202611092154';
+import { leerCashflow } from './dashprestamos.js?v=202611092154';
+import { icono } from './iconos.js?v=202611092154';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092154';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1003,11 +1003,7 @@ function prResumen(m, pr, d) {
 
   // Resumen financiero agrupado por colores, como en tu hoja
   const fila = (k, { pct = false, resaltar = false } = {}) => (r[k] ? `<div class="pf-dato ${resaltar ? 'resaltar' : ''}"><span>${esc(nombreBonito(r[k].etiqueta))}</span><b>${pct || r[k].esPct ? esc(pctTxt(r[k].valor, 2)) : din(r[k].valor)}</b></div>` : '');
-  const mezcla = prestado && propio !== null && inv !== null ? `<div class="df-mezcla"><i class="propio" style="width:${(propio / (propio + inv)) * 100}%"></i><i class="inversores"></i></div>
-    <div class="df-mezcla-etq"><span><i class="muestra propio"></i>Propio ${esc(pctTxt(propio / (propio + inv), 0))}</span><span><i class="muestra inversores"></i>Inversores ${esc(pctTxt(inv / (propio + inv), 0))}</span></div>` : '';
   const grupos = [
-    seccionPF('capital', 'verde', 'Capital', `Prestado <b>${din(prestado)}</b>`,
-      `${mezcla}<div class="pf-datos">${fila('CAPITAL PRESTADO')}${fila('CAPITAL PROPIO')}${fila('CAPITAL DE INVERSORES')}</div>`),
     seccionPF('rendimiento', 'ambar', 'Rendimiento', `Proyección mensual <b>${din(v('PROYECCION MENSUAL'))}</b> · ${esc(pctTxt(v('INTERES PROMEDIO MENSUAL'), 2))}`,
       `<div class="pf-datos">${fila('INTERES GENERADO POR DIA')}${fila('UTILIDAD PROPIA POR DIA')}${fila('UTILIDAD INVERSOR POR DIA')}${fila('INTERES PROMEDIO MENSUAL', { pct: true })}${fila('PROYECCION MENSUAL', { resaltar: true })}</div>`),
     seccionPF('pendientes', 'rojo', 'Pagos y pendientes', `Por cobrar <b>${din(v('PENDIENTE INTERES A COBRAR'))}</b> · a inversores <b>${din(v('PENDIENTE INTERES A INVERSORES'))}</b>`,
@@ -1073,7 +1069,7 @@ function prResumen(m, pr, d) {
     </div><div class="pf-pie">${verTodos('historial', 'Ver desglose mensual')}</div>`) : '';
 
   return `${kpis}
-    <section class="pf-fila pf-fila-3">${grupos.join('')}</section>
+    <section class="pf-fila">${grupos.join('')}</section>
     <section class="pf-fila">${movimientos}${flujo}</section>
     <section class="pf-fila">${prestamos}${inversores}</section>
     ${resultado}

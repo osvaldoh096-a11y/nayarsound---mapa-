@@ -7,15 +7,15 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611092151';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092151';
+} from './fechas.js?v=202611092154';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092154';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611092151';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092151';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092151';
-import { dinero } from './formato.js?v=202611092151';
+} from './sheets.js?v=202611092154';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092154';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092154';
+import { dinero } from './formato.js?v=202611092154';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));

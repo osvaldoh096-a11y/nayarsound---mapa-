@@ -203,8 +203,8 @@ try {
     if (!rutaSnapshot) {
       const kpis = await pagina.locator('.pf-kpi .pf-kpi-valor .solo-escritorio').allInnerTexts();
       revisar(JSON.stringify(kpis) === JSON.stringify(['$500,000.00', '$300,000.00', '$200,000.00', '$3,000.00']), `Panel financiero: capital prestado, propio, inversores y pago mensual (${kpis.join(' · ')})`);
-      const colores = await pagina.locator('.pf-fila-3 .pf-sec').evaluateAll((els) => els.map((e) => [...e.classList].find((c) => c.startsWith('pf-c-'))));
-      revisar(colores.join() === 'pf-c-verde,pf-c-ambar,pf-c-rojo', `Panel financiero: grupos por color como la hoja (${colores.join(', ')})`);
+      const colores = await pagina.locator('[data-pf="rendimiento"], [data-pf="pendientes"]').evaluateAll((els) => els.map((e) => [...e.classList].find((c) => c.startsWith('pf-c-'))));
+      revisar(colores.join() === 'pf-c-ambar,pf-c-rojo', `Panel financiero: grupos por color como la hoja (${colores.join(', ')})`);
       await pagina.locator('[data-pf="flujo"] > summary').click();
       const flujo = await pagina.locator('.pf-tabla-flujo').innerText();
       revisar(/-\$3,500/.test(flujo) && /\$9,000/.test(flujo) && /\$12,000/.test(flujo), 'Panel financiero: flujo de efectivo este mes y próximo');
@@ -214,7 +214,7 @@ try {
       revisar(filasMov === esperado.prestamos.cobrar.length + esperado.prestamos.pagar.length, `Panel financiero: ${filasMov} próximos movimientos`);
       await pagina.reload();
       await pagina.waitForSelector('[data-pf="flujo"]');
-      revisar(await pagina.locator('[data-pf="flujo"][open]').count() === 1 && await pagina.locator('[data-pf="capital"][open]').count() === 0, 'Panel financiero: recuerda las secciones abiertas');
+      revisar(await pagina.locator('[data-pf="flujo"][open]').count() === 1 && await pagina.locator('[data-pf="capital"]').count() === 0, 'Panel financiero: recuerda las secciones abiertas');
       await pagina.locator('[data-pf="activos"] > summary').click();
       await pagina.locator('[data-pf="activos"] .pf-ver').click();
       await pagina.locator('[data-pf="t-prestamos"] > summary').click();
