@@ -191,25 +191,36 @@ try {
 
     // Préstamos
     await pagina.goto(`${url}/panel/#/prestamos`);
-    await pagina.waitForSelector('.pf-movs');
+    await pagina.waitForSelector('[data-pf="movimientos"]');
     const t = esperado.prestamos.totales;
-    const tot = await pagina.locator('.pf-totales').innerText();
-    const cobrar = tot.match(/Por cobrar\s*(\S+)/)?.[1];
-    const pagar = tot.match(/Por pagar\s*(\S+)/)?.[1];
+    const resumenMov = await pagina.locator('[data-pf="movimientos"] > summary').innerText();
+    const cobrar = resumenMov.match(/cobrar\s*(\S+)/)?.[1];
+    const pagar = resumenMov.match(/pagar\s*(\S+)/)?.[1];
     revisar(cobrar === dinero(t.cobrarMXN, 0) && pagar === dinero(t.pagarMXN, 0), `Préstamos: cobrar ${cobrar}, pagar ${pagar} (esperado ${dinero(t.cobrarMXN, 0)}, ${dinero(t.pagarMXN, 0)})`);
     if (extra?.prestamos) revisar(cobrar === extra.prestamos[0] && pagar === extra.prestamos[1], `  coincide con la hoja: ${extra.prestamos.join(', ')}`);
     revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Préstamos,Inversores,Historial', 'Panel financiero: pestañas Resumen, Préstamos, Inversores, Historial');
+    revisar(await pagina.locator('.pf details.pf-sec').count() > 0 && await pagina.locator('.pf details.pf-sec[open]').count() === 0, 'Panel financiero: todas las secciones empiezan contraídas');
     if (!rutaSnapshot) {
       const kpis = await pagina.locator('.pf-kpi .pf-kpi-valor .solo-escritorio').allInnerTexts();
-      revisar(JSON.stringify(kpis) === JSON.stringify(['$500,000.00', '$30,000.00', '$80,000.00', '$100,000.00']), `Panel financiero: indicadores ${kpis.join(' · ')}`);
+      revisar(JSON.stringify(kpis) === JSON.stringify(['$500,000.00', '$300,000.00', '$200,000.00', '$3,000.00']), `Panel financiero: capital prestado, propio, inversores y pago mensual (${kpis.join(' · ')})`);
+      const colores = await pagina.locator('.pf-fila-3 .pf-sec').evaluateAll((els) => els.map((e) => [...e.classList].find((c) => c.startsWith('pf-c-'))));
+      revisar(colores.join() === 'pf-c-verde,pf-c-ambar,pf-c-rojo', `Panel financiero: grupos por color como la hoja (${colores.join(', ')})`);
+      await pagina.locator('[data-pf="flujo"] > summary').click();
       const flujo = await pagina.locator('.pf-tabla-flujo').innerText();
       revisar(/-\$3,500/.test(flujo) && /\$9,000/.test(flujo) && /\$12,000/.test(flujo), 'Panel financiero: flujo de efectivo este mes y próximo');
-      revisar(/Resultado 2026/.test(await pagina.locator('.pf-resultado').innerText()) && /\$2,500\.00/.test(await pagina.locator('.pf-resultado').innerText()), 'Panel financiero: resultado del año');
-      const filasMov = await pagina.locator('.pf-movs tbody tr').count();
+      revisar(/Resultado 2026/.test(await pagina.locator('[data-pf="resultado"]').innerText()) && /\$2,500\.00/.test(await pagina.locator('[data-pf="resultado"] > summary').innerText()), 'Panel financiero: resultado del año');
+      await pagina.locator('[data-pf="movimientos"] > summary').click();
+      const filasMov = await pagina.locator('[data-pf="movimientos"] tbody tr').count();
       revisar(filasMov === esperado.prestamos.cobrar.length + esperado.prestamos.pagar.length, `Panel financiero: ${filasMov} próximos movimientos`);
-      await pagina.locator('.pf-lista .pf-ver').first().click();
-      revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Préstamos' && /100%/.test(await pagina.locator('.pf-tabla tfoot').innerText()), 'Panel financiero: «Ver todos» abre la pestaña Préstamos con totales');
+      await pagina.reload();
+      await pagina.waitForSelector('[data-pf="flujo"]');
+      revisar(await pagina.locator('[data-pf="flujo"][open]').count() === 1 && await pagina.locator('[data-pf="capital"][open]').count() === 0, 'Panel financiero: recuerda las secciones abiertas');
+      await pagina.locator('[data-pf="activos"] > summary').click();
+      await pagina.locator('[data-pf="activos"] .pf-ver').click();
+      await pagina.locator('[data-pf="t-prestamos"] > summary').click();
+      revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Préstamos' && /100%/.test(await pagina.locator('[data-pf="t-prestamos"] tfoot').innerText()), 'Panel financiero: «Ver los…» abre la pestaña Préstamos con totales');
       await pagina.locator('.pf-tab', { hasText: 'Historial' }).click();
+      await pagina.locator('[data-pf="h-flujo"] > summary').click();
       revisar(await pagina.locator('.df-cols .df-col').count() === 3, 'Panel financiero: historial con flujo mensual');
       await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
     }

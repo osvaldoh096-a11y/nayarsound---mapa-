@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092136';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092142';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -130,6 +130,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     ['', 'CAPITAL DE INVERSORES', 200000, '', 2, 150000, 50000, 100000, '', 'ENERO 2026', 4000, '', ' CLIENTE UNO ', 300000, 60000, 20000],
     ['', 'INTERES PROMEDIO MENSUAL', 0.065, '', '', '', '', '', '', 'FEBRERO 2026', -1500, '', ' CLIENTE DOS ', 200000, 40000, 10000],
     ['', 'PROYECCION MENSUAL', 30000, '', 'AÑO', 'GENERADO', 'PAGADO', 'GANANCIA', '', 'MARZO 2026', 2500],
+    ['', 'PAGO MENSUAL A INVERSORES', 3000],
     ['', 'PENDIENTE INTERES A COBRAR', 80000, '', 2025, 90000, 30000, 60000],
     ['', 'RESTANTE PROPIO', 120000, '', 2026, 60000, 20000, 40000],
     [],

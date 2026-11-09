@@ -1,20 +1,20 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092136';
-import { escribirCelda, leerRangos } from './api.js?v=202611092136';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092136';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092136';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092136';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092142';
+import { escribirCelda, leerRangos } from './api.js?v=202611092142';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092142';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092142';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092142';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes,
-} from './fechas.js?v=202611092136';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092136';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092136';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092136';
-import { fuentesDemo } from './demo.js?v=202611092136';
-import { leerCashflow } from './dashprestamos.js?v=202611092136';
-import { icono } from './iconos.js?v=202611092136';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092136';
+} from './fechas.js?v=202611092142';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092142';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092142';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092142';
+import { fuentesDemo } from './demo.js?v=202611092142';
+import { leerCashflow } from './dashprestamos.js?v=202611092142';
+import { icono } from './iconos.js?v=202611092142';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092142';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -83,6 +83,12 @@ async function arrancar() {
   document.addEventListener('submit', alEnviar);
   activarArrastre((claves) => ordenarTareas(claves, tokenParaEscribir, pintarTareas));
   document.addEventListener('toggle', (e) => {
+    if (e.target.dataset?.pf) {
+      const abiertos = new Set(E.pref.pfAbiertos ?? []);
+      if (e.target.open) abiertos.add(e.target.dataset.pf); else abiertos.delete(e.target.dataset.pf);
+      E.pref.pfAbiertos = [...abiertos];
+      guardarPreferencias(E.pref);
+    }
     if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open;
     if (e.target.id === 'deuda-desplegable') E.deudaAbierta = e.target.open;
     if (e.target.id === 'controles-desplegable') E.controlesAbierto = e.target.open;
@@ -899,7 +905,8 @@ function listaAvisos(avisos, titulo) {
 
 const din = (v, dec = 2) => (typeof v === 'number' ? esc(dinero(v, dec)) : '<span class="sin-dato">—</span>');
 const pctTxt = (v, dec = 1) => (typeof v === 'number' ? `${(v * 100).toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec })}%` : '—');
-const nombreBonito = (t) => capitalizar(String(t ?? '').toLowerCase());
+const ACENTOS = { interes: 'interés', proyeccion: 'proyección', dia: 'día', prestamos: 'préstamos', prestamo: 'préstamo', utilidad: 'utilidad' };
+const nombreBonito = (t) => capitalizar(String(t ?? '').toLowerCase().replace(/\p{L}+/gu, (w) => ACENTOS[w] ?? w));
 const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 /** Columnas con cero al centro: verdes hacia arriba, coral hacia abajo. */
@@ -954,6 +961,20 @@ function tablaPF(columnas, filas, { pie = '', clase = '' } = {}) {
     <tbody>${filas.join('')}</tbody>${pie ? `<tfoot>${pie}</tfoot>` : ''}</table></div>`;
 }
 
+/**
+ * Sección desplegable del panel financiero, con su color de grupo (como en tu
+ * hoja: verde capital, ámbar rendimiento, rojo pagos y pendientes, azul
+ * movimientos). Empieza contraída; el panel recuerda las que abres.
+ */
+function seccionPF(id, color, titulo, resumen, cuerpo) {
+  const abierta = (E.pref.pfAbiertos ?? []).includes(id);
+  return `<details class="tarjeta pf-sec pf-c-${color}" data-pf="${esc(id)}" ${abierta ? 'open' : ''}>
+    <summary><span class="pf-sec-cab"><i class="pf-punto" aria-hidden="true"></i><span class="pf-sec-titulo">${titulo}</span>${icono('flecha', 'desp-flecha')}</span>
+      ${resumen ? `<span class="pf-sec-resumen">${resumen}</span>` : ''}</summary>
+    <div class="pf-sec-cuerpo">${cuerpo}</div>
+  </details>`;
+}
+
 function vistaPrestamos(m) {
   const pr = m.prestamos;
   if (!pr.disponible) return '<article class="tarjeta tarjeta-error">No hay datos de préstamos.</article>';
@@ -965,19 +986,33 @@ function vistaPrestamos(m) {
 }
 
 function prResumen(m, pr, d) {
-  const r = Object.fromEntries((d.resumen ?? []).map((x) => [normalizar(x.etiqueta), x.valor]));
-  const v = (k) => (typeof r[k] === 'number' ? r[k] : null);
+  const r = Object.fromEntries((d.resumen ?? []).map((x) => [normalizar(x.etiqueta), x]));
+  const v = (k) => (typeof r[k]?.valor === 'number' ? r[k].valor : null);
   const h = d.historico ?? {};
-  const kpi = (etiqueta, valor, subEsc, subMovil = subEsc) => `<article class="tarjeta pf-kpi">
-    <div class="pf-kpi-etq">${etiqueta}</div><div class="pf-kpi-valor">${cifraDoble(valor)}</div>
-    <div class="pf-kpi-sub"><span class="solo-escritorio">${subEsc}</span><span class="solo-movil">${subMovil}</span></div></article>`;
-  const pct = v('INTERES PROMEDIO MENSUAL');
+  const prestado = v('CAPITAL PRESTADO'); const propio = v('CAPITAL PROPIO'); const inv = v('CAPITAL DE INVERSORES');
+  const pctDe = (x) => (typeof x === 'number' && prestado ? ` · ${esc(pctTxt(x / prestado, 0))}` : '');
+  const kpi = (color, etiqueta, valor, sub) => `<article class="tarjeta pf-kpi pf-c-${color}">
+    <div class="pf-kpi-etq"><i class="pf-punto" aria-hidden="true"></i>${etiqueta}</div><div class="pf-kpi-valor">${cifraDoble(valor)}</div>
+    <div class="pf-kpi-sub">${sub}</div></article>`;
   const kpis = `<section class="pf-kpis">
-    ${kpi('Capital prestado', v('CAPITAL PRESTADO'), `Propio ${din(v('CAPITAL PROPIO'))} · Inversores ${din(v('CAPITAL DE INVERSORES'))}`, `Propio ${din(v('CAPITAL PROPIO'), 0)}`)}
-    ${kpi('Proyección mensual', v('PROYECCION MENSUAL'), `Interés promedio ${esc(pctTxt(pct, 2))}`)}
-    ${kpi('Intereses por cobrar', v('PENDIENTE INTERES A COBRAR'), `A inversores ${din(v('PENDIENTE INTERES A INVERSORES'))}`, `A inversores ${din(v('PENDIENTE INTERES A INVERSORES'), 0)}`)}
-    ${kpi('Ganancia histórica', h.ganancia ?? null, `Generado ${din(h.generado)} · Pagado ${din(h.pagado)}`, h.anios ? `Acumulado de ${esc(String(h.anios))} años` : '')}
+    ${kpi('verde', 'Capital prestado', prestado, 'Total en la calle')}
+    ${kpi('verde', 'Capital propio', propio, `Tuyo${pctDe(propio)}`)}
+    ${kpi('verde', 'Capital de inversores', inv, `De inversores${pctDe(inv)}`)}
+    ${kpi('rojo', 'Pago mensual a inversores', v('PAGO MENSUAL A INVERSORES'), 'Lo que pagas cada mes')}
   </section>`;
+
+  // Resumen financiero agrupado por colores, como en tu hoja
+  const fila = (k, { pct = false, resaltar = false } = {}) => (r[k] ? `<div class="pf-dato ${resaltar ? 'resaltar' : ''}"><span>${esc(nombreBonito(r[k].etiqueta))}</span><b>${pct || r[k].esPct ? esc(pctTxt(r[k].valor, 2)) : din(r[k].valor)}</b></div>` : '');
+  const mezcla = prestado && propio !== null && inv !== null ? `<div class="df-mezcla"><i class="propio" style="width:${(propio / (propio + inv)) * 100}%"></i><i class="inversores"></i></div>
+    <div class="df-mezcla-etq"><span><i class="muestra propio"></i>Propio ${esc(pctTxt(propio / (propio + inv), 0))}</span><span><i class="muestra inversores"></i>Inversores ${esc(pctTxt(inv / (propio + inv), 0))}</span></div>` : '';
+  const grupos = [
+    seccionPF('capital', 'verde', 'Capital', `Prestado <b>${din(prestado)}</b>`,
+      `${mezcla}<div class="pf-datos">${fila('CAPITAL PRESTADO')}${fila('CAPITAL PROPIO')}${fila('CAPITAL DE INVERSORES')}</div>`),
+    seccionPF('rendimiento', 'ambar', 'Rendimiento', `Proyección mensual <b>${din(v('PROYECCION MENSUAL'))}</b> · ${esc(pctTxt(v('INTERES PROMEDIO MENSUAL'), 2))}`,
+      `<div class="pf-datos">${fila('INTERES GENERADO POR DIA')}${fila('UTILIDAD PROPIA POR DIA')}${fila('UTILIDAD INVERSOR POR DIA')}${fila('INTERES PROMEDIO MENSUAL', { pct: true })}${fila('PROYECCION MENSUAL', { resaltar: true })}</div>`),
+    seccionPF('pendientes', 'rojo', 'Pagos y pendientes', `Por cobrar <b>${din(v('PENDIENTE INTERES A COBRAR'))}</b> · a inversores <b>${din(v('PENDIENTE INTERES A INVERSORES'))}</b>`,
+      `<div class="pf-datos">${fila('PAGO MENSUAL A INVERSORES')}${fila('PENDIENTE INTERES A COBRAR')}${fila('PENDIENTE INTERES A INVERSORES', { resaltar: true })}${fila('RESTANTE PROPIO')}</div>`),
+  ];
 
   // Próximos movimientos (recordatorio de 5 días de tu hoja)
   const idDe = (accion, item) => [...E.pendientes.values()].find((p) => p.accion === accion && p.tipo !== 'liquidar'
@@ -995,62 +1030,53 @@ function prResumen(m, pr, d) {
       <span class="pf-mov-fila"><b>${esc(x.nombre)}</b><b>${montoMov(x.accion, x.montoMXN)}</b></span></button>`;
   };
   const totalesMov = `<div class="pf-totales"><span>Por cobrar <b class="texto-verde">${din(t.cobrarMXN, 0)}</b></span><span>Por pagar <b class="texto-rojo">${din(t.pagarMXN, 0)}</b></span></div>`;
-  const movimientos = `<article class="tarjeta pf-movs">
-    <header class="pf-cab"><div><h2>Próximos movimientos</h2><p>Próximos 5 días</p></div></header>
-    ${movs.length ? `<div class="solo-escritorio">${tablaPF([['Fecha'], ['Movimiento'], ['Nombre'], ['Importe', 1]], movs.map(filaMov))}</div>
+  const movimientos = seccionPF('movimientos', 'azul', 'Próximos movimientos',
+    movs.length ? `${plural(movs.length, 'movimiento', 'movimientos')} en 5 días · cobrar <b class="texto-verde">${din(t.cobrarMXN, 0)}</b> · pagar <b class="texto-rojo">${din(t.pagarMXN, 0)}</b>` : 'Nada en los próximos 5 días',
+    movs.length ? `<div class="solo-escritorio">${tablaPF([['Fecha'], ['Movimiento'], ['Nombre'], ['Importe', 1]], movs.map(filaMov))}</div>
       <div class="solo-movil pf-movs-lista">${movs.map(tarjetaMov).join('')}</div>${totalesMov}`
-    : `<p class="vacio">${pr.estado === 'sin-recordatorios' ? 'Tu hoja no muestra movimientos en los próximos 5 días.' : 'Nada en los próximos 5 días.'}</p>`}
-  </article>`;
+    : `<p class="vacio">${pr.estado === 'sin-recordatorios' ? 'Tu hoja no muestra movimientos en los próximos 5 días.' : 'Nada en los próximos 5 días.'}</p>`);
 
   // Flujo de efectivo
   const tx = d.textos ?? {};
   const ca = tx.cashflowActual ? leerCashflow(tx.cashflowActual.texto) : null;
   const cs = tx.cashflowSiguiente ? leerCashflow(tx.cashflowSiguiente.texto) : null;
   const bal = (x) => (x?.balance === null || x?.balance === undefined ? '—' : `<b class="${x.balance < 0 ? 'texto-rojo' : 'texto-verde'}">${din(x.balance, 0)}</b>`);
-  const flujo = ca || cs ? `<article class="tarjeta pf-flujo">
-    <header class="pf-cab"><h2>Flujo de efectivo</h2></header>
-    <table class="pf-tabla pf-tabla-flujo"><thead><tr><th></th><th class="num">Este mes</th><th class="num">Próximo mes</th></tr></thead><tbody>
+  const flujo = ca || cs ? seccionPF('flujo', 'azul', 'Flujo de efectivo', `Balance este mes ${bal(ca)} · próximo ${bal(cs)}`,
+    `<table class="pf-tabla pf-tabla-flujo"><thead><tr><th></th><th class="num">Este mes</th><th class="num">Próximo mes</th></tr></thead><tbody>
       <tr><td>Ingresos</td><td class="num">${din(ca?.ingresos, 0)}</td><td class="num">${din(cs?.ingresos, 0)}</td></tr>
       <tr><td>Pagos</td><td class="num">${din(ca?.pagos, 0)}</td><td class="num">${din(cs?.pagos, 0)}</td></tr>
       <tr class="pf-balance"><td>Balance</td><td class="num">${bal(ca)}</td><td class="num">${bal(cs)}</td></tr>
-    </tbody></table></article>` : '';
+    </tbody></table>`) : '';
 
-  // Préstamos e inversores activos (primeros 5 / todos)
+  // Préstamos e inversores activos
   const pa = [...(d.prestamosActivos ?? [])].sort((a, b) => (b.capital ?? 0) - (a.capital ?? 0));
   const ia = d.inversoresActivos ?? [];
   const suma = (lista, k) => lista.reduce((s, x) => s + (x[k] ?? 0), 0);
   const verTodos = (tab, texto) => `<button class="boton-texto pf-ver" data-accion="tab-pr" data-tab="${tab}">${texto} ${icono('flecha')}</button>`;
-  const prestamos = pa.length ? `<article class="tarjeta pf-lista">
-    <header class="pf-cab"><h2>Préstamos activos</h2><span class="pf-cab-der">${plural(pa.length, 'cliente', 'clientes')} · ${verTodos('prestamos', 'Ver todos')}</span></header>
-    ${tablaPF([['Cliente'], ['Capital', 1], ['Pago mensual', 1], ['Interés restante', 1]],
+  const prestamos = pa.length ? seccionPF('activos', 'verde', 'Préstamos activos', `${plural(pa.length, 'cliente', 'clientes')} · capital <b>${din(suma(pa, 'capital'), 0)}</b> · pago mensual <b>${din(suma(pa, 'pago'), 0)}</b>`,
+    `${tablaPF([['Cliente'], ['Capital', 1], ['Pago mensual', 1], ['Interés restante', 1]],
       pa.slice(0, 5).map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num">${din(x.pago, 0)}</td><td class="num">${din(x.interes, 0)}</td></tr>`))}
-  </article>` : '';
-  const inversores = ia.length ? `<article class="tarjeta pf-lista">
-    <header class="pf-cab"><h2>Inversores activos</h2><span class="pf-cab-der">${plural(ia.length, 'registro', 'registros')} · ${verTodos('inversores', 'Ver todos')}</span></header>
-    ${tablaPF([['Inversor'], ['Capital', 1], ['Pago mensual', 1]],
+    <div class="pf-pie">${verTodos('prestamos', `Ver los ${pa.length}`)}</div>`) : '';
+  const inversores = ia.length ? seccionPF('inversores', 'rojo', 'Inversores activos', `${plural(ia.length, 'registro', 'registros')} · capital <b>${din(suma(ia, 'capital'), 0)}</b> · pago mensual <b>${din(suma(ia, 'pago'))}</b>`,
+    `${tablaPF([['Inversor'], ['Capital', 1], ['Pago mensual', 1]],
       ia.map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num">${din(x.pago, 0)}</td></tr>`),
       { pie: `<tr><td colspan="2">Pago mensual</td><td class="num">${din(suma(ia, 'pago'))}</td></tr>`, clase: 'pf-compacta' })}
-  </article>` : '';
-  const enlaces = `<div class="solo-movil pf-enlaces">
-    ${pa.length ? `<button class="tarjeta pf-enlace" data-accion="tab-pr" data-tab="prestamos"><span><b>Préstamos activos</b><small>${plural(pa.length, 'cliente', 'clientes')} · ${din(suma(pa, 'capital'), 0)}</small></span>${icono('flecha')}</button>` : ''}
-    ${ia.length ? `<button class="tarjeta pf-enlace" data-accion="tab-pr" data-tab="inversores"><span><b>Inversores activos</b><small>${plural(ia.length, 'registro', 'registros')} · Pago mensual ${din(suma(ia, 'pago'))}</small></span>${icono('flecha')}</button>` : ''}
-  </div>`;
+    <div class="pf-pie">${verTodos('inversores', 'Ver detalle')}</div>`) : '';
 
   // Resultado del año
   const tm = d.meses?.total;
-  const resultado = tm ? `<article class="tarjeta pf-resultado">
-    <h2>Resultado ${esc(d.meses.anio || '')}</h2>
-    <div class="pf-res-dato"><span>Intereses cobrados</span><b>${din(tm.cobrado)}</b></div>
-    <div class="pf-res-dato"><span>Pagado a inversores</span><b>${din(tm.pagado)}</b></div>
-    <div class="pf-res-dato"><span>Ganancia neta</span><b class="${tm.ganancia < 0 ? 'texto-rojo' : 'texto-verde'}">${din(tm.ganancia)}</b></div>
-    ${verTodos('historial', '<span class="solo-escritorio">Ver desglose mensual</span><span class="solo-movil">Detalle</span>')}
-  </article>` : '';
+  const resultado = tm ? seccionPF('resultado', 'ambar', `Resultado ${esc(d.meses.anio || '')}`, `Ganancia neta <b class="${tm.ganancia < 0 ? 'texto-rojo' : 'texto-verde'}">${din(tm.ganancia)}</b>`,
+    `<div class="pf-datos">
+      <div class="pf-dato"><span>Intereses cobrados</span><b>${din(tm.cobrado)}</b></div>
+      <div class="pf-dato"><span>Pagado a inversores</span><b>${din(tm.pagado)}</b></div>
+      <div class="pf-dato"><span>Ganancia neta</span><b class="${tm.ganancia < 0 ? 'texto-rojo' : 'texto-verde'}">${din(tm.ganancia)}</b></div>
+    </div><div class="pf-pie">${verTodos('historial', 'Ver desglose mensual')}</div>`) : '';
 
   return `${kpis}
-    <section class="pf-fila pf-fila-a">${movimientos}${flujo}</section>
-    <section class="pf-fila pf-fila-b solo-escritorio-grid">${prestamos}${inversores}</section>
+    <section class="pf-fila pf-fila-3">${grupos.join('')}</section>
+    <section class="pf-fila">${movimientos}${flujo}</section>
+    <section class="pf-fila">${prestamos}${inversores}</section>
     ${resultado}
-    ${enlaces}
     <p class="nota">Fuente: DASHBOARD de 💵REGISTRO DE PRESTAMOS ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">↗</a>` : ''} y su recordatorio de 5 días ${enlaceOrigen(pr.origen)}. USDT convertido a ${TIPO_CAMBIO_USDT} MXN, la tasa de tus fórmulas.</p>
     ${listaAvisos(pr.avisos, 'Revisión de la lectura')}`;
 }
@@ -1060,12 +1086,10 @@ function prPrestamos(m, pr, d) {
   if (!pa.length) return '<p class="vacio">No encontré la tabla PRESTAMOS ACTIVOS en tu DASHBOARD.</p>';
   const total = pa.reduce((s, x) => s + (x.capital ?? 0), 0) || 1;
   const suma = (k) => pa.reduce((s, x) => s + (x[k] ?? 0), 0);
-  return `<article class="tarjeta pf-lista">
-    <header class="pf-cab"><h2>Préstamos activos</h2><span class="pf-cab-der">${plural(pa.length, 'cliente', 'clientes')}</span></header>
-    ${tablaPF([['Cliente'], ['Capital', 1], ['% cartera', 1], ['Pago mensual', 1], ['Interés restante', 1]],
+  return seccionPF('t-prestamos', 'verde', 'Préstamos activos', `${plural(pa.length, 'cliente', 'clientes')} · capital <b>${din(suma('capital'), 0)}</b> · interés restante <b>${din(suma('interes'), 0)}</b>`,
+    `${tablaPF([['Cliente'], ['Capital', 1], ['% cartera', 1], ['Pago mensual', 1], ['Interés restante', 1]],
       pa.map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num pf-pct"><span class="pf-pista"><i style="width:${((x.capital ?? 0) / total) * 100}%"></i></span>${esc(pctTxt((x.capital ?? 0) / total))}</td><td class="num">${din(x.pago, 0)}</td><td class="num">${din(x.interes, 0)}</td></tr>`),
-      { pie: `<tr><td>Total</td><td class="num">${din(suma('capital'), 0)}</td><td class="num">100%</td><td class="num">${din(suma('pago'))}</td><td class="num">${din(suma('interes'))}</td></tr>` })}
-  </article>`;
+      { pie: `<tr><td>Total</td><td class="num">${din(suma('capital'), 0)}</td><td class="num">100%</td><td class="num">${din(suma('pago'))}</td><td class="num">${din(suma('interes'))}</td></tr>` })}`);
 }
 
 function prInversores(m, pr, d) {
@@ -1075,20 +1099,14 @@ function prInversores(m, pr, d) {
   const tx = d.textos ?? {};
   const hoyIdx = m.hoy.idx;
   const liq = [...E.pendientes.values()].filter((p) => p.tipo === 'liquidar');
-  return `${ia.length ? `<article class="tarjeta pf-lista">
-    <header class="pf-cab"><h2>Inversores activos</h2><span class="pf-cab-der">${plural(ia.length, 'registro', 'registros')}</span></header>
-    ${tablaPF([['Inversor'], ['Compromiso de pago'], ['Capital', 1], ['Pago mensual', 1]],
+  return `${ia.length ? seccionPF('t-inversores', 'rojo', 'Inversores activos', `${plural(ia.length, 'registro', 'registros')} · capital <b>${din(suma('capital'), 0)}</b> · pago mensual <b>${din(suma('pago'))}</b>`,
+    `${tablaPF([['Inversor'], ['Compromiso de pago'], ['Capital', 1], ['Pago mensual', 1]],
       ia.map((x) => `<tr><td>${esc(x.nombre)}</td><td>${fecha(x)}</td><td class="num">${din(x.capital, 0)}</td><td class="num">${din(x.pago, 0)}</td></tr>`),
-      { pie: `<tr><td colspan="2">Total</td><td class="num">${din(suma('capital'), 0)}</td><td class="num">${din(suma('pago'))}</td></tr>` })}
-  </article>` : '<p class="vacio">No encontré la tabla INVERSORES ACTIVOS en tu DASHBOARD.</p>'}
-  <article class="tarjeta">
-    <header class="pf-cab"><h2>Capital por liquidar</h2><span class="pf-cab-der">Próximos 30 días</span></header>
-    ${liq.length ? `<div class="lista-pend">${liq.map((p) => filaPendiente(p, hoyIdx)).join('')}</div>` : '<p class="vacio">Sin capital por liquidar en los próximos 30 días.</p>'}
-  </article>
-  ${tx.pagoMXN?.texto || tx.pagoUSDT?.texto ? `<section class="pf-fila">
-    ${tx.pagoMXN?.texto ? `<article class="tarjeta"><header class="pf-cab"><h2>Pago a inversores · MXN</h2></header><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoMXN.texto))}</pre></article>` : ''}
-    ${tx.pagoUSDT?.texto ? `<article class="tarjeta"><header class="pf-cab"><h2>Pago a inversores · USDT</h2></header><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoUSDT.texto))}</pre></article>` : ''}
-  </section>` : ''}`;
+      { pie: `<tr><td colspan="2">Total</td><td class="num">${din(suma('capital'), 0)}</td><td class="num">${din(suma('pago'))}</td></tr>` })}`) : '<p class="vacio">No encontré la tabla INVERSORES ACTIVOS en tu DASHBOARD.</p>'}
+  ${seccionPF('t-liquidar', 'rojo', 'Capital por liquidar', liq.length ? `${plural(liq.length, 'liquidación', 'liquidaciones')} en 30 días` : 'Nada en los próximos 30 días',
+    liq.length ? `<div class="lista-pend">${liq.map((p) => filaPendiente(p, hoyIdx)).join('')}</div>` : '<p class="vacio">Sin capital por liquidar en los próximos 30 días.</p>')}
+  ${tx.pagoMXN?.texto ? seccionPF('t-pago-mxn', 'rojo', 'Pago a inversores · MXN', (tx.pagoMXN.texto.match(/TOTAL MXN A PAGAR:\s*(\$?[\d.,]+)/i) ? `Este mes <b>${esc(tx.pagoMXN.texto.match(/TOTAL MXN A PAGAR:\s*(\$?[\d.,]+)/i)[1])}</b>` : ''), `<pre class="linea-hoja">${esc(ocultarImportes(tx.pagoMXN.texto))}</pre>`) : ''}
+  ${tx.pagoUSDT?.texto ? seccionPF('t-pago-usdt', 'rojo', 'Pago a inversores · USDT', (tx.pagoUSDT.texto.match(/TOTAL:\s*([^\n]+)/i) ? `Este mes <b>${esc(tx.pagoUSDT.texto.match(/TOTAL:\s*([^\n]+)/i)[1])}</b>` : ''), `<pre class="linea-hoja">${esc(ocultarImportes(tx.pagoUSDT.texto))}</pre>`) : ''}`;
 }
 
 function prHistorial(m, pr, d) {
@@ -1096,37 +1114,31 @@ function prHistorial(m, pr, d) {
   const partes = [];
   if (d.meses?.filas?.length) {
     const t = d.meses.total;
-    partes.push(`<article class="tarjeta pf-lista">
-      <header class="pf-cab"><h2>${esc(d.meses.anio || 'Año')} mes a mes</h2><span class="pf-cab-der">El año se elige en tu hoja</span></header>
-      ${tablaPF([['Mes'], ['Intereses cobrados', 1], ['Pagado', 1], ['Ganancia', 1]],
+    partes.push(seccionPF('h-meses', 'ambar', `${esc(d.meses.anio || 'Año')} mes a mes`, t ? `Cobrado <b>${din(t.cobrado)}</b> · ganancia <b>${din(t.ganancia)}</b>` : '',
+      `${tablaPF([['Mes'], ['Intereses cobrados', 1], ['Pagado', 1], ['Ganancia', 1]],
         d.meses.filas.map((x) => `<tr><td>${esc(nombreBonito(x.mes))}</td><td class="num">${din(x.cobrado)}</td><td class="num">${din(x.pagado)}</td><td class="num"><b>${din(x.ganancia)}</b></td></tr>`),
         { pie: t ? `<tr><td>Total</td><td class="num">${din(t.cobrado)}</td><td class="num">${din(t.pagado)}</td><td class="num">${din(t.ganancia)}</td></tr>` : '' })}
-    </article>`);
+      <p class="nota">El año se elige en la celda «AÑO» de tu DASHBOARD.</p>`));
   }
   if (d.porAnio?.length) {
-    partes.push(`<article class="tarjeta pf-lista">
-      <header class="pf-cab"><h2>Resultado por año</h2></header>
-      ${tablaPF([['Año'], ['Generado', 1], ['Pagado a inversores', 1], ['Ganancia', 1]],
+    partes.push(seccionPF('h-anios', 'ambar', 'Resultado por año', `Ganancia total <b>${din(h.ganancia)}</b>${h.anios ? ` en ${esc(String(h.anios))} años` : ''}`,
+      `${tablaPF([['Año'], ['Generado', 1], ['Pagado a inversores', 1], ['Ganancia', 1]],
         d.porAnio.map((a) => `<tr><td>${esc(a.anio)}</td><td class="num">${din(a.generado)}</td><td class="num">${din(a.pagado)}</td><td class="num"><b>${din(a.ganancia)}</b></td></tr>`),
-        { pie: d.historico ? `<tr><td>Total ${h.anios ? `(${esc(String(h.anios))} años)` : ''}</td><td class="num">${din(h.generado)}</td><td class="num">${din(h.pagado)}</td><td class="num">${din(h.ganancia)}</td></tr>` : '' })}
-    </article>`);
+        { pie: d.historico ? `<tr><td>Total ${h.anios ? `(${esc(String(h.anios))} años)` : ''}</td><td class="num">${din(h.generado)}</td><td class="num">${din(h.pagado)}</td><td class="num">${din(h.ganancia)}</td></tr>` : '' })}`));
   }
   if (d.flujo?.length) {
     const items = d.flujo.filter((x) => x.mes).map((x) => {
       const me = leerEtiquetaMes(x.mes);
       return { etiqueta: me ? nombreMes(me.y, me.m) : nombreBonito(x.mes), valor: x.ganancia ?? 0, marca: me && me.m === 1 ? String(me.y) : '' };
     });
-    partes.push(`<article class="tarjeta">
-      <header class="pf-cab"><h2>Flujo histórico</h2><span class="pf-cab-der">${plural(items.length, 'mes', 'meses')}</span></header>
-      ${columnasFlujo(items)}
-    </article>`);
+    const pos = items.filter((x) => x.valor > 0).length;
+    partes.push(seccionPF('h-flujo', 'azul', 'Flujo histórico', `${plural(items.length, 'mes', 'meses')} · ${pos} en positivo`, columnasFlujo(items)));
   }
   const grupos = leerCobros(d.textos?.cobroIntereses?.texto);
   if (grupos.length) {
-    partes.push(`<article class="tarjeta pf-lista">
-      <header class="pf-cab"><h2>Intereses por cobrar a clientes</h2></header>
-      ${grupos.map((g) => `<h3 class="df-sub">${esc(g.titulo)}</h3><div class="df-lista">${g.filas.map((f) => `<div><span>${esc(nombreBonito(f.nombre))}</span><small>${esc(f.fecha)}</small><b>${din(f.monto, 0)}</b></div>`).join('')}</div>`).join('')}
-    </article>`);
+    const totalCobros = grupos.reduce((t, g) => t + g.filas.reduce((x, f) => x + f.monto, 0), 0);
+    partes.push(seccionPF('h-cobros', 'verde', 'Intereses por cobrar a clientes', `Total <b>${din(totalCobros, 0)}</b>`,
+      `${grupos.map((g) => `<h3 class="df-sub">${esc(g.titulo)}</h3><div class="df-lista">${g.filas.map((f) => `<div><span>${esc(nombreBonito(f.nombre))}</span><small>${esc(f.fecha)}</small><b>${din(f.monto, 0)}</b></div>`).join('')}</div>`).join('')}`));
   }
   return partes.join('') || '<p class="vacio">Sin historial en tu DASHBOARD.</p>';
 }
