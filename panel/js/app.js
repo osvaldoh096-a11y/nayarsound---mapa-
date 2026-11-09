@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090743';
-import { escribirCelda, leerRangos } from './api.js?v=202611090743';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090743';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090743';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090743';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092027';
+import { escribirCelda, leerRangos } from './api.js?v=202611092027';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092027';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092027';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092027';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090743';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090743';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090743';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090743';
-import { fuentesDemo } from './demo.js?v=202611090743';
-import { icono } from './iconos.js?v=202611090743';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611090743';
+} from './fechas.js?v=202611092027';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092027';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092027';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092027';
+import { fuentesDemo } from './demo.js?v=202611092027';
+import { icono } from './iconos.js?v=202611092027';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092027';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -84,6 +84,7 @@ async function arrancar() {
   document.addEventListener('toggle', (e) => {
     if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open;
     if (e.target.id === 'deuda-desplegable') E.deudaAbierta = e.target.open;
+    if (e.target.id === 'controles-desplegable') E.controlesAbierto = e.target.open;
   }, true);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
@@ -855,11 +856,18 @@ function tarjetaControles(controles) {
   if (!controles?.length) return '';
   const fallas = controles.filter((c) => c.estado !== 'ok');
   const bien = controles.length - fallas.length;
-  return `<article class="tarjeta">
-    <header class="tarjeta-cab"><h2>Avisos de captura</h2></header>
+  // Contraído: solo cuántos avisos hay; al tocarlo se despliega el detalle.
+  const resumen = fallas.length ? plural(fallas.length, 'aviso por revisar', 'avisos por revisar') : 'Todo en orden';
+  return `<details class="tarjeta desplegable" id="controles-desplegable" ${E.controlesAbierto ? 'open' : ''}>
+    <summary>
+      <span class="desp-cab"><h2>Avisos de captura</h2>${icono('flecha', 'desp-flecha')}</span>
+      <span class="desp-resumen ${fallas.length ? 'con-avisos' : ''}">${fallas.length ? '<i class="punto" aria-hidden="true"></i>' : ''}${esc(resumen)}</span>
+    </summary>
+    <div class="desp-cuerpo">
     ${fallas.length ? `<ul class="lista-controles">${fallas.map((c) => `<li><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${esc(c.texto.replace(/[❌✅]/gu, '').trim())}</span> ${esc(c.etiqueta)} ${enlaceOrigen(c.origen)}${listaBuscar(c.eventos)}</li>`).join('')}</ul>` : '<p class="vacio">Todo en orden.</p>'}
     ${bien ? `<p class="nota">${plural(bien, 'control', 'controles')} en orden.</p>` : ''}
-  </article>`;
+    </div>
+  </details>`;
 }
 
 function listaAvisos(avisos, titulo) {

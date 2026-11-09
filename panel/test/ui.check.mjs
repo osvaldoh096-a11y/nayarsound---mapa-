@@ -111,7 +111,11 @@ try {
     // NayarSound
     await pagina.goto(`${url}/panel/#/nayarsound`);
     {
-      await pagina.waitForSelector('.lista-controles');
+      await pagina.waitForSelector('#controles-desplegable');
+      revisar(!(await pagina.locator('.lista-controles').isVisible()) && /aviso/.test(await pagina.locator('#controles-desplegable summary').innerText()),
+        'Avisos de captura: empieza contraído, mostrando cuántos hay');
+      await pagina.locator('#controles-desplegable summary').click();
+      await pagina.waitForSelector('.lista-controles', { state: 'visible' });
       const avisos = await pagina.locator('.lista-controles').innerText();
       revisar(!/sin DJ|Orden de fechas|hora de inicio/i.test(avisos), 'Avisos de captura: sin «vacío», «fecha desordenada» ni «hora de inicio»');
       const buscar = await pagina.locator('.lista-buscar li').allInnerTexts();
