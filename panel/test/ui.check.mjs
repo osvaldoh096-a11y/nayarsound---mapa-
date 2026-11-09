@@ -191,27 +191,27 @@ try {
 
     // Préstamos
     await pagina.goto(`${url}/panel/#/prestamos`);
-    await pagina.waitForSelector('.lado-cobrar');
-    const cobrar = await texto(pagina, '.lado-cobrar .cifra');
-    const pagar = await texto(pagina, '.lado-pagar .cifra');
+    await pagina.waitForSelector('.pf-movs');
     const t = esperado.prestamos.totales;
+    const tot = await pagina.locator('.pf-totales').innerText();
+    const cobrar = tot.match(/Por cobrar\s*(\S+)/)?.[1];
+    const pagar = tot.match(/Por pagar\s*(\S+)/)?.[1];
     revisar(cobrar === dinero(t.cobrarMXN, 0) && pagar === dinero(t.pagarMXN, 0), `Préstamos: cobrar ${cobrar}, pagar ${pagar} (esperado ${dinero(t.cobrarMXN, 0)}, ${dinero(t.pagarMXN, 0)})`);
     if (extra?.prestamos) revisar(cobrar === extra.prestamos[0] && pagar === extra.prestamos[1], `  coincide con la hoja: ${extra.prestamos.join(', ')}`);
+    revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Préstamos,Inversores,Historial', 'Panel financiero: pestañas Resumen, Préstamos, Inversores, Historial');
     if (!rutaSnapshot) {
-      const kpis = await pagina.locator('.df-kpi .cifra').allInnerTexts();
-      revisar(kpis.length === 4 && kpis[0] === '$500,000.00' && kpis[1] === '$30,000.00' && kpis[3] === '$100,000.00', `Dashboard financiero: indicadores ${kpis.join(' · ')}`);
-      revisar(/Propio 60%/.test(await pagina.locator('.df-mezcla-etq').innerText()), 'Dashboard financiero: proporción capital propio / inversores');
-      revisar(await pagina.locator('.df-cols .df-col').count() === 3 && await pagina.locator('.df-cols .df-barra.neg').count() === 1, 'Dashboard financiero: flujo mensual con barras positivas y negativas');
-      revisar(await pagina.locator('.df-bloque[data-dash="anios"] .df-par').count() === 2, 'Dashboard financiero: ganancias por año en columnas');
-      const cartera = await pagina.locator('.df-bloque[data-dash="cartera"] .df-part-fila').allInnerTexts();
-      revisar(cartera.length === 2 && /CLIENTE UNO/.test(cartera[0]) && /60\.0%/.test(cartera[0]), 'Dashboard financiero: cartera ordenada con % del capital');
-      // Cerrar un bloque se recuerda al recargar
-      await pagina.locator('.df-bloque[data-dash="cartera"] > summary').click();
-      await pagina.waitForFunction(() => /cartera/.test(localStorage.getItem('panel.preferencias.v1') ?? ''));
-      await pagina.reload();
-      await pagina.waitForSelector('.df-bloque[data-dash="cartera"]');
-      revisar(!(await pagina.locator('.df-bloque[data-dash="cartera"]').getAttribute('open') !== null) && await pagina.locator('.df-bloque[data-dash="flujo"][open]').count() === 1,
-        'Dashboard financiero: los bloques se pueden contraer y se recuerda');
+      const kpis = await pagina.locator('.pf-kpi .pf-kpi-valor .solo-escritorio').allInnerTexts();
+      revisar(JSON.stringify(kpis) === JSON.stringify(['$500,000.00', '$30,000.00', '$80,000.00', '$100,000.00']), `Panel financiero: indicadores ${kpis.join(' · ')}`);
+      const flujo = await pagina.locator('.pf-tabla-flujo').innerText();
+      revisar(/-\$3,500/.test(flujo) && /\$9,000/.test(flujo) && /\$12,000/.test(flujo), 'Panel financiero: flujo de efectivo este mes y próximo');
+      revisar(/Resultado 2026/.test(await pagina.locator('.pf-resultado').innerText()) && /\$2,500\.00/.test(await pagina.locator('.pf-resultado').innerText()), 'Panel financiero: resultado del año');
+      const filasMov = await pagina.locator('.pf-movs tbody tr').count();
+      revisar(filasMov === esperado.prestamos.cobrar.length + esperado.prestamos.pagar.length, `Panel financiero: ${filasMov} próximos movimientos`);
+      await pagina.locator('.pf-lista .pf-ver').first().click();
+      revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Préstamos' && /100%/.test(await pagina.locator('.pf-tabla tfoot').innerText()), 'Panel financiero: «Ver todos» abre la pestaña Préstamos con totales');
+      await pagina.locator('.pf-tab', { hasText: 'Historial' }).click();
+      revisar(await pagina.locator('.df-cols .df-col').count() === 3, 'Panel financiero: historial con flujo mensual');
+      await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
     }
 
     // Finanzas: mes actual y otro mes

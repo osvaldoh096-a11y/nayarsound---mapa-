@@ -681,3 +681,93 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
   .df-bloque:not([open]) .df-extra { display: inline; }
 }
 .df-titulo + .desp-flecha { margin-left: auto; }
+
+/* ---------- Panel financiero (préstamos e inversores) ---------- */
+.solo-movil { display: none; }
+.pf { display: flex; flex-direction: column; gap: 16px; }
+.pf-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--borde); margin-bottom: 4px; overflow-x: auto; }
+.pf-tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; font: inherit; font-size: 15px; font-weight: 500; color: var(--tinta-2); cursor: pointer; white-space: nowrap; margin-bottom: -1px; }
+.pf-tab:hover { color: var(--tinta); }
+.pf-tab.activo { color: var(--azul); border-bottom-color: var(--azul); font-weight: 600; }
+.pf-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.pf-kpi { padding: 16px 18px; }
+.pf-kpi-etq { font-size: 14px; color: var(--tinta-2); }
+.pf-kpi-valor { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 2px 0; color: var(--tinta); }
+.pf-kpi-sub { font-size: 13px; color: var(--tenue); }
+.pf-fila { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.pf-fila-a { grid-template-columns: 1.6fr 1fr; }
+.pf-fila-b { grid-template-columns: 1.25fr 1fr; }
+.pf-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.pf-cab h2 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.pf-cab p { margin: 2px 0 0; color: var(--tenue); font-size: 14px; }
+.pf-cab-der { color: var(--tenue); font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pf-ver { display: inline-flex; align-items: center; gap: 4px; }
+.pf-ver .icono { width: 16px; height: 16px; }
+.pf-tabla { width: 100%; border-collapse: collapse; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.pf-tabla th { text-align: left; font-size: 13px; font-weight: 600; color: var(--tinta-2); padding: 8px 10px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+.pf-tabla td { padding: 9px 10px; border-bottom: 1px solid var(--borde); }
+.pf-tabla th.num, .pf-tabla td.num { text-align: right; }
+.pf-tabla tbody tr[data-pendiente] { cursor: pointer; }
+.pf-tabla tbody tr[data-pendiente]:hover { background: var(--suave); }
+.pf-tabla tfoot td { font-weight: 700; background: var(--suave); border-bottom: 0; }
+.pf-compacta td { padding: 6px 10px; }
+.pf-tag { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+.pf-tag.cobrar { background: var(--verde-fondo); color: var(--verde-tinta); }
+.pf-tag.pagar { background: var(--coral-fondo); color: var(--coral-tinta); }
+.pf-totales { display: flex; gap: 0; margin-top: 10px; font-size: 15px; color: var(--tinta-2); }
+.pf-totales span { padding: 0 18px; }
+.pf-totales span:first-child { padding-left: 4px; border-right: 1px solid var(--borde); }
+.pf-totales b { font-size: 17px; margin-left: 6px; }
+.pf-tabla-flujo td { padding: 11px 8px; font-size: 16px; }
+.pf-tabla-flujo th { border-bottom: 1px solid var(--borde); font-weight: 500; }
+.pf-balance td { font-weight: 700; font-size: 17px; border-bottom: 0; border-top: 2px solid var(--borde); }
+.pf-resultado { display: grid; grid-template-columns: 1.2fr repeat(3, 1fr) auto; align-items: center; gap: 0; padding: 18px 24px; }
+.pf-resultado h2 { font-size: 24px; font-weight: 700; margin: 0; }
+.pf-res-dato { display: flex; flex-direction: column; padding: 0 24px; border-left: 1px solid var(--borde); }
+.pf-res-dato span { font-size: 14px; color: var(--tinta-2); }
+.pf-res-dato b { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pf-resultado .pf-ver { padding-left: 24px; border-left: 1px solid var(--borde); align-self: stretch; }
+.pf-pct { white-space: nowrap; }
+.pf-pista { display: inline-block; width: 60px; height: 6px; border-radius: 99px; background: var(--suave); margin-right: 8px; vertical-align: middle; overflow: hidden; }
+.pf-pista i { display: block; height: 100%; background: var(--azul); }
+.pf-mov { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--borde); padding: 10px 0; font: inherit; color: inherit; cursor: pointer; }
+.pf-mov-cab { display: flex; align-items: center; gap: 10px; }
+.pf-mov-cab small { color: var(--tenue); font-size: 14px; }
+.pf-mov-fila { display: flex; justify-content: space-between; margin-top: 4px; font-size: 17px; }
+.pf-enlaces { flex-direction: column; gap: 12px; }
+.pf-enlace { display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 14px 18px; }
+.pf-enlace b { display: block; font-size: 18px; }
+.pf-enlace small { color: var(--tenue); font-size: 14px; }
+.pf-enlace .icono { width: 22px; height: 22px; }
+.pf .linea-hoja { white-space: pre-wrap; }
+
+@media (max-width: 960px) {
+  .pf-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pf-fila, .pf-fila-a, .pf-fila-b { grid-template-columns: minmax(0, 1fr); }
+  .pf-resultado { grid-template-columns: 1fr auto; gap: 0; }
+  .pf-resultado h2 { font-size: 20px; }
+  .pf-resultado .pf-ver { grid-column: 2; grid-row: 1; border: 0; padding: 0; justify-self: end; }
+  .pf-res-dato { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; border-left: 0; border-bottom: 1px solid var(--borde); padding: 8px 0; }
+  .pf-res-dato b { font-size: 16px; }
+}
+@media (max-width: 640px) {
+  .solo-movil { display: revert; }
+  span.solo-movil { display: inline; }
+  div.solo-movil.pf-enlaces { display: flex; }
+  .solo-escritorio, .solo-escritorio-grid { display: none !important; }
+  .pf-kpis { gap: 10px; }
+  .pf-kpi { padding: 12px 14px; }
+  .pf-kpi-etq { font-size: 13px; }
+  .pf-kpi-valor { font-size: 22px; }
+  .pf-kpi-sub { font-size: 12.5px; }
+  .pf-tab { padding: 10px 10px; flex: 1; }
+  .pf-totales { justify-content: center; }
+  .pf-cab h2 { font-size: 18px; }
+  .pf-tabla-flujo td { font-size: 15px; padding: 8px 6px; }
+  .pf-tabla-flujo thead th { background: var(--suave); }
+}
+.pf-resultado h2 { white-space: nowrap; }
+@media (max-width: 640px) {
+  .pf-tabs { gap: 0; }
+  .pf-tab { padding: 10px 4px; font-size: 14.5px; }
+}
