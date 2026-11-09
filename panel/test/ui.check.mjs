@@ -121,6 +121,10 @@ try {
     await pagina.waitForSelector('.dia');
     const deuda = esperado.nayarsound.deuda;
     if (deuda?.estado === 'ok') {
+      revisar(!(await pagina.locator('#deuda-desplegable .tabla').isVisible()) && /total por cobrar/.test(await pagina.locator('#deuda-desplegable summary').innerText()),
+        'Recordatorio de deuda: empieza contraído, mostrando solo el total');
+      await pagina.locator('#deuda-desplegable summary').click();
+      revisar(await pagina.locator('#deuda-desplegable .tabla').isVisible(), 'Recordatorio de deuda: al tocarlo se despliega la tabla');
       const totalDeuda = await texto(pagina, '.tabla tfoot .num');
       revisar(totalDeuda === dinero(deuda.total, 0), `Total de deuda: ${totalDeuda} (esperado ${dinero(deuda.total, 0)})`);
       if (extra?.deuda) revisar(totalDeuda === extra.deuda, `  coincide con la hoja: ${extra.deuda}`);

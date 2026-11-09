@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090527';
-import { escribirCelda, leerRangos } from './api.js?v=202611090527';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090527';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090527';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090527';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090743';
+import { escribirCelda, leerRangos } from './api.js?v=202611090743';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090743';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090743';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090743';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090527';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090527';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090527';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090527';
-import { fuentesDemo } from './demo.js?v=202611090527';
-import { icono } from './iconos.js?v=202611090527';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611090527';
+} from './fechas.js?v=202611090743';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090743';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090743';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090743';
+import { fuentesDemo } from './demo.js?v=202611090743';
+import { icono } from './iconos.js?v=202611090743';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611090743';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -81,7 +81,10 @@ async function arrancar() {
   document.addEventListener('input', alEscribir);
   document.addEventListener('submit', alEnviar);
   activarArrastre((claves) => ordenarTareas(claves, tokenParaEscribir, pintarTareas));
-  document.addEventListener('toggle', (e) => { if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open; }, true);
+  document.addEventListener('toggle', (e) => {
+    if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open;
+    if (e.target.id === 'deuda-desplegable') E.deudaAbierta = e.target.open;
+  }, true);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
 
@@ -818,13 +821,18 @@ function tarjetaDeuda(deuda) {
       <td class="num">${esc(dinero(p.monto, 0))}</td></tr>`;
   }).join('');
   const cruce = deuda.cruce ? `<p class="nota ${deuda.cruce.coincide ? 'ok' : 'mal'}">${deuda.cruce.coincide ? '✓' : '⚠'} ${deuda.cruce.eventos} eventos por liquidar; tu hoja marca «${esc(deuda.cruce.texto.replace(/[❌✅]/gu, '').trim())}».</p>` : '';
-  return `<article class="tarjeta">${cab}
-    <div class="cifra-linea"><span class="cifra monto-cobrar">${esc(dinero(deuda.total, 0))}</span><span class="sub">total por cobrar a ${plural(deuda.personas.length, 'persona', 'personas')}</span></div>
+  // Contraído: solo el total; al tocarlo se despliega la tabla.
+  return `<details class="tarjeta desplegable" id="deuda-desplegable" ${E.deudaAbierta ? 'open' : ''}>
+    <summary>
+      <span class="desp-cab"><h2>Recordatorio de deuda</h2>${icono('flecha', 'desp-flecha')}</span>
+      <span class="cifra-linea"><span class="cifra monto-cobrar">${esc(dinero(deuda.total, 0))}</span><span class="sub">total por cobrar a ${plural(deuda.personas.length, 'persona', 'personas')}</span></span>
+    </summary>
+    <div class="desp-origen">${enlaceOrigen(deuda.origen)}</div>
     <div class="tabla-desliza"><table class="tabla"><thead><tr><th>Persona</th><th class="num">Eventos</th><th class="num">Debe hace</th><th>Fechas</th><th class="num">Importe</th></tr></thead>
     <tbody>${filas}</tbody>
     <tfoot><tr><td colspan="4">Total general por cobrar</td><td class="num">${esc(dinero(deuda.total, 0))}</td></tr></tfoot></table></div>
     <p class="nota">Días desde el evento más antiguo que se debe. Importes redondeados a pesos, como en tu hoja.</p>${cruce}
-  </article>`;
+  </details>`;
 }
 
 /** Eventos con DJ «buscar»: cuándo y en qué ciudad, del más cercano al más lejano. */
