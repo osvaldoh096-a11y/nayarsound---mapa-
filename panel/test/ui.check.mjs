@@ -213,6 +213,15 @@ try {
       revisar(JSON.stringify(cifras) === JSON.stringify(esp), `${otro}: ${cifras.join(' · ')} (esperado ${esp.join(' · ')})`);
       if (extra?.otroMesCifras) revisar(JSON.stringify(cifras) === JSON.stringify(extra.otroMesCifras), `  coincide con la hoja: ${extra.otroMesCifras.join(' · ')}`);
       if (x.gastosCuadran) revisar(await pagina.locator('.nota.ok').count() > 0, '  las categorías suman lo mismo que la hoja');
+      if (x.categorias?.length) {
+        const filas = await pagina.locator('.rejilla-finanzas, main').locator('.graf-pct').allInnerTexts();
+        const valores = x.categorias.map((c) => c.total).sort((a, b) => b - a);
+        const total = valores.reduce((t, v) => t + v, 0);
+        const esperados = valores.map((v) => `${((v / total) * 100).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
+        const suma = filas.reduce((t, f) => t + Number(f.replace('%', '').replace(',', '')), 0);
+        revisar(JSON.stringify(filas) === JSON.stringify(esperados) && Math.abs(suma - 100) < 0.5,
+          `  categorías de mayor a menor con su % (${filas.slice(0, 4).join(', ')}…, suman ${suma.toFixed(1)}%)`);
+      }
     }
     revisar(await pagina.locator('#grafica-mensual svg').count() === 1, 'Gráfica de evolución mensual dibujada');
     if (capturas) {

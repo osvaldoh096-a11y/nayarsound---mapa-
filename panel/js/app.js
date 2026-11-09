@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092027';
-import { escribirCelda, leerRangos } from './api.js?v=202611092027';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092027';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092027';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092027';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092042';
+import { escribirCelda, leerRangos } from './api.js?v=202611092042';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092042';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092042';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092042';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611092027';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092027';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092027';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092027';
-import { fuentesDemo } from './demo.js?v=202611092027';
-import { icono } from './iconos.js?v=202611092027';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092027';
+} from './fechas.js?v=202611092042';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092042';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092042';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092042';
+import { fuentesDemo } from './demo.js?v=202611092042';
+import { icono } from './iconos.js?v=202611092042';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092042';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -930,13 +930,11 @@ function vistaFinanzas(m) {
   const sel = selectorMes(fi);
   const mes = fi.meses[E.mes];
   const negocios = mes.negocios.map((n) => ({ nombre: n.nombre, valor: n.valor, nota: n.estado === 'vacia' ? 'Celda vacía' : n.estado === 'error' ? n.texto : '' }));
-  const top = 8;
-  const cats = mes.categorias ?? [];
-  const catItems = cats.slice(0, top).map((c) => ({ nombre: c.nombre, valor: c.total, detalle: plural(c.registros, 'registro', 'registros') }));
-  if (cats.length > top) {
-    const resto = cats.slice(top);
-    catItems.push({ nombre: `Otras (${resto.length})`, valor: resto.reduce((s, c) => s + c.total, 0), detalle: resto.map((c) => c.nombre).join(', ') });
-  }
+  // Todas las categorías, de mayor a menor, con su % del total de gastos del mes.
+  const cats = [...(mes.categorias ?? [])].sort((a, b) => b.total - a.total);
+  const totalCats = cats.reduce((t, c) => t + c.total, 0);
+  const pct = (v) => `${(totalCats > 0 ? (v / totalCats) * 100 : 0).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  const catItems = cats.map((c) => ({ nombre: c.nombre, valor: c.total, extra: pct(c.total), detalle: `${pct(c.total)} · ${plural(c.registros, 'registro', 'registros')}` }));
   const avisosMes = [...mes.avisos, ...fi.avisos.map((a) => a.texto)];
   return `
   <div class="cab-vista">
@@ -952,6 +950,7 @@ function vistaFinanzas(m) {
     <article class="tarjeta">
       <header class="tarjeta-cab"><h2>Gastos por categoría</h2></header>
       ${barras(catItems, { vacio: mes.registrosGastos === 0 ? 'Sin gastos registrados este mes.' : 'Sin desglose disponible.' })}
+      ${catItems.length ? `<div class="graf-total"><span>Total de gastos</span><span>${esc(dinero(totalCats))} <small>100%</small></span></div>` : ''}
       ${mes.gastosCuadran === true ? '<p class="nota ok">✓ Las categorías suman lo mismo que tu hoja.</p>' : ''}
     </article>
   </section>

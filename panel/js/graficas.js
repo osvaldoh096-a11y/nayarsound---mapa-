@@ -1,7 +1,7 @@
 // Gráficas sencillas sin librerías: barras en HTML y líneas en SVG, con
 // información al pasar el dedo o el cursor.
 
-import { dinero, esc, esPrivado } from './formato.js?v=202611092027';
+import { dinero, esc, esPrivado } from './formato.js?v=202611092042';
 
 function compacto(v) {
   if (esPrivado()) return '$***';
@@ -35,7 +35,7 @@ export function barras(items, { divergente = false, decimales = 2, vacio = 'Sin 
       <span class="graf-pista">${divergente && min < 0 ? `<span class="graf-cero" style="left:${cero}%"></span>` : ''}
         ${tieneValor ? `<span class="graf-relleno ${clase}" style="left:${izquierda}%;width:${Math.max(ancho, 0.6)}%"></span>` : ''}
       </span>
-      <span class="graf-valor ${tieneValor ? '' : 'sin-dato'}">${esc(valorTexto)}</span>
+      <span class="graf-valor ${tieneValor ? '' : 'sin-dato'}">${esc(valorTexto)}${i.extra ? `<small class="graf-pct">${esc(i.extra)}</small>` : ''}</span>
     </div>`;
   }).join('');
   return `<div class="graf-barras">${filas}</div>`;
