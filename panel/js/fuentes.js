@@ -69,3 +69,13 @@ export const TAREAS = {
   pestana: 'TAREAS',
   gid: 1899581123,
 };
+
+// Categorías de gasto que son lo mismo con distinto nombre: el panel las
+// junta bajo el nombre de la derecha. Mayúsculas, acentos y espacios ya se
+// ignoran solos («hormiga» = «HORMIGA»). Tu hoja no se modifica.
+export const CATEGORIAS_IGUALES = {
+  CASETAS: 'AUTOPISTA',
+  'STREAM Y CINE': 'STREAMING',
+  WIFI: 'INTERNET CASA',
+  SUPERMERCADO: 'DESPENSA',
+};

@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611092105';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092105';
+} from './fechas.js?v=202611092113';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092113';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611092105';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611092105';
-import { dinero } from './formato.js?v=202611092105';
+} from './sheets.js?v=202611092113';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092113';
+import { dinero } from './formato.js?v=202611092113';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -583,7 +583,7 @@ function finanzasPorAnio(gastos, salida) {
     let totalGastos = 0;
     for (const r of delAnioG) {
       if (typeof r.cantidad !== 'number') continue;
-      const nombre = vacio(r.motivo) ? 'Sin motivo' : String(r.motivo).trim();
+      const nombre = nombreCategoria(r.motivo);
       const c = categorias.get(nombre) ?? { nombre, total: 0, registros: 0 };
       c.total += r.cantidad; c.registros += 1; totalGastos += r.cantidad;
       categorias.set(nombre, c);
@@ -606,6 +606,14 @@ function finanzasPorAnio(gastos, salida) {
     resultado.push(anio);
   }
   return resultado;
+}
+
+/** Nombre único de una categoría: sin distinguir mayúsculas/acentos/espacios y con los sinónimos de CATEGORIAS_IGUALES. */
+export function nombreCategoria(motivo) {
+  if (vacio(motivo)) return 'Sin motivo';
+  const n = normalizar(motivo);
+  const equivalencias = Object.fromEntries(Object.entries(CATEGORIAS_IGUALES).map(([a, b]) => [normalizar(a), normalizar(b)]));
+  return equivalencias[n] ?? n;
 }
 
 const redondear = (v) => Math.round(v * 100) / 100;
@@ -703,7 +711,7 @@ export function modeloFinanzas({ gastos }, hoy) {
       const categorias = new Map();
       for (const r of delMes) {
         if (typeof r.cantidad !== 'number') continue;
-        const nombre = vacio(r.motivo) ? 'Sin motivo' : String(r.motivo).trim();
+        const nombre = nombreCategoria(r.motivo);
         const c = categorias.get(nombre) ?? { nombre, total: 0, registros: 0 };
         c.total += r.cantidad; c.registros += 1;
         categorias.set(nombre, c);

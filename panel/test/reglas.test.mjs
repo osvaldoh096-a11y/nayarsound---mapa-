@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
@@ -190,6 +190,25 @@ test('finanzas por año: suma ANALISIS BALANCE GENERAL y gastos por AUX', () => 
   // Con los datos de ejemplo completos, el año cuadra con el resumen anual de la hoja.
   const demo = construirModelo(fuentesDemo(hoy), hoy).finanzas.anios.find((a) => a.y === 2026);
   assert.equal(demo.cuadraHoja, true);
+});
+
+test('categorías repetidas se juntan', () => {
+  assert.equal(nombreCategoria('hormiga'), 'HORMIGA');
+  assert.equal(nombreCategoria(' Hormiga '), 'HORMIGA');
+  assert.equal(nombreCategoria('CASETAS'), 'AUTOPISTA');
+  assert.equal(nombreCategoria('Stream y cine'), 'STREAMING');
+  assert.equal(nombreCategoria('WIFI'), 'INTERNET CASA');
+  assert.equal(nombreCategoria('SUPERMERCADO'), 'DESPENSA');
+  assert.equal(nombreCategoria(''), 'Sin motivo');
+  const hoy = { y: 2026, m: 11, d: 7, idx: HOY };
+  const f = fuentesDemo(hoy);
+  const etq = 'ENERO 2026';
+  f.gastos.rangos.gastos.push([900, '', 100, 'hormiga', 'YO', etq, ''], [901, '', 50, 'HORMIGA', 'YO', etq, ''], [902, '', 30, 'CASETAS', 'YO', etq, ''], [903, '', 20, 'AUTOPISTA', 'YO', etq, '']);
+  const enero = construirModelo(f, hoy).finanzas.meses.find((x) => x.etiqueta === etq);
+  assert.equal(enero.categorias.filter((c) => c.nombre === 'HORMIGA').length, 1);
+  assert.equal(enero.categorias.find((c) => c.nombre === 'HORMIGA').total, 150);
+  assert.equal(enero.categorias.find((c) => c.nombre === 'AUTOPISTA').total, 50);
+  assert.ok(!enero.categorias.some((c) => c.nombre === 'CASETAS'));
 });
 
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {

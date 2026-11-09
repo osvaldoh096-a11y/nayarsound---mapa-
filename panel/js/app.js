@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092105';
-import { escribirCelda, leerRangos } from './api.js?v=202611092105';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092105';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092105';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092105';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092113';
+import { escribirCelda, leerRangos } from './api.js?v=202611092113';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092113';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092113';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092113';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611092105';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092105';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092105';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092105';
-import { fuentesDemo } from './demo.js?v=202611092105';
-import { icono } from './iconos.js?v=202611092105';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092105';
+} from './fechas.js?v=202611092113';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092113';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092113';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092113';
+import { fuentesDemo } from './demo.js?v=202611092113';
+import { icono } from './iconos.js?v=202611092113';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092113';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
