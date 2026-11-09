@@ -61,10 +61,12 @@ export function escribirRango(token, id, rango, valores, { entrada = 'RAW' } = {
 }
 
 /** Agrega una fila al final de una tabla. Devuelve el número de fila escrita (o null). */
-export async function agregarFila(token, id, rango, fila) {
-  const params = new URLSearchParams({ valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+export async function agregarFila(token, id, rango, fila, { entrada = 'RAW', texto = [] } = {}) {
+  const params = new URLSearchParams({ valueInputOption: entrada, insertDataOption: 'INSERT_ROWS' });
+  // Con USER_ENTERED, las columnas de texto llevan ' para que nunca se lean como fórmula.
+  const valores = entrada === 'USER_ENTERED' ? fila.map((v, i) => (texto.includes(i) && v !== '' ? `'${v}` : v)) : fila;
   const r = await pedir(token, `${API}/${encodeURIComponent(id)}/values/${encodeURIComponent(rango)}:append?${params}`, 'POST',
-    { majorDimension: 'ROWS', values: [fila] });
+    { majorDimension: 'ROWS', values: [valores] });
   const m = String(r?.updates?.updatedRange ?? '').match(/![A-Z]+(\d+)/);
   return m ? Number(m[1]) : null;
 }

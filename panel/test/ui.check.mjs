@@ -227,6 +227,25 @@ try {
       revisar(await pagina.locator('[data-pf="flujo"][open]').count() === 1 && await pagina.locator('[data-pf="capital"]').count() === 0, 'Panel financiero: recuerda las secciones abiertas');
       await pagina.locator('[data-pf="activos"] > summary').click();
       await pagina.locator('[data-pf="activos"] .pf-ver').click();
+      // Préstamo SINDICATO: abierto por defecto, con su avance y el registro de abonos.
+      const sec = pagina.locator('[data-pf="sindicato"]');
+      revisar(await sec.getAttribute('open') !== null && /Abonado \$0 de \$247,476/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección en la pestaña Préstamos con total a pagar');
+      revisar(await pagina.locator('.sd-cal-fila').count() === 24, 'SINDICATO: calendario de 24 pagos mensuales (48 quincenas)');
+      await sec.locator('input[name="monto"]').fill('10310');
+      await sec.locator('input[name="nota"]').fill('=PRUEBA transferencia');
+      pagina.once('dialog', (dlg) => dlg.accept());
+      await sec.locator('form[data-form="abono"] button[type="submit"]').click();
+      for (let i = 0; i < 40 && !lecturas.sindicato.some((f) => f[4] === 10310); i++) await pagina.waitForTimeout(100);
+      const filaAbono = lecturas.sindicato.find((f) => f[4] === 10310);
+      revisar(!!filaAbono && typeof filaAbono[3] === 'number' && filaAbono[5] === '=PRUEBA transferencia', 'SINDICATO: el abono se guarda en la hoja (fecha, monto y nota como texto)');
+      await pagina.waitForFunction(() => /Abonado \$10,310/.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
+      revisar(/resta \$237,166/.test(await pagina.locator('[data-pf="sindicato"] summary').innerText()), 'SINDICATO: se descuenta del restante');
+      pagina.once('dialog', (dlg) => dlg.accept());
+      await pagina.locator('[data-accion="borrar-abono"]').first().click();
+      await pagina.waitForFunction(() => /Abonado \$0 /.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
+      revisar(!lecturas.sindicato.some((f) => f[4] === 10310), 'SINDICATO: borrar abono lo quita de la hoja');
+      await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
+      await pagina.locator('[data-pf="activos"] .pf-ver').click();
       await pagina.locator('[data-pf="t-prestamos"] > summary').click();
       revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Préstamos' && /100%/.test(await pagina.locator('[data-pf="t-prestamos"] tfoot').innerText()), 'Panel financiero: «Ver los…» abre la pestaña Préstamos con totales');
       await pagina.locator('.pf-tab', { hasText: 'Inversores' }).click();

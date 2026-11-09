@@ -1,20 +1,21 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092213';
-import { escribirCelda, leerRangos } from './api.js?v=202611092213';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092213';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092213';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092213';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092314';
+import { escribirCelda, leerRangos } from './api.js?v=202611092314';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092314';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092314';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092314';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611092213';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092213';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092213';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092213';
-import { fuentesDemo } from './demo.js?v=202611092213';
-import { leerCashflow } from './dashprestamos.js?v=202611092213';
-import { icono } from './iconos.js?v=202611092213';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092213';
+} from './fechas.js?v=202611092314';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092314';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092314';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092314';
+import { fuentesDemo } from './demo.js?v=202611092314';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611092314';
+import { leerCashflow } from './dashprestamos.js?v=202611092314';
+import { icono } from './iconos.js?v=202611092314';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092314';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -87,8 +88,10 @@ async function arrancar() {
   document.addEventListener('toggle', (e) => {
     if (e.target.dataset?.pf) {
       const abiertos = new Set(E.pref.pfAbiertos ?? []);
-      if (e.target.open) abiertos.add(e.target.dataset.pf); else abiertos.delete(e.target.dataset.pf);
+      const cerrados = new Set(E.pref.pfCerrados ?? []);
+      if (e.target.open) { abiertos.add(e.target.dataset.pf); cerrados.delete(e.target.dataset.pf); } else { abiertos.delete(e.target.dataset.pf); cerrados.add(e.target.dataset.pf); }
       E.pref.pfAbiertos = [...abiertos];
+      E.pref.pfCerrados = [...cerrados];
       guardarPreferencias(E.pref);
     }
     if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open;
@@ -124,6 +127,7 @@ function cargarDemo() {
   E.ultimaCompleta = ahora;
   E.modelo = construirModelo(datosDisponibles(E.fuentes), hoyCDMX());
   if (!T.demo) usarDemo();
+  if (!SIND.demo) usarDemoSindicato(hoyCDMX().idx);
   pintar();
 }
 
@@ -150,7 +154,7 @@ async function actualizar({ interactivo = false } = {}) {
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token)]);
+    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token), cargarSindicato(token)]);
     E.fuentes = fuentes;
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
     if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }
@@ -199,6 +203,13 @@ function alHacerClic(evento) {
     Object.assign(T, { estado: 'sin-leer', lista: [], error: null });
     location.hash = '#/inicio';
     pintar();
+  }
+  if (accion === 'borrar-abono') {
+    const a = SIND.abonos.find((x) => String(x.fila) === el.dataset.fila);
+    if (a && confirm(`¿Borrar el abono de ${dinero(a.monto)}${a.idx !== null ? ` del ${fechaLarga(a.idx)}` : ''}?`)) {
+      borrarAbono(a.fila, tokenParaEscribir).then(() => pintar()).catch((error) => alert(error.message));
+    }
+    return;
   }
   if (accion === 'tab-pr') { E.tabPr = el.dataset.tab; pintar(); window.scrollTo(0, 0); return; }
   if (accion === 'borrar-tarea') {
@@ -369,7 +380,24 @@ async function tokenParaEscribir() {
   return iniciarSesion();
 }
 
+async function guardarAbono(form) {
+  const boton = form.querySelector('button[type="submit"]');
+  const datos = { monto: form.elements.monto.value, fecha: form.elements.fecha.value, nota: form.elements.nota.value };
+  const valor = Number(String(datos.monto).replace(/[$,\s]/g, ''));
+  if (!Number.isFinite(valor) || valor <= 0) { alert('Escribe un monto válido, por ejemplo 10310.'); form.elements.monto.focus(); return; }
+  if (!confirm(`¿Registrar abono de ${dinero(valor)} al préstamo SINDICATO?\n\nSe anotará en tu hoja «TO DO · Dashboard personal», pestaña SINDICATO.`)) return;
+  boton.disabled = true; boton.textContent = 'Guardando…';
+  SIND.guardando = true;
+  try {
+    await agregarAbono(datos, tokenParaEscribir);
+    E.avisoTemporal = `Abono de ${dinero(valor)} registrado.`;
+  } catch (error) { alert(error.message); }
+  finally { SIND.guardando = false; pintar(); }
+}
+
 function alEnviar(evento) {
+  const abono = evento.target.closest?.('form[data-form="abono"]');
+  if (abono) { evento.preventDefault(); guardarAbono(abono); return; }
   const form = evento.target.closest?.('form[data-form="tarea"]');
   if (!form) return;
   evento.preventDefault();
@@ -1075,8 +1103,8 @@ function tablaPF(columnas, filas, { pie = '', clase = '' } = {}) {
  * hoja: verde capital, ámbar rendimiento, rojo pagos y pendientes, azul
  * movimientos). Empieza contraída; el panel recuerda las que abres.
  */
-function seccionPF(id, color, titulo, resumen, cuerpo) {
-  const abierta = (E.pref.pfAbiertos ?? []).includes(id);
+function seccionPF(id, color, titulo, resumen, cuerpo, { abiertaPorDefecto = false } = {}) {
+  const abierta = abiertaPorDefecto ? !(E.pref.pfCerrados ?? []).includes(id) : (E.pref.pfAbiertos ?? []).includes(id);
   return `<details class="tarjeta pf-sec pf-c-${color}" data-pf="${esc(id)}" ${abierta ? 'open' : ''}>
     <summary><span class="pf-sec-cab"><i class="pf-punto" aria-hidden="true"></i><span class="pf-sec-titulo">${titulo}</span>${icono('flecha', 'desp-flecha')}</span>
       ${resumen ? `<span class="pf-sec-resumen">${resumen}</span>` : ''}</summary>
@@ -1186,12 +1214,62 @@ function prResumen(m, pr, d) {
     ${listaAvisos(pr.avisos, 'Revisión de la lectura')}`;
 }
 
+/** Préstamo SINDICATO: avance de pagos y registro de abonos. */
+function seccionSindicato(m) {
+  if (SIND.estado === 'sin-leer') return '';
+  if (SIND.estado === 'error') return seccionPF('sindicato', 'rojo', 'Préstamo SINDICATO', `<span class="texto-rojo">${esc(SIND.error ?? 'No pude leer la pestaña SINDICATO.')}</span>`, '', { abiertaPorDefecto: true });
+  const r = resumenSindicato(m.hoy.idx);
+  const hoyTxt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
+  const est = r.diferencia === undefined ? '' : r.diferencia >= -0.5
+    ? `<b class="texto-verde">al corriente${r.diferencia > 0.5 ? ` · adelantado ${din(r.diferencia, 0)}` : ''}</b>`
+    : `<b class="texto-rojo">atrasado ${din(-r.diferencia, 0)}</b>`;
+  const chipPago = (p) => ({
+    pagado: '<span class="pf-estado ok">Pagado</span>', atrasado: '<span class="pf-estado mal">Atrasado</span>',
+    'en-curso': '<span class="pf-estado pend">En curso</span>', parcial: '<span class="pf-estado pend">Parcial</span>', pendiente: '<span class="pf-estado neutro">Pendiente</span>',
+  }[p.estado]);
+  const resumen = `Abonado <b>${din(r.abonado, 0)}</b> de ${din(r.total, 0)} · resta <b>${din(r.restante, 0)}</b>${est ? ` · ${est}` : ''}`;
+  const actual = r.actual ? `<div class="sd-actual"><span>Pago ${r.actual.n} de ${r.pagos.length} · ${esc(diaMes(r.actual.ini))} al ${esc(diaMes(r.actual.vence))}</span>
+    <b>${din(r.actual.monto - r.actual.cubierto, 0)}</b><small>${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : `vence el ${esc(diaMes(r.actual.vence))}`}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
+  const cuerpo = `
+    <div class="sd-barra"><i style="width:${Math.min(100, (r.avance ?? 0) * 100)}%"></i></div>
+    <div class="sd-barra-etq"><span>${esc(pctTxt(r.avance ?? 0, 1))} pagado${r.pagados !== undefined ? ` · ${r.pagados} de ${r.pagos.length} pagos` : ''}</span><span>${r.finIdx ? `termina ${esc(diaMes(r.finIdx))} ${ymdDesdeIdx(r.finIdx).y}` : ''}</span></div>
+    <div class="sd-rejilla">
+      <div>
+        <h3 class="df-sub">Pago actual</h3>${actual}
+        <h3 class="df-sub">Registrar abono</h3>
+        <form class="sd-form" data-form="abono" autocomplete="off">
+          <label><span>Monto</span><span class="campo-dinero"><span>$</span><input name="monto" inputmode="decimal" value="${esc(String(r.actual ? Math.round(r.actual.monto - r.actual.cubierto) : r.mensual || ''))}" required></span></label>
+          <label><span>Fecha</span><input name="fecha" type="date" value="${hoyTxt}"></label>
+          <label class="sd-nota"><span>Nota (opcional)</span><input name="nota" maxlength="120" placeholder="Transferencia, efectivo…"></label>
+          <button class="boton boton-primario" type="submit" ${SIND.guardando ? 'disabled' : ''}>Guardar abono</button>
+        </form>
+        <h3 class="df-sub">Datos del préstamo</h3>
+        <div class="pf-datos">
+          <div class="pf-dato"><span>Monto</span><b>${din(r.monto)}</b></div>
+          <div class="pf-dato"><span>Total a pagar</span><b>${din(r.total)}</b></div>
+          <div class="pf-dato"><span>Interés / costo total</span><b>${din(r.interes)}</b></div>
+          <div class="pf-dato"><span>Pago mensual</span><b>${din(r.mensual)}</b></div>
+          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, 0))} anual · ${r.quincenas} quincenas</b></div>
+        </div>
+      </div>
+      <div>
+        <h3 class="df-sub">Tus abonos</h3>
+        ${r.abonos.length ? `<div class="sd-abonos">${[...r.abonos].reverse().map((a) => `<div class="sd-abono"><span>${a.idx !== null ? esc(diaMes(a.idx)) + ` ${ymdDesdeIdx(a.idx).y}` : esc(a.fechaTexto)}${a.nota ? `<small>${esc(a.nota)}</small>` : ''}</span><b>${din(a.monto)}</b>
+          <button class="tarea-borrar" data-accion="borrar-abono" data-fila="${a.fila}" title="Borrar abono" aria-label="Borrar abono">×</button></div>`).join('')}</div>` : '<p class="vacio">Aún no registras abonos.</p>'}
+        ${r.pagos ? `<h3 class="df-sub">Calendario de pagos</h3><div class="sd-cal">${r.pagos.map((p) => `<div class="sd-cal-fila ${p.estado}"><span>${p.n}. ${esc(diaMes(p.ini))} – ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}</span><span>${din(p.monto, 0)}</span>${chipPago(p)}</div>`).join('')}</div>` : ''}
+        <p class="nota">Se guarda en tu hoja «TO DO · Dashboard personal», pestaña SINDICATO. <a href="${URL_SINDICATO}" target="_blank" rel="noopener noreferrer">Abrir ↗</a></p>
+      </div>
+    </div>`;
+  return seccionPF('sindicato', 'rojo', 'Préstamo SINDICATO', resumen, cuerpo, { abiertaPorDefecto: true });
+}
+
 function prPrestamos(m, pr, d) {
   const pa = [...(d.prestamosActivos ?? [])].sort((a, b) => (b.capital ?? 0) - (a.capital ?? 0));
-  if (!pa.length) return '<p class="vacio">No encontré la tabla PRESTAMOS ACTIVOS en tu DASHBOARD.</p>';
+  const sind = seccionSindicato(m);
+  if (!pa.length) return `${sind}<p class="vacio">No encontré la tabla PRESTAMOS ACTIVOS en tu DASHBOARD.</p>`;
   const total = pa.reduce((s, x) => s + (x.capital ?? 0), 0) || 1;
   const suma = (k) => pa.reduce((s, x) => s + (x[k] ?? 0), 0);
-  return seccionPF('t-prestamos', 'verde', 'Préstamos activos', `${plural(pa.length, 'cliente', 'clientes')} · capital <b>${din(suma('capital'), 0)}</b> · interés restante <b>${din(suma('interes'), 0)}</b>`,
+  return sind + seccionPF('t-prestamos', 'verde', 'Préstamos activos', `${plural(pa.length, 'cliente', 'clientes')} · capital <b>${din(suma('capital'), 0)}</b> · interés restante <b>${din(suma('interes'), 0)}</b>`,
     `${tablaPF([['Cliente'], ['Capital', 1], ['% cartera', 1], ['Pago mensual', 1], ['Interés restante', 1]],
       pa.map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num pf-pct"><span class="pf-pista"><i style="width:${((x.capital ?? 0) / total) * 100}%"></i></span>${esc(pctTxt((x.capital ?? 0) / total))}</td><td class="num">${din(x.pago, 0)}</td><td class="num">${din(x.interes, 0)}</td></tr>`),
       { pie: `<tr><td>Total</td><td class="num">${din(suma('capital'), 0)}</td><td class="num">100%</td><td class="num">${din(suma('pago'))}</td><td class="num">${din(suma('interes'))}</td></tr>` })}`);

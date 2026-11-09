@@ -111,6 +111,10 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ valueRanges }) });
   });
   // Hoja de tareas en memoria (A1 = encabezados).
+  // Hoja propia del panel: pestañas TAREAS y SINDICATO en memoria (fila 1 = encabezados).
+  const sindicato = [['DATO', 'VALOR', '', 'FECHA', 'ABONO', 'NOTA'], ['MONTO', 208738.08], ['TOTAL A PAGAR', 247476], ['PAGO MENSUAL', 10310],
+    ['NUMERO DE PAGOS MENSUALES', 24], ['INICIO PRIMERA QUINCENA', 46311], ['FIN ULTIMA QUINCENA', 47041], ['TASA ANUAL', 0.13], ['QUINCENAS', 48], ['INTERES TOTAL', 38737.92]];
+  const hojas = { TAREAS: tareas, SINDICATO: sindicato };
   function tareasSim(ruta, url, metodo, cors) {
     const ok = (cuerpo) => ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
     const sub = decodeURIComponent(url.pathname.split('/values')[1] ?? '');
@@ -119,30 +123,43 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
       lecturas.push({ metodo, clave: 'tareas' });
       return ok({ valueRanges: url.searchParams.getAll('ranges').map((r) => {
         const c = celdas(r);
+        const hoja = hojas[c.hoja] ?? [];
         const salida = [];
-        for (let f = c.f1; f <= (c.f2 ?? tareas.length); f++) salida.push(Array.from({ length: c.c2 - c.c1 + 1 }, (_, k) => tareas[f - 1]?.[c.c1 - 1 + k] ?? ''));
+        for (let f = c.f1; f <= (c.f2 ?? hoja.length); f++) salida.push(Array.from({ length: c.c2 - c.c1 + 1 }, (_, k) => hoja[f - 1]?.[c.c1 - 1 + k] ?? ''));
         while (salida.length && salida.at(-1).every((v) => v === '')) salida.pop();
         return { range: r, values: salida };
       }) });
     }
     const cuerpo = JSON.parse(ruta.request().postData() ?? '{}');
     const rango = sub.replace(/^\//, '');
-    lecturas.push({ metodo, clave: 'tareas', celda: rango, valor: cuerpo.values?.[0] });
-    if (rango.endsWith(':append')) {
-      tareas.push([...cuerpo.values[0]]);
-      return ok({ updates: { updatedRange: `TAREAS!A${tareas.length}:D${tareas.length}` } });
-    }
+    lecturas.push({ metodo, clave: 'tareas', celda: rango, valor: cuerpo.values?.[0], entrada: url.searchParams.get('valueInputOption') });
     const c = celdas(rango);
+    const hoja = hojas[c.hoja];
+    if (rango.endsWith(':append')) {
+      // Primera fila vacía de esas columnas, debajo de los encabezados.
+      let f = 2;
+      while (hoja[f - 1] && hoja[f - 1].slice(c.c1 - 1, c.c2).some((v) => v !== '' && v !== undefined)) f++;
+      const fila = hoja[f - 1] ?? (hoja[f - 1] = []);
+      let valores = [...cuerpo.values[0]];
+      // USER_ENTERED: «AAAA-MM-DD» se vuelve fecha (número de serie) y «'texto» queda como texto.
+      if (url.searchParams.get('valueInputOption') === 'USER_ENTERED') {
+        valores = valores.map((v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? Date.UTC(...v.split('-').map((n, i) => Number(n) - (i === 1 ? 1 : 0))) / 864e5 + 25569
+          : typeof v === 'string' && v.startsWith("'") ? v.slice(1) : v));
+      }
+      valores.forEach((v, k) => { fila[c.c1 - 1 + k] = v; });
+      return ok({ updates: { updatedRange: `${c.hoja}!A${f}:D${f}` } });
+    }
     if (rango.endsWith(':clear')) {
-      for (let k = c.c1; k <= c.c2; k++) if (tareas[c.f1 - 1]) tareas[c.f1 - 1][k - 1] = '';
+      for (let k = c.c1; k <= c.c2; k++) if (hoja[c.f1 - 1]) hoja[c.f1 - 1][k - 1] = '';
       return ok({});
     }
     cuerpo.values.forEach((valores, k) => {
-      const fila = tareas[c.f1 - 1 + k] ?? (tareas[c.f1 - 1 + k] = []);
+      const fila = hoja[c.f1 - 1 + k] ?? (hoja[c.f1 - 1 + k] = []);
       valores.forEach((v, j) => { fila[c.c1 - 1 + j] = v; });
     });
     return ok({});
   }
+  lecturas.sindicato = sindicato;
   lecturas.tareas = tareas;
   return lecturas;
 }
