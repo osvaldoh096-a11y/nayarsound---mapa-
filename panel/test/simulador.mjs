@@ -52,6 +52,8 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
   });
   await contexto.route('https://accounts.google.com/**', (ruta) => ruta.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
   const porId = Object.fromEntries(Object.entries(IDS).map(([k, id]) => [id, k]));
+  // Un archivo que no viene en los datos (copia anterior a ese negocio) se lee vacío.
+  for (const k of Object.keys(IDS)) datos[k] ??= { meta: {}, valores: [] };
   const lecturas = [];
   const num = (l) => [...l].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
   const partir = (r) => {
