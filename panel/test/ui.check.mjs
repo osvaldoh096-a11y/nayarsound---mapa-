@@ -12,7 +12,7 @@ import { idxDesdeYMD } from '../js/fechas.js';
 import { dinero } from '../js/formato.js';
 
 // Playwright viene instalado de forma global; createRequire lo encuentra igual que require().
-const { chromium } = createRequire(import.meta.url)('playwright');
+const { chromium, devices } = createRequire(import.meta.url)('playwright');
 
 const args = process.argv.slice(2);
 const opcion = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
@@ -322,6 +322,19 @@ try {
       const u = new URL(href);
       revisar(u.origin + u.pathname === 'https://wa.me/523312345678' && /PAGOS PENDIENTES/.test(u.searchParams.get('text')),
         'WhatsApp: enlace al número del DJ con el mensaje listo');
+      {
+        const tel = await navegador.newContext({ ...devices['iPhone 13'] });
+        await simularGoogle(tel, datos);
+        const pg = await tel.newPage();
+        await pg.clock.setFixedTime(relojFijo);
+        await entrar(pg);
+        await pg.locator('[data-filtro="sin-fecha"]').first().click();
+        await pg.locator('[data-pendiente*="DJ ALFA"]').first().click();
+        const enlace = await pg.locator('#detalle a.boton-whatsapp');
+        revisar(/^whatsapp:\/\/send\?phone=523312345678&text=/.test(await enlace.getAttribute('href')) && !(await enlace.getAttribute('target')),
+          'WhatsApp en iPhone: abre directo la app personal (whatsapp://), sin pasar por el navegador');
+        await tel.close();
+      }
       await pagina.locator('#detalle [data-cerrar]').first().click();
       await pagina.locator('[data-pendiente*="DJ GAMA"]').first().click();
       revisar(await pagina.locator('#detalle a.boton-whatsapp').count() === 0 && /no es válido/.test(await pagina.locator('#detalle').innerText()),

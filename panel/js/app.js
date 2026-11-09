@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090335';
-import { escribirCelda, leerRangos } from './api.js?v=202611090335';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090335';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090335';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090335';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090353';
+import { escribirCelda, leerRangos } from './api.js?v=202611090353';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090353';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090353';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090353';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090335';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090335';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090335';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090335';
-import { fuentesDemo } from './demo.js?v=202611090335';
-import { icono } from './iconos.js?v=202611090335';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090335';
+} from './fechas.js?v=202611090353';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090353';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090353';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090353';
+import { fuentesDemo } from './demo.js?v=202611090353';
+import { icono } from './iconos.js?v=202611090353';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090353';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -290,11 +290,26 @@ function telefonoDe(nombre) {
   return E.modelo?.nayarsound?.telefonos?.mapa.get(normalizar(nombre)) ?? null;
 }
 
+/**
+ * Abre directo WhatsApp personal (no WhatsApp Business):
+ * iPhone → whatsapp:// (Business usa otro esquema); Android → la app com.whatsapp;
+ * computadora → wa.me (WhatsApp Web o de escritorio).
+ */
+function enlaceWhatsApp(numero, texto) {
+  const t = encodeURIComponent(texto);
+  const ua = navigator.userAgent || '';
+  const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios) return `whatsapp://send?phone=${numero}&text=${t}`;
+  if (/Android/i.test(ua)) return `intent://send?phone=${numero}&text=${t}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+  return `https://wa.me/${numero}?text=${t}`;
+}
+
 function botonWhatsApp(p) {
   const tel = telefonoDe(p.titulo);
   if (!tel?.numero) return '';
-  const url = `https://wa.me/${tel.numero}?text=${encodeURIComponent(p.mensaje)}`;
-  return `<a class="boton boton-whatsapp boton-chico" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${icono('whatsapp')}WhatsApp</a>`;
+  const url = enlaceWhatsApp(tel.numero, p.mensaje);
+  const externo = url.startsWith('https:') ? ' target="_blank" rel="noopener noreferrer"' : '';
+  return `<a class="boton boton-whatsapp boton-chico" href="${esc(url)}"${externo}>${icono('whatsapp')}WhatsApp</a>`;
 }
 
 function avisoTelefono(p) {
