@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090353';
-import { escribirCelda, leerRangos } from './api.js?v=202611090353';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090353';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090353';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090353';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090527';
+import { escribirCelda, leerRangos } from './api.js?v=202611090527';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090527';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090527';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090527';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090353';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090353';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090353';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090353';
-import { fuentesDemo } from './demo.js?v=202611090353';
-import { icono } from './iconos.js?v=202611090353';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090353';
+} from './fechas.js?v=202611090527';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090527';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090527';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090527';
+import { fuentesDemo } from './demo.js?v=202611090527';
+import { icono } from './iconos.js?v=202611090527';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611090527';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -80,6 +80,7 @@ async function arrancar() {
   document.addEventListener('change', alCambiar);
   document.addEventListener('input', alEscribir);
   document.addEventListener('submit', alEnviar);
+  activarArrastre((claves) => ordenarTareas(claves, tokenParaEscribir, pintarTareas));
   document.addEventListener('toggle', (e) => { if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open; }, true);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);

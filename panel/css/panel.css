@@ -201,6 +201,11 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 .lista-tareas { list-style: none; margin: 0; padding: 0; }
 .tarea { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--borde); }
 .tarea:last-child { border-bottom: 0; }
+.tarea-asa { flex: none; width: 28px; align-self: stretch; display: grid; place-items: center; color: #9CA3AF; font-size: 16px; letter-spacing: -3px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tarea-asa:not([data-asa]) { visibility: hidden; }
+.tarea.arrastrando { position: relative; z-index: 2; background: var(--tarjeta); box-shadow: 0 8px 24px rgba(17, 24, 39, 0.14); border-radius: 10px; cursor: grabbing; }
+.tarea.arrastrando .tarea-asa { cursor: grabbing; color: var(--azul); }
+.tareas-ayuda { margin-top: 6px; }
 .tarea-marca { flex: 1; display: flex; align-items: center; gap: 12px; padding: 11px 2px; cursor: pointer; min-width: 0; }
 .tarea-marca input { width: 20px; height: 20px; flex: none; accent-color: var(--verde); cursor: pointer; }
 .tarea-texto { font-size: 15px; overflow-wrap: anywhere; }

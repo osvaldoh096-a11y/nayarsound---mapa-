@@ -3,13 +3,13 @@
 // también desde Sheets. Antes de cambiar o borrar una fila se comprueba que
 // sigue siendo la misma tarea.
 
-import { TAREAS } from './fuentes.js?v=202611090353';
-import { leerRangos, agregarFila, escribirRango, borrarRango } from './api.js?v=202611090353';
-import { esc, plural } from './formato.js?v=202611090353';
-import { icono } from './iconos.js?v=202611090353';
+import { TAREAS } from './fuentes.js?v=202611090527';
+import { leerRangos, agregarFila, escribirRango, borrarRango } from './api.js?v=202611090527';
+import { esc, plural } from './formato.js?v=202611090527';
+import { icono } from './iconos.js?v=202611090527';
 
 const H = `'${TAREAS.pestana}'`;
-const RANGO = `${H}!A2:D`;
+const RANGO = `${H}!A2:E`;
 
 /** Estado: { estado: 'sin-leer'|'leyendo'|'ok'|'error', lista, error, demo } */
 export const T = { estado: 'sin-leer', lista: [], error: null, demo: false, guardando: 0, verHechas: false };
@@ -31,7 +31,15 @@ export function leerFilas(valores) {
     hecha: esHecha(f?.[1]),
     creada: String(f?.[2] ?? ''),
     completada: String(f?.[3] ?? ''),
-  })).filter((t) => t.texto);
+    orden: typeof f?.[4] === 'number' ? f[4] : (Number.isFinite(Number(f?.[4])) && String(f?.[4] ?? '').trim() !== '' ? Number(f[4]) : null),
+  })).filter((t) => t.texto).sort(porOrden);
+}
+
+/** Orden de importancia (columna ORDEN); sin número van al final, en el orden de la hoja. */
+function porOrden(a, b) {
+  const x = a.orden ?? Infinity;
+  const y = b.orden ?? Infinity;
+  return x === y ? (a.fila ?? Infinity) - (b.fila ?? Infinity) : x - y;
 }
 
 export function usarDemo() {
@@ -125,6 +133,88 @@ export function borrarTarea(t, obtenerToken, repintar) {
     });
 }
 
+/**
+ * Nuevo orden de las pendientes (de más a menos importante): escribe 1, 2, 3…
+ * en la columna ORDEN. Antes comprueba que cada fila sigue siendo su tarea.
+ */
+export function ordenarTareas(clavesEnOrden, obtenerToken, repintar) {
+  const pendientes = clavesEnOrden.map(tareaPorClave).filter(Boolean);
+  if (!pendientes.length || pendientes.some((t) => !t.fila && !T.demo)) return;
+  const antes = T.lista.map((t) => [t, t.orden]);
+  const listaAntes = [...T.lista];
+  return cambiar(obtenerToken, repintar,
+    () => {
+      pendientes.forEach((t, i) => { t.orden = i + 1; });
+      const hechas = T.lista.filter((t) => t.hecha);
+      T.lista = [...pendientes, ...T.lista.filter((t) => !t.hecha && !pendientes.includes(t)), ...hechas];
+    },
+    () => { antes.forEach(([t, o]) => { t.orden = o; }); T.lista = listaAntes; },
+    async (token) => {
+      const max = Math.max(...T.lista.map((t) => t.fila ?? 0));
+      const [textos] = await leerRangos(token, TAREAS.id, [`${H}!A2:A${max}`]);
+      for (const t of pendientes) {
+        if (String(textos?.[t.fila - 2]?.[0] ?? '').trim() !== t.texto) {
+          throw new Error(`La tarea «${t.texto}» cambió o se movió en tu hoja. Toca «Actualizar» y vuelve a ordenar.`);
+        }
+      }
+      const porFila = new Map(T.lista.filter((t) => t.fila).map((t) => [t.fila, t.orden ?? '']));
+      const columna = Array.from({ length: max - 1 }, (_, i) => [porFila.get(i + 2) ?? '']);
+      await escribirRango(token, TAREAS.id, `${H}!E2:E${max}`, columna);
+    });
+}
+
+/**
+ * Arrastrar con el dedo (o el ratón) desde la manija ⋮⋮ para reordenar.
+ * alSoltar(claves) recibe el nuevo orden de las tareas pendientes.
+ */
+export function activarArrastre(alSoltar) {
+  let actual = null;
+  document.addEventListener('pointerdown', (e) => {
+    const asa = e.target.closest?.('[data-asa]');
+    if (!asa || T.guardando) return;
+    const li = asa.closest('li.tarea');
+    const ul = li?.parentElement;
+    if (!ul) return;
+    e.preventDefault();
+    asa.setPointerCapture?.(e.pointerId);
+    actual = { li, ul, asa, y0: e.clientY, inicial: clavesDe(ul) };
+    li.classList.add('arrastrando');
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!actual) return;
+    e.preventDefault();
+    const { li, ul } = actual;
+    let dy = e.clientY - actual.y0;
+    const sig = li.nextElementSibling;
+    const ant = li.previousElementSibling;
+    if (sig && dy > sig.offsetHeight / 2) {
+      ul.insertBefore(sig, li);
+      actual.y0 += sig.offsetHeight;
+      dy -= sig.offsetHeight;
+    } else if (ant && dy < -ant.offsetHeight / 2) {
+      ul.insertBefore(li, ant);
+      actual.y0 -= ant.offsetHeight;
+      dy += ant.offsetHeight;
+    }
+    li.style.transform = `translateY(${dy}px)`;
+  }, { passive: false });
+  const soltar = () => {
+    if (!actual) return;
+    const { li, ul, inicial } = actual;
+    actual = null;
+    li.classList.remove('arrastrando');
+    li.style.transform = '';
+    const final = clavesDe(ul);
+    if (final.join() !== inicial.join()) alSoltar(final);
+  };
+  document.addEventListener('pointerup', soltar);
+  document.addEventListener('pointercancel', soltar);
+}
+
+function clavesDe(ul) {
+  return [...ul.querySelectorAll(':scope > li input[data-tarea]')].map((i) => i.dataset.tarea);
+}
+
 export function tareaPorClave(clave) {
   return T.lista.find((t) => claveTarea(t) === clave);
 }
@@ -138,7 +228,9 @@ function claveTarea(t) {
 
 function itemTarea(t) {
   const k = claveTarea(t);
+  const movible = !t.hecha && (t.fila || T.demo);
   return `<li class="tarea ${t.hecha ? 'hecha' : ''}">
+    ${t.hecha ? '' : `<span class="tarea-asa" ${movible ? 'data-asa' : ''} aria-hidden="true" title="Arrastra para ordenar">⋮⋮</span>`}
     <label class="tarea-marca">
       <input type="checkbox" data-tarea="${k}" ${t.hecha ? 'checked' : ''} ${!t.fila && !T.demo ? 'disabled' : ''}>
       <span class="tarea-texto">${esc(t.texto)}</span>
@@ -156,7 +248,7 @@ export function htmlTareas() {
   else if (T.estado === 'error') cuerpo = '';
   else {
     cuerpo = pendientes.length
-      ? `<ul class="lista-tareas">${pendientes.map(itemTarea).join('')}</ul>`
+      ? `<ul class="lista-tareas lista-ordenable">${pendientes.map(itemTarea).join('')}</ul>${pendientes.length > 1 ? '<p class="nota tareas-ayuda">Arrastra ⋮⋮ para ordenar de más a menos importante.</p>' : ''}`
       : '<p class="vacio">Sin tareas pendientes.</p>';
     if (hechas.length) {
       cuerpo += `<details class="tareas-hechas" ${T.verHechas ? 'open' : ''}><summary>${plural(hechas.length, 'hecha', 'hechas')}</summary>

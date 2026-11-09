@@ -345,6 +345,44 @@ try {
     await contexto.close();
   }
 
+  // ---------------------------------------------------------------- ordenar tareas arrastrando
+  for (const movil of [false, true]) {
+    const contexto = await navegador.newContext(movil ? { ...devices['iPhone 13'] } : { viewport: { width: 1280, height: 900 } });
+    const tareas = [['TAREA', 'HECHA', 'CREADA', 'COMPLETADA', 'ORDEN'], ['Uno', '', '', '', ''], ['Dos', '', '', '', ''], ['Tres', '', '', '', '']];
+    const lecturas = await simularGoogle(contexto, datos, { tareas });
+    const pagina = await contexto.newPage();
+    await pagina.clock.setFixedTime(relojFijo);
+    await entrar(pagina);
+    await pagina.waitForSelector('#tareas-caja [data-asa]');
+    const textos = () => pagina.locator('#tareas-caja .lista-ordenable .tarea-texto').allInnerTexts();
+    const asa = pagina.locator('#tareas-caja .tarea', { hasText: 'Tres' }).locator('[data-asa]');
+    const caja = await asa.boundingBox();
+    const destino = await pagina.locator('#tareas-caja .tarea', { hasText: 'Uno' }).boundingBox();
+    const x = caja.x + caja.width / 2;
+    if (movil) {
+      // Toque: eventos de puntero táctiles.
+      const cdp = await contexto.newCDPSession(pagina);
+      const toque = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+      await toque('touchStart', caja.y + caja.height / 2);
+      for (let y = caja.y + caja.height / 2; y >= destino.y + 4; y -= 8) await toque('touchMove', y);
+      await toque('touchEnd');
+    } else {
+      await pagina.mouse.move(x, caja.y + caja.height / 2);
+      await pagina.mouse.down();
+      for (let y = caja.y + caja.height / 2; y >= destino.y + 4; y -= 8) await pagina.mouse.move(x, y);
+      await pagina.mouse.up();
+    }
+    revisar((await textos()).join() === 'Tres,Uno,Dos', `Arrastrar${movil ? ' con el dedo' : ''}: «Tres» queda primero (${(await textos()).join(', ')})`);
+    for (let i = 0; i < 30 && tareas[3][4] !== 1; i++) await pagina.waitForTimeout(100);
+    revisar(tareas[3][4] === 1 && tareas[1][4] === 2 && tareas[2][4] === 3, `Arrastrar${movil ? ' con el dedo' : ''}: guarda el orden en la columna ORDEN (${tareas.slice(1).map((f) => `${f[0]}=${f[4]}`).join(', ')})`);
+    // Al volver a leer la hoja se respeta el orden.
+    await pagina.reload();
+    await pagina.waitForSelector('#tareas-caja .lista-ordenable');
+    revisar((await textos()).join() === 'Tres,Uno,Dos', 'El orden se conserva al recargar');
+    revisar(lecturas.filter((l) => l.clave === 'tareas' && l.metodo !== 'GET').every((l) => /^'TAREAS'!E2:E\d+$/.test(l.celda)), 'Ordenar solo escribe la columna ORDEN');
+    await contexto.close();
+  }
+
   // ---------------------------------------------------------------- demo
   {
     const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 } });

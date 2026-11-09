@@ -135,8 +135,10 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
       for (let k = c.c1; k <= c.c2; k++) if (tareas[c.f1 - 1]) tareas[c.f1 - 1][k - 1] = '';
       return ok({});
     }
-    const fila = tareas[c.f1 - 1] ?? (tareas[c.f1 - 1] = []);
-    fila[c.c1 - 1] = cuerpo.values[0][0];
+    cuerpo.values.forEach((valores, k) => {
+      const fila = tareas[c.f1 - 1 + k] ?? (tareas[c.f1 - 1 + k] = []);
+      valores.forEach((v, j) => { fila[c.c1 - 1 + j] = v; });
+    });
     return ok({});
   }
   lecturas.tareas = tareas;
