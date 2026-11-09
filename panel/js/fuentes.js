@@ -64,4 +64,8 @@ export const TAREAS = {
   id: '1A49h6L76bZUVkUaIzf_lYCwG2Hh-biPjbwGbYXpJrz4',
   pestana: 'TAREAS',
   gid: 1899581123,
+  // Teléfonos de los DJs para «Enviar por WhatsApp» (DJ, TELEFONO). Viven en
+  // tu hoja, no en el código: el repositorio es público.
+  telefonos: 'TELEFONOS DJ',
+  gidTelefonos: 777,
 };

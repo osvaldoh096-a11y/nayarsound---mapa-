@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090319';
-import { escribirCelda, leerRangos } from './api.js?v=202611090319';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090319';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090319';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090319';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090327';
+import { escribirCelda, leerRangos } from './api.js?v=202611090327';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090327';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090327';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090327';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090319';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090319';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090319';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090319';
-import { fuentesDemo } from './demo.js?v=202611090319';
-import { icono } from './iconos.js?v=202611090319';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090319';
+} from './fechas.js?v=202611090327';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090327';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090327';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090327';
+import { fuentesDemo } from './demo.js?v=202611090327';
+import { icono } from './iconos.js?v=202611090327';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, telefonoDe, URL_TELEFONOS } from './tareas.js?v=202611090327';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -283,6 +283,22 @@ async function guardarPagoDj(boton) {
     boton.textContent = 'Guardar';
   }
   await actualizar({ interactivo: true });
+}
+
+/** Enlace de WhatsApp con el mensaje ya escrito (tú solo tocas «Enviar» en WhatsApp). */
+function botonWhatsApp(p) {
+  const tel = telefonoDe(p.titulo);
+  if (!tel?.numero) return '';
+  const url = `https://wa.me/${tel.numero}?text=${encodeURIComponent(p.mensaje)}`;
+  return `<a class="boton boton-whatsapp boton-chico" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${icono('whatsapp')}WhatsApp</a>`;
+}
+
+function avisoTelefono(p) {
+  if (T.estado !== 'ok') return '';
+  const tel = telefonoDe(p.titulo);
+  if (tel?.numero) return '';
+  const texto = tel ? `El teléfono de ${p.titulo} en tu hoja no es válido («${tel.texto || 'vacío'}»).` : `${p.titulo} no está en tu lista de teléfonos.`;
+  return `<p class="nota">${esc(texto)} <a href="${URL_TELEFONOS}" target="_blank" rel="noopener noreferrer">Agregar teléfono ↗</a></p>`;
 }
 
 async function copiarMensaje(boton) {
@@ -1045,7 +1061,8 @@ function abrirPendiente(p) {
   }
   const mensaje = p.mensaje ? `<section class="det-mensaje">
       <div class="det-mensaje-cab"><h3>Mensaje para enviar</h3>
-        <button class="boton boton-primario boton-chico" data-accion="copiar-mensaje" data-pendiente-msg="${esc(p.id)}">Copiar</button></div>
+        <span class="det-mensaje-botones">${botonWhatsApp(p)}<button class="boton boton-primario boton-chico" data-accion="copiar-mensaje" data-pendiente-msg="${esc(p.id)}">Copiar</button></span></div>
+      ${avisoTelefono(p)}
       <pre class="linea-hoja">${esc(ocultarImportes(p.mensaje))}</pre>
       <p class="nota">Mismo texto que arma tu hoja en AGENDA Y VENTAS (celda I3).</p>
     </section>` : '';

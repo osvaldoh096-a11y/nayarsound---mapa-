@@ -314,6 +314,20 @@ try {
     revisar(lecturas.tareas[1][1] === 'SI', 'Si la fila cambió en la hoja, no escribe y avisa');
     if (capturas && movil) await pagina.screenshot({ path: `${capturas}/tareas-movil.png`, fullPage: false });
     if (capturas && !movil) await pagina.screenshot({ path: `${capturas}/tareas.png`, fullPage: false });
+    // WhatsApp: enlace con el número (52 + 10 dígitos) y el mensaje de pagos pendientes.
+    if (!rutaSnapshot && !movil) {
+      await pagina.locator('[data-filtro="sin-fecha"]').first().click();
+      await pagina.locator('[data-pendiente*="DJ ALFA"]').first().click();
+      const href = await pagina.locator('#detalle a.boton-whatsapp').getAttribute('href');
+      const u = new URL(href);
+      revisar(u.origin + u.pathname === 'https://wa.me/523312345678' && /PAGOS PENDIENTES/.test(u.searchParams.get('text')),
+        'WhatsApp: enlace al número del DJ con el mensaje listo');
+      await pagina.locator('#detalle [data-cerrar]').first().click();
+      await pagina.locator('[data-pendiente*="DJ GAMA"]').first().click();
+      revisar(await pagina.locator('#detalle a.boton-whatsapp').count() === 0 && /no es válido/.test(await pagina.locator('#detalle').innerText()),
+        'WhatsApp: si el teléfono está mal escrito no hay botón y se avisa');
+      await pagina.locator('#detalle [data-cerrar]').first().click();
+    }
     revisar(!errores.length, `Sin errores de consola en tareas: ${errores.join(' | ')}`);
     await contexto.close();
   }

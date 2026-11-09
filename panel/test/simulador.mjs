@@ -40,7 +40,7 @@ export const IDS = Object.fromEntries(ORDEN_ARCHIVOS.map((k) => [k, ARCHIVOS[k].
  * datos: { [clave]: { meta: {titulo, zona, pestanas}, valores: [rango1, rango2, ...] } }
  * fallas: { [clave]: estadoHttp | () => estadoHttp } para simular errores.
  */
-export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['TAREA', 'HECHA', 'CREADA', 'COMPLETADA'], ['Llamar al banco', '', '2026-11-01 10:00', '']] } = {}) {
+export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['TAREA', 'HECHA', 'CREADA', 'COMPLETADA'], ['Llamar al banco', '', '2026-11-01 10:00', '']], telefonos = [['DJ', 'TELEFONO'], ['DJ ALFA', '(33) 1234-5678'], ['DJ GAMA', '123']] } = {}) {
   await contexto.addInitScript(() => {
     window.google = { accounts: { oauth2: {
       initTokenClient: (cfg) => ({
@@ -117,6 +117,7 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
       lecturas.push({ metodo, clave: 'tareas' });
       return ok({ valueRanges: url.searchParams.getAll('ranges').map((r) => {
         const c = celdas(r);
+        if (c.hoja === 'TELEFONOS DJ') return { range: r, values: telefonos.slice(c.f1 - 1) };
         const salida = [];
         for (let f = c.f1; f <= (c.f2 ?? tareas.length); f++) salida.push(Array.from({ length: c.c2 - c.c1 + 1 }, (_, k) => tareas[f - 1]?.[c.c1 - 1 + k] ?? ''));
         while (salida.length && salida.at(-1).every((v) => v === '')) salida.pop();
