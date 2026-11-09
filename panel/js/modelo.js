@@ -6,16 +6,16 @@
 // añadir hora y enlace a la fila, nunca para cambiar una cifra.
 
 import {
-  normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611092142';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092142';
+  normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
+} from './fechas.js?v=202611092151';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092151';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611092142';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092142';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092142';
-import { dinero } from './formato.js?v=202611092142';
+} from './sheets.js?v=202611092151';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092151';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092151';
+import { dinero } from './formato.js?v=202611092151';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -426,6 +426,99 @@ function tomarFila(candidatos, usadas) {
   return fila ?? null;
 }
 
+// ---------------------------------------------------------------- Inversiones activas
+
+const MESES_TXT = { ENE: 1, FEB: 2, MAR: 3, ABR: 4, MAY: 5, JUN: 6, JUL: 7, AGO: 8, SEP: 9, SEPT: 9, OCT: 10, NOV: 11, DIC: 12 };
+
+/** Fecha de una celda: número de serie, o texto «27 jul» / «27-jul» (año del AUXILIAR o el más cercano). */
+function fechaCelda(v, hoyIdx, anio = null) {
+  if (typeof v === 'number' && Number.isFinite(v)) return idxDesdeSerial(v);
+  const m = normalizar(v).match(/^(\d{1,2})[\s\-/]+([A-Z]{3,4})/);
+  if (!m || !MESES_TXT[m[2]]) return null;
+  return anio ? idxDesdeYMD(anio, MESES_TXT[m[2]], Number(m[1])) : inferirFecha(Number(m[1]), MESES_TXT[m[2]], hoyIdx);
+}
+
+/** Fecha de pago número k (mensual) a partir del inicio; el día se ajusta al último del mes si no existe. */
+function vencimiento(inicioIdx, k) {
+  const { y, m, d } = ymdDesdeIdx(inicioIdx);
+  const total = (m - 1) + k;
+  const ya = y + Math.floor(total / 12); const ma = (total % 12) + 1;
+  const ultimo = ymdDesdeIdx(idxDesdeYMD(ma === 12 ? ya + 1 : ya, ma === 12 ? 1 : ma + 1, 1) - 1).d;
+  return idxDesdeYMD(ya, ma, Math.min(d, ultimo));
+}
+
+/**
+ * Cada inversión ACTIVO de REGISTRO DE INVERSORES con:
+ *  - liquidar: fecha compromiso y días que faltan (alerta si son 30 o menos).
+ *  - pagoMes: estado del pago de intereses de este mes, según el registro de
+ *    pagos de la misma hoja (columnas U:AA): pagos hechos vs. vencimientos
+ *    mensuales desde la fecha de inicio.
+ */
+export function inversionesActivas(fuente, hoyIdx) {
+  const filas = fuente?.rangos?.inversores;
+  if (!filas?.length) return null;
+  const inicio = inicioRango(ARCHIVOS.prestamos.rangos.inversores);
+  const enc = buscarFilaEncabezado(filas, ['NOMBRE', 'ESTADO', 'PAGO MES']);
+  if (enc < 0) return null;
+  const { registros } = tablaPorEncabezados(filas, enc, {
+    op: 'OP.', inicio: 'FECHA INICIO', nombre: 'NOMBRE', divisa: 'DIVISA', cantidad: 'CANTIDAD', tasa: 'INT/MES',
+    compromiso: 'FECHA COMPROMISO', estado: 'ESTADO', pagoMes: 'PAGO MES',
+  }, inicio);
+  // Registro de pagos: segunda aparición de CANTIDAD / DIVISA / NOMBRE en la misma fila de encabezados.
+  const h = (filas[enc] ?? []).map(normalizar);
+  const cFecha = h.findIndex((x, i) => x === 'FECHA' && i > h.indexOf('ESTADO'));
+  const pagos = [];
+  if (cFecha > 0) {
+    const cAux = h.indexOf('AUXILIAR', cFecha);
+    for (let f = enc + 1; f < filas.length; f++) {
+      const fila = filas[f] ?? [];
+      const op = Number(fila[cFecha - 1]);
+      const monto = typeof fila[cFecha + 1] === 'number' ? fila[cFecha + 1] : Number(String(fila[cFecha + 1] ?? '').replace(/[$,\s]/g, ''));
+      if (!Number.isFinite(op) || op <= 0 || !Number.isFinite(monto)) continue;
+      const aux = leerEtiquetaMes(String(fila[cAux] ?? '').trim());
+      pagos.push({ op, idx: fechaCelda(fila[cFecha], hoyIdx, aux?.y ?? null), monto, divisa: normalizar(fila[cFecha + 3]) || 'MXN' });
+    }
+  }
+  const hoy = ymdDesdeIdx(hoyIdx);
+  const activos = registros.filter((r) => normalizar(r.estado) === 'ACTIVO' && !vacio(r.nombre));
+  return activos.map((r) => {
+    const op = Number(r.op);
+    const divisa = normalizar(r.divisa) === 'USDT' ? 'USDT' : 'MXN';
+    const cantidad = typeof r.cantidad === 'number' ? r.cantidad : null;
+    const inicioIdx = fechaCelda(r.inicio, hoyIdx);
+    const compromisoIdx = fechaCelda(r.compromiso, hoyIdx);
+    const pagoMes = typeof r.pagoMes === 'number' ? r.pagoMes : null;
+    const suyos = pagos.filter((p) => p.op === op).sort((a, b) => (a.idx ?? 0) - (b.idx ?? 0));
+    const dias = compromisoIdx === null ? null : compromisoIdx - hoyIdx;
+    const item = {
+      op, fila: r.fila, nombre: String(r.nombre).trim(), divisa, cantidad,
+      capitalMXN: cantidad === null ? null : (divisa === 'USDT' ? cantidad * TIPO_CAMBIO_USDT : cantidad),
+      tasa: typeof r.tasa === 'number' ? r.tasa : null, inicioIdx, compromisoIdx, diasLiquidar: dias,
+      alertaLiquidar: dias !== null && dias <= 30, pagoMes, pagosHechos: suyos.length, ultimoPago: suyos.at(-1) ?? null,
+    };
+    // Estado del pago de este mes
+    let pago;
+    if (pagoMes === null) pago = { estado: 'sin-dato' };
+    else if (pagoMes === 0) pago = { estado: 'sin-interes' };
+    else if (inicioIdx === null) pago = { estado: 'sin-dato' };
+    else {
+      let k = 1;
+      while (vencimiento(inicioIdx, k) < idxDesdeYMD(hoy.y, hoy.m, 1)) k++;
+      const vence = vencimiento(inicioIdx, k);
+      const esteMes = ymdDesdeIdx(vence).m === hoy.m && ymdDesdeIdx(vence).y === hoy.y;
+      if (!esteMes) pago = { estado: 'sin-pago', idx: vence, monto: pagoMes, moneda: divisa };
+      else if (suyos.length >= k) {
+        const p = suyos.at(-1);
+        pago = { estado: 'pagado', idx: p.idx, monto: p.monto, moneda: p.divisa === 'USDT' ? 'USDT' : 'MXN', vence };
+      } else if (suyos.length < k - 1 || vence < hoyIdx) {
+        pago = { estado: 'atrasado', idx: vence, monto: pagoMes, moneda: divisa, faltan: k - suyos.length };
+      } else pago = { estado: 'pendiente', idx: vence, monto: pagoMes, moneda: divisa, dias: vence - hoyIdx };
+    }
+    item.pago = pago;
+    return item;
+  }).sort((a, b) => (a.compromisoIdx ?? Infinity) - (b.compromisoIdx ?? Infinity));
+}
+
 export function modeloPrestamos({ prestamos }, hoyIdx) {
   const avisos = [];
   const pendientes = [];
@@ -434,6 +527,8 @@ export function modeloPrestamos({ prestamos }, hoyIdx) {
   const dashboard = prestamos.rangos.dashboard ?? [];
   salida.dashboard = leerDashboardPrestamos(dashboard, inicioRango(ARCHIVOS.prestamos.rangos.dashboard));
   salida.dashboard.url = !prestamos.demo ? urlHoja(prestamos.id, prestamos.meta?.pestanas?.DASHBOARD) : null;
+  salida.inversiones = inversionesActivas(prestamos, hoyIdx);
+  salida.inversionesUrl = !prestamos.demo ? urlHoja(prestamos.id, prestamos.meta?.pestanas?.['REGISTRO DE INVERSORES']) : null;
   const celda = textoBajoEncabezado(dashboard, 'RESUMEN GENERAL', inicioRango(ARCHIVOS.prestamos.rangos.dashboard));
   const origen = hacerOrigen(prestamos, 'dashboard', 'DASHBOARD', celda.a1);
   salida.origen = origen;

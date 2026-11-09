@@ -808,3 +808,29 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
   .pf-sec-cuerpo { padding: 12px 14px 14px; }
   .pf-sec-titulo { font-size: 16px; }
 }
+
+/* Inversiones activas: una fila por inversión */
+.pf-invs { display: flex; flex-direction: column; }
+.pf-inv { display: grid; grid-template-columns: minmax(180px, 1.2fr) minmax(0, 2fr) minmax(0, 1.4fr); align-items: center; gap: 6px 18px; padding: 12px 0; border-bottom: 1px solid var(--borde); }
+.pf-inv:last-child { border-bottom: 0; }
+.pf-inv-cab { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.pf-inv-nombre { font-weight: 650; }
+.pf-inv-nombre small, .pf-inv-capital small { display: block; font-weight: 500; color: var(--tenue); font-size: 12.5px; }
+.pf-inv-capital { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pf-inv-pago { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.pf-inv-pago small { color: var(--tenue); }
+.pf-estado { display: inline-block; padding: 2px 9px; border-radius: 6px; font-size: 12.5px; font-weight: 650; }
+.pf-estado.ok { background: var(--verde-fondo); color: var(--verde-tinta); }
+.pf-estado.pend { background: #FFF7E6; color: var(--ambar-tinta); }
+.pf-estado.mal { background: var(--rojo-fondo); color: var(--rojo-tinta); }
+.pf-estado.neutro { background: var(--suave); color: var(--tinta-2); }
+.pf-liq { font-size: 13px; color: var(--tenue); }
+.pf-alerta { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 650; color: var(--rojo-tinta); background: var(--rojo-fondo); padding: 4px 10px; border-radius: 8px; justify-self: start; }
+.pf-alerta .icono { width: 15px; height: 15px; }
+.pf-inv-pie { display: flex; justify-content: flex-end; gap: 24px; padding-top: 10px; border-top: 1px solid var(--borde); font-size: 13.5px; color: var(--tinta-2); }
+.pf-inv-pie b { color: var(--tinta); font-variant-numeric: tabular-nums; }
+@media (max-width: 960px) {
+  .pf-inv { grid-template-columns: minmax(0, 1fr); }
+  .pf-inv-pie { justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; }
+}
+.pf-inv-etq { font-size: 12px; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }

@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
@@ -209,6 +209,48 @@ test('categorías repetidas se juntan', () => {
   assert.equal(enero.categorias.find((c) => c.nombre === 'HORMIGA').total, 150);
   assert.equal(enero.categorias.find((c) => c.nombre === 'AUTOPISTA').total, 50);
   assert.ok(!enero.categorias.some((c) => c.nombre === 'CASETAS'));
+});
+
+test('inversiones activas: pago del mes y alerta de liquidación (como REGISTRO DE INVERSORES)', () => {
+  const hoy = idxDesdeYMD(2026, 11, 9);
+  const ser = (y, m, d) => idxDesdeYMD(y, m, d) + 25569;
+  const enc = ['OP.', 'PAGO MENSUAL', 'FECHA INICIO', 'NOMBRE', 'DIVISA', 'CANTIDAD', 'EQUIVALENCIA', 'INT/MES', 'FECHA COMPROMISO', 'DIA FIN/ACT',
+    'ESTADO', 'INTERES RESTANTE', 'PAGO MES', 'INT. GEN. DIA.', 'INT. TOTAL', 'TOT. DIAS ', 'TOT. MESES', 'FECHA DINAMICA', 'AUXILIAR', '', '', 'FECHA ', 'CANTIDAD', 'INVERTIDO', 'DIVISA', 'NOMBRE', 'AUXILIAR'];
+  const inv = (op, ini, nombre, div, cant, tasa, comp, estado, pago) => [op, 'SI', ini, nombre, div, cant, '', tasa, comp, '', estado, 0, pago, '', '', '', '', '', ''];
+  const filas = [enc,
+    inv(61, ser(2026, 6, 15), 'JOSE BARBOSA', 'MXN', 50000, 0.03, ser(2027, 2, 15), 'ACTIVO', 1500),
+    inv(66, ser(2026, 7, 28), 'OSCAR ARTEAGA', 'USDT', 2900, 0.03, ser(2027, 1, 28), 'ACTIVO', 87),
+    inv(71, ser(2026, 10, 10), 'OSCAR ARTEAGA', 'MXN', 148000, 0.04, ser(2027, 2, 6), 'ACTIVO', 5920),
+    inv(72, ser(2026, 11, 2), 'BBVA', 'MXN', 112000, 0, ser(2028, 11, 2), 'ACTIVO', 0),
+    inv(73, ser(2026, 11, 5), 'LAUTARO MASSARI', 'USDT', 3553, 0.03, ser(2026, 11, 30), 'ACTIVO', 106.59),
+    inv(70, ser(2026, 10, 5), 'LAUTARO MASSARI', 'USDT', 5392, 0.03, ser(2026, 11, 3), 'LIQUIDADO', 161.76),
+    inv(80, ser(2026, 8, 1), 'ATRASADO', 'MXN', 10000, 0.05, ser(2026, 11, 1), 'ACTIVO', 500),
+  ];
+  const pago = (op, fecha, monto, div, aux) => ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', op, fecha, monto, '', div, '', aux];
+  filas.push(
+    pago(61, ser(2026, 7, 15), 1500, 'MXN', 'JULIO 2026'), pago(61, ser(2026, 8, 14), 1500, 'MXN', 'AGOSTO 2026'),
+    pago(61, ser(2026, 9, 15), 1500, 'MXN', 'SEPTIEMBRE 2026'), pago(61, ser(2026, 10, 15), 1500, 'MXN', 'OCTUBRE 2026'),
+    pago(66, ser(2026, 8, 30), 87, 'USDT', 'AGOSTO 2026'), pago(66, ser(2026, 9, 28), 87, 'USDT', 'SEPTIEMBRE 2026'), pago(66, '4-nov', 87, 'USDT', 'NOVIEMBRE 2026'),
+    pago(80, ser(2026, 9, 1), 500, 'MXN', 'SEPTIEMBRE 2026'),
+  );
+  const r = inversionesActivas({ rangos: { inversores: filas } }, hoy);
+  const de = (op) => r.find((x) => x.op === op);
+  assert.equal(r.length, 6); // el LIQUIDADO no cuenta
+  assert.deepEqual([de(61).pago.estado, de(61).pago.idx, de(61).pago.monto, de(61).pago.moneda], ['pendiente', idxDesdeYMD(2026, 11, 15), 1500, 'MXN']);
+  assert.deepEqual([de(66).pago.estado, de(66).pago.idx, de(66).pago.moneda], ['pendiente', idxDesdeYMD(2026, 11, 28), 'USDT']);
+  assert.equal(de(71).pago.estado, 'pendiente');
+  assert.equal(de(72).pago.estado, 'sin-interes');
+  assert.deepEqual([de(73).pago.estado, de(73).pago.idx], ['sin-pago', idxDesdeYMD(2026, 12, 5)]);
+  assert.equal(de(80).pago.estado, 'atrasado');
+  assert.equal(de(73).alertaLiquidar, true);
+  assert.equal(de(73).diasLiquidar, 21);
+  assert.equal(de(80).diasLiquidar, -8);
+  assert.equal(de(61).alertaLiquidar, false);
+  assert.equal(de(66).capitalMXN, 2900 * 18);
+  // Si ya se registró el pago de este mes, se muestra pagado con su fecha, importe y moneda.
+  filas.push(pago(61, ser(2026, 11, 8), 1500, 'MXN', 'NOVIEMBRE 2026'));
+  const p61 = inversionesActivas({ rangos: { inversores: filas } }, hoy).find((x) => x.op === 61).pago;
+  assert.deepEqual([p61.estado, p61.idx, p61.monto, p61.moneda], ['pagado', idxDesdeYMD(2026, 11, 8), 1500, 'MXN']);
 });
 
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {

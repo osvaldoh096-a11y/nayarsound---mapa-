@@ -1,20 +1,20 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092142';
-import { escribirCelda, leerRangos } from './api.js?v=202611092142';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092142';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092142';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092142';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092151';
+import { escribirCelda, leerRangos } from './api.js?v=202611092151';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092151';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092151';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092151';
 import {
-  hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes,
-} from './fechas.js?v=202611092142';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092142';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092142';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092142';
-import { fuentesDemo } from './demo.js?v=202611092142';
-import { leerCashflow } from './dashprestamos.js?v=202611092142';
-import { icono } from './iconos.js?v=202611092142';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092142';
+  hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
+} from './fechas.js?v=202611092151';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092151';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092151';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092151';
+import { fuentesDemo } from './demo.js?v=202611092151';
+import { leerCashflow } from './dashprestamos.js?v=202611092151';
+import { icono } from './iconos.js?v=202611092151';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092151';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1093,20 +1093,55 @@ function prPrestamos(m, pr, d) {
 }
 
 function prInversores(m, pr, d) {
-  const ia = d.inversoresActivos ?? [];
-  const suma = (k) => ia.reduce((s, x) => s + (x[k] ?? 0), 0);
-  const fecha = (x) => (x.fecha !== null ? esc(diaMes(x.fecha)) : esc(x.fechaTexto || '—'));
-  const tx = d.textos ?? {};
-  const hoyIdx = m.hoy.idx;
-  const liq = [...E.pendientes.values()].filter((p) => p.tipo === 'liquidar');
-  return `${ia.length ? seccionPF('t-inversores', 'rojo', 'Inversores activos', `${plural(ia.length, 'registro', 'registros')} · capital <b>${din(suma('capital'), 0)}</b> · pago mensual <b>${din(suma('pago'))}</b>`,
-    `${tablaPF([['Inversor'], ['Compromiso de pago'], ['Capital', 1], ['Pago mensual', 1]],
-      ia.map((x) => `<tr><td>${esc(x.nombre)}</td><td>${fecha(x)}</td><td class="num">${din(x.capital, 0)}</td><td class="num">${din(x.pago, 0)}</td></tr>`),
-      { pie: `<tr><td colspan="2">Total</td><td class="num">${din(suma('capital'), 0)}</td><td class="num">${din(suma('pago'))}</td></tr>` })}`) : '<p class="vacio">No encontré la tabla INVERSORES ACTIVOS en tu DASHBOARD.</p>'}
-  ${seccionPF('t-liquidar', 'rojo', 'Capital por liquidar', liq.length ? `${plural(liq.length, 'liquidación', 'liquidaciones')} en 30 días` : 'Nada en los próximos 30 días',
-    liq.length ? `<div class="lista-pend">${liq.map((p) => filaPendiente(p, hoyIdx)).join('')}</div>` : '<p class="vacio">Sin capital por liquidar en los próximos 30 días.</p>')}
-  ${tx.pagoMXN?.texto ? seccionPF('t-pago-mxn', 'rojo', 'Pago a inversores · MXN', (tx.pagoMXN.texto.match(/TOTAL MXN A PAGAR:\s*(\$?[\d.,]+)/i) ? `Este mes <b>${esc(tx.pagoMXN.texto.match(/TOTAL MXN A PAGAR:\s*(\$?[\d.,]+)/i)[1])}</b>` : ''), `<pre class="linea-hoja">${esc(ocultarImportes(tx.pagoMXN.texto))}</pre>`) : ''}
-  ${tx.pagoUSDT?.texto ? seccionPF('t-pago-usdt', 'rojo', 'Pago a inversores · USDT', (tx.pagoUSDT.texto.match(/TOTAL:\s*([^\n]+)/i) ? `Este mes <b>${esc(tx.pagoUSDT.texto.match(/TOTAL:\s*([^\n]+)/i)[1])}</b>` : ''), `<pre class="linea-hoja">${esc(ocultarImportes(tx.pagoUSDT.texto))}</pre>`) : ''}`;
+  const inv = pr.inversiones;
+  // Sin acceso al registro: la tabla del DASHBOARD como antes.
+  if (!inv) {
+    const ia = d.inversoresActivos ?? [];
+    const suma = (k) => ia.reduce((s, x) => s + (x[k] ?? 0), 0);
+    return ia.length ? seccionPF('t-inversores', 'rojo', 'Inversores activos', `${plural(ia.length, 'registro', 'registros')} · capital <b>${din(suma('capital'), 0)}</b> · pago mensual <b>${din(suma('pago'))}</b>`,
+      tablaPF([['Inversor'], ['Capital', 1], ['Pago mensual', 1]], ia.map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num">${din(x.pago, 0)}</td></tr>`)))
+      : '<p class="vacio">No encontré inversores activos en tu hoja.</p>';
+  }
+  if (!inv.length) return '<p class="vacio">No hay inversiones con estado ACTIVO en REGISTRO DE INVERSORES.</p>';
+  const importe = (monto, moneda) => (moneda === 'USDT'
+    ? `${esc(monto.toLocaleString('es-MX', { maximumFractionDigits: 2 }))} USDT <small>≈ ${din(monto * TIPO_CAMBIO_USDT, 0)} MXN</small>`
+    : `${din(monto, 0)} MXN`);
+  const chipPago = (x) => {
+    const p = x.pago;
+    if (p.estado === 'pagado') return `<span class="pf-estado ok">Pagado</span><span>${esc(diaMes(p.idx))} · ${importe(p.monto, p.moneda)}</span>`;
+    if (p.estado === 'pendiente') return `<span class="pf-estado pend">Pendiente</span><span>${esc(diaMes(p.idx))}${p.dias === 0 ? ' · hoy' : p.dias === 1 ? ' · mañana' : ` · en ${p.dias} días`} · ${importe(p.monto, p.moneda)}</span>`;
+    if (p.estado === 'atrasado') return `<span class="pf-estado mal">Atrasado</span><span>vencía ${esc(diaMes(p.idx))}${p.faltan > 1 ? ` · ${p.faltan} pagos sin registrar` : ''} · ${importe(p.monto, p.moneda)}</span>`;
+    if (p.estado === 'sin-pago') return `<span class="pf-estado neutro">Sin pago este mes</span><span>primero ${esc(diaMes(p.idx))} · ${importe(p.monto, p.moneda)}</span>`;
+    if (p.estado === 'sin-interes') return '<span class="pf-estado neutro">Sin interés</span><span>tasa 0%</span>';
+    return '<span class="pf-estado neutro">Sin dato</span>';
+  };
+  const liquidar = (x) => {
+    if (x.compromisoIdx === null) return '<span class="pf-liq">Sin fecha de liquidación</span>';
+    const fecha = fechaCorta(x.compromisoIdx).replace(/^\S+\s/, '');
+    const anio = ymdDesdeIdx(x.compromisoIdx).y;
+    if (!x.alertaLiquidar) return `<span class="pf-liq">Liquida capital ${esc(fecha)}${anio !== m.hoy.y ? ` ${anio}` : ''} · en ${x.diasLiquidar} días</span>`;
+    const txt = x.diasLiquidar < 0 ? `venció hace ${-x.diasLiquidar} ${-x.diasLiquidar === 1 ? 'día' : 'días'}` : x.diasLiquidar === 0 ? 'hoy' : `faltan ${x.diasLiquidar} ${x.diasLiquidar === 1 ? 'día' : 'días'}`;
+    return `<span class="pf-alerta">${icono('aviso')}Liquidar capital ${esc(fecha)}${anio !== m.hoy.y ? ` ${anio}` : ''} · ${esc(txt)}</span>`;
+  };
+  const filas = inv.map((x) => `<div class="pf-inv ${x.alertaLiquidar ? 'con-alerta' : ''}">
+      <div class="pf-inv-cab">
+        <span class="pf-inv-nombre">${esc(x.nombre)}<small>op. ${esc(String(x.op))} · ${x.divisa}${x.tasa !== null ? ` · ${esc(pctTxt(x.tasa, x.tasa * 100 % 1 ? 2 : 0))} mensual` : ''}</small></span>
+        <span class="pf-inv-capital">${x.divisa === 'USDT' && x.cantidad !== null ? `${esc(x.cantidad.toLocaleString('es-MX'))} USDT<small>${din(x.capitalMXN, 0)} MXN</small>` : din(x.capitalMXN, 0)}</span>
+      </div>
+      <div class="pf-inv-pago"><span class="pf-inv-etq">Pago ${esc(MESES[m.hoy.m - 1].toLowerCase())}</span>${chipPago(x)}</div>
+      ${liquidar(x)}
+    </div>`).join('');
+  const total = inv.reduce((s, x) => s + (x.capitalMXN ?? 0), 0);
+  const mensualMXN = inv.reduce((s, x) => s + (x.pagoMes ? (x.divisa === 'USDT' ? x.pagoMes * TIPO_CAMBIO_USDT : x.pagoMes) : 0), 0);
+  const pendientes = inv.filter((x) => ['pendiente', 'atrasado'].includes(x.pago.estado));
+  const alertas = inv.filter((x) => x.alertaLiquidar).length;
+  const resumen = [`${plural(inv.length, 'inversión', 'inversiones')} · capital <b>${din(total, 0)}</b>`,
+    pendientes.length ? `<b class="texto-rojo">${plural(pendientes.length, 'pago pendiente', 'pagos pendientes')}</b> este mes` : '<b class="texto-verde">pagos del mes al día</b>',
+    alertas ? `<b class="texto-rojo">⚠ ${plural(alertas, 'capital por liquidar', 'capitales por liquidar')} en 30 días</b>` : ''].filter(Boolean).join(' · ');
+  return seccionPF('t-inversores', 'rojo', 'Inversores activos', resumen,
+    `<div class="pf-invs">${filas}</div>
+    <div class="pf-inv-pie"><span>Intereses al mes <b>${din(mensualMXN, 0)} MXN</b></span><span>Capital total <b>${din(total, 0)} MXN</b></span></div>
+    <p class="nota">Pagos: registro de pagos de REGISTRO DE INVERSORES (columnas U:AA) contra los vencimientos mensuales desde la fecha de inicio. USDT a ${TIPO_CAMBIO_USDT} MXN. ${pr.inversionesUrl ? `<a href="${esc(pr.inversionesUrl)}" target="_blank" rel="noopener noreferrer">Abrir hoja ↗</a>` : ''}</p>`);
 }
 
 function prHistorial(m, pr, d) {

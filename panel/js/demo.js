@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092142';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092151';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -98,7 +98,17 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       'ESTADO', 'INTERES RESTANTE', 'PAGO MES', 'INT. GEN. DIA.', 'INT. TOTAL', 'TOT. DIAS ', 'TOT. MESES', 'FECHA DINAMICA'],
     [1, 'SI', serial(h - 28), 'INVERSOR DEMO UNO', 'MXN', 100000, '', 0.03, serial(h + 10), '', 'ACTIVO', 0, 3000, '', '', '', '', serial(h + 2)],
     [2, 'SI', serial(h - 26), 'INVERSOR DEMO DOS', 'USDT', 2000, 34000, 0.025, serial(h + 60), '', 'ACTIVO', 0, 50, '', '', '', '', serial(h + 4)],
+    [3, 'SI', serial(h - 70), 'INVERSOR DEMO TRES', 'MXN', 40000, '', 0.04, serial(h + 90), '', 'ACTIVO', 0, 1600, '', '', '', '', serial(h + 20)],
+    [4, 'SI', serial(h - 3), 'INVERSOR DEMO CUATRO', 'MXN', 60000, '', 0, serial(h + 200), '', 'ACTIVO', 0, 0, '', '', '', '', serial(h + 27)],
   ];
+  // Registro de pagos (columnas U:AA): el TRES ya pagó los dos meses que lleva.
+  const pagosInv = [[3, serial(h - 40), 1600, 40000, 'MXN', 'INVERSOR DEMO TRES', ''], [3, serial(h - 10), 1600, 40000, 'MXN', 'INVERSOR DEMO TRES', '']];
+  inversores[0].push('AUXILIAR', '', '', 'FECHA ', 'CANTIDAD', 'INVERTIDO', 'DIVISA', 'NOMBRE', 'AUXILIAR');
+  pagosInv.forEach((p, i) => {
+    const fila = inversores[i + 1];
+    while (fila.length < 20) fila.push('');
+    fila.push(...p);
+  });
   const pagoTxt = (n) => fmt(n).replace(/,/g, '.');
   const textoPrestamos = [
     '🟨 *RECORDATORIO 5 DÍAS*',

@@ -219,6 +219,15 @@ try {
       await pagina.locator('[data-pf="activos"] .pf-ver').click();
       await pagina.locator('[data-pf="t-prestamos"] > summary').click();
       revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Préstamos' && /100%/.test(await pagina.locator('[data-pf="t-prestamos"] tfoot').innerText()), 'Panel financiero: «Ver los…» abre la pestaña Préstamos con totales');
+      await pagina.locator('.pf-tab', { hasText: 'Inversores' }).click();
+      const secInv = await pagina.locator('.pf details.pf-sec').evaluateAll((els) => els.map((e) => e.dataset.pf));
+      revisar(secInv.join() === 't-inversores', `Inversores: una sola sección (${secInv.join(', ')})`);
+      await pagina.locator('[data-pf="t-inversores"] > summary').click();
+      const filasInv = await pagina.locator('.pf-inv').allInnerTexts();
+      revisar(filasInv.length === 4 && filasInv.every((t) => /Pagado|Pendiente|Atrasado|Sin pago este mes|Sin interés/.test(t)), 'Inversores: cada inversión muestra el estado del pago del mes');
+      const alerta = await pagina.locator('.pf-inv.con-alerta').allInnerTexts();
+      revisar(alerta.length === 1 && /INVERSOR DEMO UNO/.test(alerta[0]) && /faltan 10 días/.test(alerta[0]), 'Inversores: alerta de liquidación a 30 días o menos, con fecha y días');
+      revisar(/USDT/.test(filasInv.join(' ')) && /MXN/.test(filasInv.join(' ')), 'Inversores: importe con moneda (MXN o USDT)');
       await pagina.locator('.pf-tab', { hasText: 'Historial' }).click();
       await pagina.locator('[data-pf="h-flujo"] > summary').click();
       revisar(await pagina.locator('.df-cols .df-col').count() === 3, 'Panel financiero: historial con flujo mensual');

@@ -42,7 +42,8 @@ export const ARCHIVOS = {
     rangos: {
       dashboard: "'DASHBOARD'!A1:R150",
       registro: "'REGISTRO PRESTAMOS'!A8:M",
-      inversores: "'REGISTRO DE INVERSORES'!A9:R",
+      // A:R inversiones; U:AA registro de pagos de intereses (OP, FECHA, CANTIDAD, INVERTIDO, DIVISA, NOMBRE, AUXILIAR).
+      inversores: "'REGISTRO DE INVERSORES'!A9:AA",
     },
   },
   gastos: {
