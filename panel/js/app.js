@@ -1,18 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611082223';
-import { escribirCelda, leerRangos } from './api.js?v=202611082223';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611082223';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611082223';
-import { construirModelo, entregarCon } from './modelo.js?v=202611082223';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090047';
+import { escribirCelda, leerRangos } from './api.js?v=202611090047';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090047';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090047';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090047';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611082223';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611082223';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611082223';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611082223';
-import { fuentesDemo } from './demo.js?v=202611082223';
-import { icono } from './iconos.js?v=202611082223';
+} from './fechas.js?v=202611090047';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090047';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090047';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090047';
+import { fuentesDemo } from './demo.js?v=202611090047';
+import { icono } from './iconos.js?v=202611090047';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090047';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -78,6 +79,8 @@ async function arrancar() {
   document.addEventListener('click', alHacerClic);
   document.addEventListener('change', alCambiar);
   document.addEventListener('input', alEscribir);
+  document.addEventListener('submit', alEnviar);
+  document.addEventListener('toggle', (e) => { if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open; }, true);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
 
@@ -106,6 +109,7 @@ function cargarDemo() {
   }
   E.ultimaCompleta = ahora;
   E.modelo = construirModelo(datosDisponibles(E.fuentes), hoyCDMX());
+  if (!T.demo) usarDemo();
   pintar();
 }
 
@@ -132,7 +136,8 @@ async function actualizar({ interactivo = false } = {}) {
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    E.fuentes = await leerTodo(token, E.cfg.archivos, E.fuentes);
+    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token)]);
+    E.fuentes = fuentes;
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
     if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }
     if (!errores.length) E.ultimaCompleta = new Date();
@@ -177,8 +182,13 @@ function alHacerClic(evento) {
   if (accion === 'salir') {
     cerrarSesion();
     Object.assign(E, { modelo: null, fuentes: {}, ultimaCompleta: null, ultimoIntento: 0 });
+    Object.assign(T, { estado: 'sin-leer', lista: [], error: null });
     location.hash = '#/inicio';
     pintar();
+  }
+  if (accion === 'borrar-tarea') {
+    const t = tareaPorClave(el.dataset.tareaBorrar);
+    if (t && confirm(`¿Borrar la tarea «${t.texto}»?`)) borrarTarea(t, tokenParaEscribir, pintarTareas);
   }
   if (accion === 'copiar-mensaje') copiarMensaje(el);
   if (accion === 'marcar-pagado') marcarPagado(el);
@@ -298,6 +308,36 @@ async function copiarMensaje(boton) {
 }
 
 /** Vista previa: al editar el pago al DJ, recalcula «Enviar» con la fórmula de la hoja. */
+/** Token para escribir; si expiró, pide entrar de nuevo. */
+async function tokenParaEscribir() {
+  const token = tokenVigente();
+  if (token) return token;
+  return iniciarSesion();
+}
+
+function alEnviar(evento) {
+  const form = evento.target.closest?.('form[data-form="tarea"]');
+  if (!form) return;
+  evento.preventDefault();
+  const entrada = form.elements.tarea;
+  const texto = entrada.value;
+  if (!texto.trim()) { entrada.focus(); return; }
+  entrada.value = '';
+  agregarTarea(texto, tokenParaEscribir, pintarTareas);
+}
+
+/** Repinta solo la tarjeta de tareas, conservando el foco del cuadro de texto. */
+function pintarTareas() {
+  const caja = $('#tareas-caja');
+  if (!caja) return;
+  const entrada = caja.querySelector('input[name="tarea"]');
+  const enfocada = document.activeElement === entrada;
+  const borrador = entrada?.value ?? '';
+  caja.innerHTML = htmlTareas();
+  const nueva = caja.querySelector('input[name="tarea"]');
+  if (nueva) { nueva.value = borrador; if (enfocada) nueva.focus(); }
+}
+
 function alEscribir(evento) {
   const el = evento.target;
   if (!el.matches?.('input[data-fila-pagodj]')) return;
@@ -342,6 +382,10 @@ function marcarNegativos(raiz) {
 }
 
 function alCambiar(evento) {
+  if (evento.target.matches?.('input[data-tarea]')) {
+    alternarTarea(tareaPorClave(evento.target.dataset.tarea), tokenParaEscribir, pintarTareas);
+    return;
+  }
   const el = evento.target;
   if (el.id === 'sel-mes') { E.mes = Number(el.value); pintar(); }
   if (el.id === 'sel-auto') {
@@ -567,6 +611,7 @@ function vistaInicio(m) {
   const sel = selectorMes(fi);
   const mes = fi.meses?.[E.mes] ?? m.mesActual;
   return `
+  <article class="tarjeta tareas" id="tareas-caja">${htmlTareas()}</article>
   <section class="inicio-rejilla">
     <article class="tarjeta protagonista">
       <div class="tarjeta-cab"><h2 class="etq-cab">${icono('pendientes')}Pendientes</h2>${E.filtro ? `<button class="boton-texto" data-filtro="${E.filtro}">Quitar filtro</button>` : ''}</div>

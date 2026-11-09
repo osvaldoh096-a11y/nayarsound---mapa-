@@ -166,7 +166,7 @@ try {
       const escrituras = lecturas.slice(antes).filter((l) => l.metodo === 'PUT');
       revisar(escrituras.length === primera.eventos && escrituras.every((e) => e.valor === 'SI' && /^'AGENDA Y VENTAS'!T\d+$/.test(e.celda)),
         `Marcar pagado: escribe «SI» en PAGO de ${primera.eventos} evento(s) (${escrituras.map((e) => e.celda).join(', ')})`);
-      revisar(lecturas.every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT').every((l) => /^'AGENDA Y VENTAS'!(T|L)\d+$/.test(l.celda)), 'Solo se escribe en PAGO (T) y pago al DJ (L) de AGENDA Y VENTAS');
+      revisar(lecturas.filter((l) => l.clave !== 'tareas').every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT' && l.clave !== 'tareas').every((l) => /^'AGENDA Y VENTAS'!(T|L)\d+$/.test(l.celda)), 'Solo se escribe en PAGO (T) y pago al DJ (L) de AGENDA Y VENTAS');
     }
     const djs = await pagina.locator('.dia').first().locator('.dj').count();
     const primerDia = esperado.nayarsound.agenda.dias[0];
@@ -269,6 +269,44 @@ try {
     await pagina.selectOption('#sel-mes', String(esperado.finanzas.meses.length - 1));
     const gastos = await pagina.locator('.rejilla-tiles .tile').nth(1).innerText();
     revisar(/Celda vacía/.test(gastos) && !/\$0\.00/.test(gastos), 'Celda vacía se muestra como «Celda vacía», no como $0.00');
+    await contexto.close();
+  }
+
+  // ---------------------------------------------------------------- tareas
+  for (const movil of [false, true]) {
+    const { pagina, errores, lecturas, contexto } = await nuevaPagina(movil ? { ancho: 390, alto: 844, movil: true } : {});
+    await entrar(pagina);
+    await pagina.waitForSelector('#tareas-caja .tarea');
+    const caja = pagina.locator('#tareas-caja');
+    const yTareas = (await caja.boundingBox()).y;
+    const yPend = (await pagina.locator('.protagonista').boundingBox()).y;
+    revisar(yTareas < yPend, `Tareas arriba del Inicio${movil ? ' (celular)' : ''}`);
+    revisar(/Llamar al banco/.test(await caja.innerText()), 'Lee las tareas de la hoja TAREAS');
+    await caja.locator('input[name="tarea"]').fill('=HYPERLINK("x")  Comprar   cables');
+    await caja.locator('input[name="tarea"]').press('Enter');
+    for (let i = 0; i < 30 && !lecturas.tareas.some((f) => /cables/.test(f[0])); i++) await pagina.waitForTimeout(100);
+    const agregada = lecturas.tareas.find((f) => /cables/.test(f[0]));
+    revisar(agregada?.[0] === '=HYPERLINK("x") Comprar cables' && lecturas.some((l) => l.clave === 'tareas' && /:append$/.test(l.celda)), 'Agregar: añade una fila al final (texto tal cual, sin fórmula: RAW)');
+    revisar(await caja.locator('input[name="tarea"]').inputValue() === '', 'El cuadro se vacía al agregar');
+    await pagina.waitForFunction(() => !document.querySelector('#tareas-caja input[type=checkbox][disabled]'));
+    await caja.locator('.tarea', { hasText: 'Llamar al banco' }).locator('input[type=checkbox]').check();
+    for (let i = 0; i < 30 && lecturas.tareas[1][1] !== 'SI'; i++) await pagina.waitForTimeout(100);
+    revisar(lecturas.tareas[1][1] === 'SI' && /^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(lecturas.tareas[1][3]), 'Marcar hecha: escribe SI y la fecha en la fila correcta');
+    revisar(/1 hecha/.test(await caja.innerText()), 'Las hechas se agrupan aparte');
+    pagina.once('dialog', (d) => d.accept());
+    await caja.locator('.tarea', { hasText: 'cables' }).locator('[data-accion="borrar-tarea"]').click();
+    for (let i = 0; i < 30 && lecturas.tareas.some((f) => /cables/.test(f[0] ?? '')); i++) await pagina.waitForTimeout(100);
+    revisar(!lecturas.tareas.some((f) => /cables/.test(f[0] ?? '')) && !/cables/.test(await caja.innerText()), 'Borrar: vacía la fila en la hoja y la quita de la lista');
+    revisar(lecturas.filter((l) => l.clave === 'tareas' && l.metodo !== 'GET').every((l) => /^'TAREAS'!/.test(l.celda)), 'Las tareas solo escriben en la pestaña TAREAS de su propio archivo');
+    // La fila cambió en la hoja: no se toca.
+    lecturas.tareas[1][0] = 'Otra cosa';
+    await caja.locator('details.tareas-hechas summary').click();
+    await caja.locator('.tarea', { hasText: 'Llamar al banco' }).locator('input[type=checkbox]').click();
+    await pagina.waitForSelector('#tareas-caja .tareas-error');
+    revisar(lecturas.tareas[1][1] === 'SI', 'Si la fila cambió en la hoja, no escribe y avisa');
+    if (capturas && movil) await pagina.screenshot({ path: `${capturas}/tareas-movil.png`, fullPage: false });
+    if (capturas && !movil) await pagina.screenshot({ path: `${capturas}/tareas.png`, fullPage: false });
+    revisar(!errores.length, `Sin errores de consola en tareas: ${errores.join(' | ')}`);
     await contexto.close();
   }
 

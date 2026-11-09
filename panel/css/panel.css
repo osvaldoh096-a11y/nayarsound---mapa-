@@ -189,6 +189,28 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 .enlace-vista:hover .icono { transform: translateX(2px); }
 .par { display: flex; gap: 36px; }
 
+/* ---------- Tareas ---------- */
+.tareas { margin-bottom: 18px; }
+.tareas .tarjeta-cab { margin-bottom: 10px; }
+.tareas .tarjeta-cab h2 { margin-right: auto; }
+.cuenta-tareas { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--azul-fondo); color: var(--azul); font-size: 12px; font-weight: 650; margin-left: 4px; }
+.tareas-estado { color: var(--tenue); font-size: 12.5px; }
+.tarea-nueva { display: flex; gap: 8px; margin-bottom: 8px; }
+.tarea-nueva input { flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 10px 12px; border: 1px solid var(--borde); border-radius: 10px; background: var(--tarjeta); color: var(--tinta); }
+.tarea-nueva input:focus { outline: none; border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-fondo); }
+.lista-tareas { list-style: none; margin: 0; padding: 0; }
+.tarea { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--borde); }
+.tarea:last-child { border-bottom: 0; }
+.tarea-marca { flex: 1; display: flex; align-items: center; gap: 12px; padding: 11px 2px; cursor: pointer; min-width: 0; }
+.tarea-marca input { width: 20px; height: 20px; flex: none; accent-color: var(--verde); cursor: pointer; }
+.tarea-texto { font-size: 15px; overflow-wrap: anywhere; }
+.tarea.hecha .tarea-texto { color: var(--tenue); text-decoration: line-through; }
+.tarea-borrar { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--tenue); font-size: 20px; line-height: 1; cursor: pointer; }
+.tarea-borrar:hover { background: var(--coral-fondo); color: var(--coral-tinta); }
+.tareas-hechas { margin-top: 8px; }
+.tareas-hechas summary { cursor: pointer; color: var(--tenue); font-size: 13px; font-weight: 600; padding: 6px 0; }
+.tareas-error { color: var(--rojo-tinta); font-size: 13px; margin: 4px 0 8px; }
+
 /* ---------- Inicio ---------- */
 .inicio-rejilla {
   display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; margin-bottom: 28px;

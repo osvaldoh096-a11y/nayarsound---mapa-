@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ARCHIVOS, ORDEN_ARCHIVOS } from '../js/fuentes.js';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TAREAS } from '../js/fuentes.js';
 
 const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
 const TIPOS = {
@@ -40,7 +40,7 @@ export const IDS = Object.fromEntries(ORDEN_ARCHIVOS.map((k) => [k, ARCHIVOS[k].
  * datos: { [clave]: { meta: {titulo, zona, pestanas}, valores: [rango1, rango2, ...] } }
  * fallas: { [clave]: estadoHttp | () => estadoHttp } para simular errores.
  */
-export async function simularGoogle(contexto, datos, { fallas = {} } = {}) {
+export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['TAREA', 'HECHA', 'CREADA', 'COMPLETADA'], ['Llamar al banco', '', '2026-11-01 10:00', '']] } = {}) {
   await contexto.addInitScript(() => {
     window.google = { accounts: { oauth2: {
       initTokenClient: (cfg) => ({
@@ -83,8 +83,10 @@ export async function simularGoogle(contexto, datos, { fallas = {} } = {}) {
   await contexto.route('https://sheets.googleapis.com/**', async (ruta) => {
     const url = new URL(ruta.request().url());
     const metodo = ruta.request().method();
-    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, PUT' };
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, PUT, POST' };
     if (metodo === 'OPTIONS') return ruta.fulfill({ status: 204, headers: cors });
+    if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });
+    if (url.pathname.includes(`/spreadsheets/${TAREAS.id}/`)) return tareasSim(ruta, url, metodo, cors);
     const m = url.pathname.match(/\/v4\/spreadsheets\/([^/:]+)\/values(?::batchGet|\/(.+))$/);
     const clave = m && porId[decodeURIComponent(m[1])];
     if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });
@@ -106,6 +108,38 @@ export async function simularGoogle(contexto, datos, { fallas = {} } = {}) {
     const valueRanges = url.searchParams.getAll('ranges').map((r) => ({ range: r, values: recorte(clave, r) }));
     return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ valueRanges }) });
   });
+  // Hoja de tareas en memoria (A1 = encabezados).
+  function tareasSim(ruta, url, metodo, cors) {
+    const ok = (cuerpo) => ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
+    const sub = decodeURIComponent(url.pathname.split('/values')[1] ?? '');
+    const celdas = (r) => partir(r.replace(/:(append|clear)$/, ''));
+    if (metodo === 'GET') {
+      lecturas.push({ metodo, clave: 'tareas' });
+      return ok({ valueRanges: url.searchParams.getAll('ranges').map((r) => {
+        const c = celdas(r);
+        const salida = [];
+        for (let f = c.f1; f <= (c.f2 ?? tareas.length); f++) salida.push(Array.from({ length: c.c2 - c.c1 + 1 }, (_, k) => tareas[f - 1]?.[c.c1 - 1 + k] ?? ''));
+        while (salida.length && salida.at(-1).every((v) => v === '')) salida.pop();
+        return { range: r, values: salida };
+      }) });
+    }
+    const cuerpo = JSON.parse(ruta.request().postData() ?? '{}');
+    const rango = sub.replace(/^\//, '');
+    lecturas.push({ metodo, clave: 'tareas', celda: rango, valor: cuerpo.values?.[0] });
+    if (rango.endsWith(':append')) {
+      tareas.push([...cuerpo.values[0]]);
+      return ok({ updates: { updatedRange: `TAREAS!A${tareas.length}:D${tareas.length}` } });
+    }
+    const c = celdas(rango);
+    if (rango.endsWith(':clear')) {
+      for (let k = c.c1; k <= c.c2; k++) if (tareas[c.f1 - 1]) tareas[c.f1 - 1][k - 1] = '';
+      return ok({});
+    }
+    const fila = tareas[c.f1 - 1] ?? (tareas[c.f1 - 1] = []);
+    fila[c.c1 - 1] = cuerpo.values[0][0];
+    return ok({});
+  }
+  lecturas.tareas = tareas;
   return lecturas;
 }
 

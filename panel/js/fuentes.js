@@ -56,3 +56,12 @@ export const ARCHIVOS = {
 };
 
 export const ORDEN_ARCHIVOS = ['nayarsound', 'agenda', 'prestamos', 'gastos'];
+
+// Lista de tareas del Inicio: un archivo propio, aparte de tus hojas de
+// negocio. Columnas: TAREA, HECHA (SI), CREADA, COMPLETADA.
+export const TAREAS = {
+  nombre: 'TO DO · Dashboard personal',
+  id: '1A49h6L76bZUVkUaIzf_lYCwG2Hh-biPjbwGbYXpJrz4',
+  pestana: 'TAREAS',
+  gid: 1899581123,
+};

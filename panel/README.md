@@ -47,6 +47,15 @@ Los eventos se cuentan aparte. Colores:
 
 **Mes actual.** Hoy, mañana y el mes actual se calculan con la hora de Ciudad de México. El selector de mes ofrece los meses que tiene la tabla de tu hoja.
 
+### Tareas (arriba del Inicio)
+
+Se guardan en su propia hoja, «TO DO · Dashboard personal» (pestaña `TAREAS`:
+TAREA, HECHA, CREADA, COMPLETADA), aparte de tus hojas de negocio. Desde el panel
+puedes agregar (se añade una fila; el texto se guarda tal cual, sin fórmulas),
+marcar como hecha (escribe `SI` y la fecha) y borrar (vacía la fila). Antes de
+cambiar o borrar, el panel comprueba que la fila sigue siendo la misma tarea.
+También puedes editarlas directamente en Sheets; se ven al actualizar.
+
 ## 2. Acceso y seguridad
 
 - **Google:** el proyecto de Google Cloud «dashboard personal» tiene un ID de cliente en `js/fuentes.js` (no es secreto) y solo acepta el origen `https://osvaldoh096-a11y.github.io`.
