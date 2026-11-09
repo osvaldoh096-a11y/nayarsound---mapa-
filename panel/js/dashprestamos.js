@@ -3,8 +3,8 @@
 // inversores activos, cashflow y pagos) buscando cada uno por su título.
 // No recalcula nada: muestra lo que tu hoja ya calcula.
 
-import { normalizar, idxDesdeSerial } from './fechas.js?v=202611092122';
-import { letraColumna } from './sheets.js?v=202611092122';
+import { normalizar, idxDesdeSerial } from './fechas.js?v=202611092128';
+import { letraColumna } from './sheets.js?v=202611092128';
 
 /** Importe de una celda: número, o texto como «$ 18,696.68» o « $ -   » (cero). */
 export function importeCelda(v) {

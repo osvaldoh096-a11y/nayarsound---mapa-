@@ -1,20 +1,20 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092122';
-import { escribirCelda, leerRangos } from './api.js?v=202611092122';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092122';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092122';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092122';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092128';
+import { escribirCelda, leerRangos } from './api.js?v=202611092128';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092128';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092128';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092128';
 import {
-  hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611092122';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092122';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092122';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092122';
-import { fuentesDemo } from './demo.js?v=202611092122';
-import { leerCashflow } from './dashprestamos.js?v=202611092122';
-import { icono } from './iconos.js?v=202611092122';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092122';
+  hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes,
+} from './fechas.js?v=202611092128';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092128';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092128';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092128';
+import { fuentesDemo } from './demo.js?v=202611092128';
+import { leerCashflow } from './dashprestamos.js?v=202611092128';
+import { icono } from './iconos.js?v=202611092128';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092128';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -46,7 +46,6 @@ const E = {
   ultimoIntento: 0,
   pendientes: new Map(),
   limpiar: [],
-  abiertos: new Set(),
 };
 
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
@@ -87,8 +86,11 @@ async function arrancar() {
     if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open;
     if (e.target.id === 'deuda-desplegable') E.deudaAbierta = e.target.open;
     if (e.target.id === 'controles-desplegable') E.controlesAbierto = e.target.open;
-    if (e.target.dataset?.desplegable) {
-      if (e.target.open) E.abiertos.add(e.target.dataset.desplegable); else E.abiertos.delete(e.target.dataset.desplegable);
+    if (e.target.dataset?.dash) {
+      const cerrados = new Set(E.pref.dashCerrados ?? []);
+      if (e.target.open) cerrados.delete(e.target.dataset.dash); else cerrados.add(e.target.dataset.dash);
+      E.pref.dashCerrados = [...cerrados];
+      guardarPreferencias(E.pref);
     }
   }, true);
   document.addEventListener('visibilitychange', revisarAuto);
@@ -900,125 +902,195 @@ function listaAvisos(avisos, titulo) {
 
 // ------------------------------------------------------------------ Préstamos
 
-/** Tarjeta que empieza contraída y se abre al tocarla. */
-function desplegable(id, titulo, resumen, cuerpo) {
-  return `<details class="tarjeta desplegable" data-desplegable="${esc(id)}" ${E.abiertos.has(id) ? 'open' : ''}>
-    <summary>
-      <span class="desp-cab"><h2>${esc(titulo)}</h2>${icono('flecha', 'desp-flecha')}</span>
-      <span class="desp-texto">${resumen}</span>
-    </summary>
-    <div class="desp-cuerpo">${cuerpo}</div>
+/** Tarjeta del dashboard: abierta por defecto; si la cierras se recuerda. */
+function bloqueDash(id, titulo, extra, cuerpo, { ancho = false } = {}) {
+  const cerrado = (E.pref.dashCerrados ?? []).includes(id);
+  return `<details class="tarjeta df-bloque ${ancho ? 'df-ancho' : ''}" data-dash="${esc(id)}" ${cerrado ? '' : 'open'}>
+    <summary><span class="df-titulo">${esc(titulo)}</span>${extra ? `<span class="df-extra">${extra}</span>` : ''}${icono('flecha', 'desp-flecha')}</summary>
+    <div class="df-cuerpo">${cuerpo}</div>
   </details>`;
 }
 
 const din = (v, dec = 2) => (typeof v === 'number' ? esc(dinero(v, dec)) : '<span class="sin-dato">—</span>');
-const pctTxt = (v) => (typeof v === 'number' ? `${(v * 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—');
+const pctTxt = (v, dec = 1) => (typeof v === 'number' ? `${(v * 100).toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec })}%` : '—');
 const nombreBonito = (t) => capitalizar(String(t ?? '').toLowerCase());
+const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-function tablaSimple(columnas, filas, pie = '') {
-  return `<div class="tabla-desliza"><table class="tabla"><thead><tr>${columnas.map(([t, num]) => `<th class="${num ? 'num' : ''}">${esc(t)}</th>`).join('')}</tr></thead>
-    <tbody>${filas.join('')}</tbody>${pie ? `<tfoot>${pie}</tfoot>` : ''}</table></div>`;
+/** Columnas con cero al centro: verdes hacia arriba, coral hacia abajo. */
+function columnasFlujo(items) {
+  const vals = items.map((i) => i.valor ?? 0);
+  const max = Math.max(0, ...vals);
+  const min = Math.min(0, ...vals);
+  const rango = (max - min) || 1;
+  const pos = (max / rango) * 100;
+  const cols = items.map((i) => {
+    const v = i.valor ?? 0;
+    const alto = (Math.abs(v) / (v >= 0 ? (max || 1) : (-min || 1))) * 100;
+    return `<div class="df-col" data-tip="${esc(`${i.etiqueta}: ${dinero(v)}`)}" tabindex="0">
+      <div class="df-arriba">${v > 0 ? `<i class="df-barra pos" style="height:${alto}%"></i>` : ''}</div>
+      <div class="df-abajo">${v < 0 ? `<i class="df-barra neg" style="height:${alto}%"></i>` : ''}</div>
+      ${i.marca ? `<span class="df-marca">${esc(i.marca)}</span>` : ''}
+    </div>`;
+  }).join('');
+  return `<div class="df-cols" style="--pos:${pos}%">${cols}</div>`;
 }
 
-/** Bloques del DASHBOARD de 💵REGISTRO DE PRESTAMOS, cada uno desplegable. */
+/** Pares de columnas (dos medidas por periodo) desde la base. */
+function columnasPares(items, [a, b]) {
+  const max = Math.max(1, ...items.flatMap((i) => [i[a.clave] ?? 0, i[b.clave] ?? 0]));
+  return `<div class="df-pares">${items.map((i) => `
+    <div class="df-par" data-tip="${esc(`${i.etiqueta} · ${a.nombre}: ${dinero(i[a.clave] ?? 0)} · ${b.nombre}: ${dinero(i[b.clave] ?? 0)}${i.ganancia !== undefined ? ` · ganancia: ${dinero(i.ganancia ?? 0)}` : ''}`)}" tabindex="0">
+      <div class="df-par-barras"><i class="df-barra ${a.clase}" style="height:${((i[a.clave] ?? 0) / max) * 100}%"></i><i class="df-barra ${b.clase}" style="height:${((i[b.clave] ?? 0) / max) * 100}%"></i></div>
+      <span class="df-par-etq">${esc(i.corto ?? i.etiqueta)}</span>
+    </div>`).join('')}</div>
+    <div class="leyenda"><span><i class="muestra ${a.clase}"></i>${esc(a.nombre)}</span><span><i class="muestra ${b.clase}"></i>${esc(b.nombre)}</span></div>`;
+}
+
+/** Filas con barra horizontal y su % del total (concentración). */
+function filasParticipacion(items, { columnas = [] } = {}) {
+  const total = items.reduce((t, i) => t + (i.valor ?? 0), 0) || 1;
+  const max = Math.max(1, ...items.map((i) => i.valor ?? 0));
+  return `<div class="df-part">${items.map((i) => `
+    <div class="df-part-fila" data-tip="${esc(`${i.nombre}: ${dinero(i.valor ?? 0)} (${pctTxt((i.valor ?? 0) / total)})`)}" tabindex="0">
+      <span class="df-part-nombre">${esc(i.nombre)}${i.sub ? `<small>${i.sub}</small>` : ''}</span>
+      <span class="df-part-pista"><i style="width:${Math.max(1, ((i.valor ?? 0) / max) * 100)}%"></i></span>
+      <span class="df-part-valor">${din(i.valor, 0)}<small>${pctTxt((i.valor ?? 0) / total)}</small></span>
+      ${columnas.map((c) => `<span class="df-part-dato"><small>${esc(c.nombre)}</small>${i[c.clave] ?? ''}</span>`).join('')}
+    </div>`).join('')}</div>`;
+}
+
+/** Líneas «👤 NOMBRE | 🧾 04-nov | 💰 $380» del resumen de cobro. */
+function leerCobros(texto) {
+  const grupos = [];
+  let actual = null;
+  for (const l of String(texto ?? '').split('\n').map((x) => x.trim()).filter(Boolean)) {
+    const fila = l.match(/^👤\s*(.+?)\s*\|\s*🧾\s*([^|]+?)\s*\|\s*💰\s*\$?\s*([\d.,]+)/u);
+    if (fila && actual) { actual.filas.push({ nombre: fila[1], fecha: fila[2], monto: Number(fila[3].replace(/[.,]/g, '')) }); continue; }
+    const total = l.match(/TOTAL PENDIENTE (ESTE|PRÓXIMO|PROXIMO) MES:\s*\$?([\d.,]+)/iu);
+    if (total && /📊/u.test(l) && actual) { actual.total = Number(total[2].replace(/[.,]/g, '')); continue; }
+    if (/^(🟢|🔵|⏳)/u.test(l)) { actual = { titulo: nombreBonito(l.replace(/^\S+\s*/u, '')), filas: [] }; grupos.push(actual); }
+  }
+  return grupos.filter((g) => g.filas.length);
+}
+
+/** Dashboard financiero de 💵REGISTRO DE PRESTAMOS (mismos datos que tu DASHBOARD). */
 function dashboardFinanciero(d) {
   if (!d?.secciones) return '';
-  const partes = [];
-  const hoja = d.url ? `<p class="nota"><a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">Abrir DASHBOARD en Sheets ↗</a></p>` : '';
+  const r = Object.fromEntries((d.resumen ?? []).map((x) => [normalizar(x.etiqueta), x.valor]));
+  const v = (k) => (typeof r[k] === 'number' ? r[k] : null);
+  const prestado = v('CAPITAL PRESTADO'); const propio = v('CAPITAL PROPIO'); const inversores = v('CAPITAL DE INVERSORES');
+  const h = d.historico ?? {};
 
-  if (d.resumen?.length) {
-    const val = (r) => (r.esPct ? esc(pctTxt(r.valor)) : din(r.valor));
-    const clave = (re) => d.resumen.find((r) => re.test(normalizar(r.etiqueta)));
-    const prestado = clave(/CAPITAL PRESTADO/); const proy = clave(/PROYECCION/);
-    partes.push(desplegable('pr-resumen', 'Resumen financiero',
-      [prestado && `Capital prestado <b>${val(prestado)}</b>`, proy && `proyección mensual <b>${val(proy)}</b>`].filter(Boolean).join(' · '),
-      `<dl class="lista-datos">${d.resumen.map((r) => `<div><dt>${esc(nombreBonito(r.etiqueta))}</dt><dd>${val(r)}</dd></div>`).join('')}</dl>`));
-  }
+  // ---- Indicadores principales
+  const kpi = (clase, ico, etiqueta, valor, sub) => `<article class="tarjeta tile df-kpi ${clase}">
+    <div class="tile-cab"><span class="tile-icono">${icono(ico)}</span><h3 class="etq">${etiqueta}</h3></div>
+    <div class="cifra">${valor}</div><div class="sub">${sub}</div></article>`;
+  const mezcla = prestado && propio !== null && inversores !== null
+    ? `<div class="df-mezcla" data-tip="${esc(`Propio ${dinero(propio)} · Inversores ${dinero(inversores)}`)}"><i class="propio" style="width:${(propio / (propio + inversores)) * 100}%"></i><i class="inversores"></i></div>
+       <div class="df-mezcla-etq"><span><i class="muestra propio"></i>Propio ${esc(pctTxt(propio / (propio + inversores), 0))}</span><span><i class="muestra inversores"></i>Inversores ${esc(pctTxt(inversores / (propio + inversores), 0))}</span></div>` : '';
+  const kpis = `<section class="df-kpis">
+    ${kpi('df-k-capital', 'prestamos', 'Capital prestado', din(prestado), mezcla)}
+    ${kpi('df-k-proy', 'ganancia', 'Proyección mensual', din(v('PROYECCION MENSUAL')), `Interés promedio <b>${esc(pctTxt(v('INTERES PROMEDIO MENSUAL'), 2))}</b> · ${din(v('INTERES GENERADO POR DIA'))} por día`)}
+    ${kpi('df-k-pend', 'cobrar', 'Interés pendiente por cobrar', din(v('PENDIENTE INTERES A COBRAR')), `A inversores: ${din(v('PENDIENTE INTERES A INVERSORES'))} · restante propio ${din(v('RESTANTE PROPIO'))}`)}
+    ${kpi('df-k-hist', 'finanzas', 'Ganancia histórica', din(h.ganancia), `${h.anios ? `${esc(String(h.anios))} años · ` : ''}generado ${din(h.generado, 0)} · pagado ${din(h.pagado, 0)}`)}
+  </section>`;
 
-  if (d.historico || d.porAnio?.length) {
-    const h = d.historico ?? {};
-    const filas = (d.porAnio ?? []).map((a) => `<tr><td>${esc(a.anio)}</td><td class="num">${din(a.generado)}</td><td class="num">${din(a.pagado)}</td><td class="num"><b>${din(a.ganancia)}</b></td></tr>`);
-    const pie = d.historico ? `<tr><td>Total (${esc(String(h.anios ?? ''))} años)</td><td class="num">${din(h.generado)}</td><td class="num">${din(h.pagado)}</td><td class="num">${din(h.ganancia)}</td></tr>` : '';
-    partes.push(desplegable('pr-historico', 'Ganancias históricas',
-      `Ganancia total <b>${din(h.ganancia)}</b>${h.anios ? ` en ${esc(String(h.anios))} años` : ''}`,
-      tablaSimple([['Año'], ['Generado', 1], ['Pagado', 1], ['Ganancia', 1]], filas, pie)));
-  }
+  const bloques = [];
 
-  if (d.meses?.filas?.length) {
-    const t = d.meses.total;
-    const filas = d.meses.filas.map((x) => `<tr><td>${esc(nombreBonito(x.mes))}</td><td class="num">${din(x.cobrado)}</td><td class="num">${din(x.pagado)}</td><td class="num"><b>${din(x.ganancia)}</b></td></tr>`);
-    const pie = t ? `<tr><td>${esc(nombreBonito(t.etiqueta))}</td><td class="num">${din(t.cobrado)}</td><td class="num">${din(t.pagado)}</td><td class="num">${din(t.ganancia)}</td></tr>` : '';
-    partes.push(desplegable('pr-meses', `Ganancia por mes${d.meses.anio ? ` · ${d.meses.anio}` : ''}`,
-      t ? `Intereses cobrados <b>${din(t.cobrado)}</b> · ganancia <b>${din(t.ganancia)}</b>` : plural(d.meses.filas.length, 'mes', 'meses'),
-      `${tablaSimple([['Mes'], ['Intereses cobrados', 1], ['Pagado', 1], ['Ganancia', 1]], filas, pie)}
-      <p class="nota">El año lo eliges en tu hoja (celda «AÑO» del DASHBOARD).</p>`));
-  }
-
+  // ---- Flujo mensual (todas las barras del histórico)
   if (d.flujo?.length) {
-    const conValor = d.flujo.filter((x) => typeof x.ganancia === 'number');
-    const ultimo = conValor.at(-1);
-    const filas = [...d.flujo].reverse().map((x) => `<tr><td>${esc(nombreBonito(x.mes))}</td><td class="num">${din(x.ganancia)}</td></tr>`);
-    partes.push(desplegable('pr-flujo', 'Flujo histórico',
-      `${plural(d.flujo.length, 'mes', 'meses')}${ultimo ? ` · ${esc(nombreBonito(ultimo.mes))}: <b>${din(ultimo.ganancia)}</b>` : ''}`,
-      `${tablaSimple([['Mes'], ['Ganancia', 1]], filas)}<p class="nota">Del mes más reciente al más antiguo.</p>`));
+    const items = d.flujo.filter((x) => x.mes).map((x) => {
+      const m = leerEtiquetaMes(x.mes);
+      return { etiqueta: m ? nombreMes(m.y, m.m) : nombreBonito(x.mes), valor: x.ganancia ?? 0, marca: m && m.m === 1 ? String(m.y) : '' };
+    });
+    const conValor = items.filter((x) => x.valor !== 0);
+    const mejor = conValor.reduce((a, b) => (b.valor > (a?.valor ?? -Infinity) ? b : a), null);
+    const peor = conValor.reduce((a, b) => (b.valor < (a?.valor ?? Infinity) ? b : a), null);
+    const positivos = items.filter((x) => x.valor > 0).length;
+    bloques.push(bloqueDash('flujo', 'Flujo mensual', `${plural(items.length, 'mes', 'meses')} · ${positivos} en positivo`,
+      `${columnasFlujo(items)}
+      <div class="df-notas">${mejor ? `<span>Mejor mes <b>${esc(mejor.etiqueta)}</b> ${din(mejor.valor)}</span>` : ''}${peor ? `<span>Peor mes <b>${esc(peor.etiqueta)}</b> ${din(peor.valor)}</span>` : ''}</div>`, { ancho: true }));
   }
 
+  // ---- Ganancias por año
+  if (d.porAnio?.length) {
+    const items = d.porAnio.map((a) => ({ etiqueta: a.anio, corto: a.anio, generado: a.generado ?? 0, pagado: a.pagado ?? 0, ganancia: a.ganancia }));
+    bloques.push(bloqueDash('anios', 'Ganancias por año', `Total ${din(h.ganancia)}`,
+      `${columnasPares(items, [{ clave: 'generado', nombre: 'Generado', clase: 's-generado' }, { clave: 'pagado', nombre: 'Pagado a inversores', clase: 's-pagado' }])}
+      <div class="df-mini-tabla">${d.porAnio.map((a) => `<div><span>${esc(a.anio)}</span><b>${din(a.ganancia)}</b></div>`).join('')}</div>`));
+  }
+
+  // ---- Año en curso por mes
+  if (d.meses?.filas?.length) {
+    const items = d.meses.filas.map((x) => {
+      const m = leerEtiquetaMes(x.mes);
+      return { etiqueta: m ? nombreMes(m.y, m.m) : nombreBonito(x.mes), corto: m ? MES_CORTO[m.m - 1] : x.mes.slice(0, 3), cobrado: x.cobrado ?? 0, pagado: x.pagado ?? 0, ganancia: x.ganancia };
+    });
+    const t = d.meses.total;
+    bloques.push(bloqueDash('meses', `${d.meses.anio || 'Año'} mes a mes`, t ? `Ganancia ${din(t.ganancia)}` : '',
+      `${columnasPares(items, [{ clave: 'cobrado', nombre: 'Intereses cobrados', clase: 's-generado' }, { clave: 'pagado', nombre: 'Pagado', clase: 's-pagado' }])}
+      ${t ? `<div class="df-mini-tabla"><div><span>Cobrado</span><b>${din(t.cobrado)}</b></div><div><span>Pagado</span><b>${din(t.pagado)}</b></div><div><span>Ganancia</span><b>${din(t.ganancia)}</b></div></div>` : ''}`));
+  }
+
+  // ---- Cartera de préstamos activos (concentración)
   if (d.prestamosActivos?.length) {
-    const a = d.prestamosActivos;
+    const a = [...d.prestamosActivos].sort((x, y) => (y.capital ?? 0) - (x.capital ?? 0));
     const suma = (k) => a.reduce((t, x) => t + (x[k] ?? 0), 0);
-    const filas = a.map((x) => `<tr><td><b>${esc(x.nombre)}</b></td><td class="num">${din(x.capital)}</td><td class="num">${din(x.interes)}</td><td class="num">${din(x.pago)}</td></tr>`);
-    const pie = `<tr><td>Total</td><td class="num">${din(suma('capital'))}</td><td class="num">${din(suma('interes'))}</td><td class="num">${din(suma('pago'))}</td></tr>`;
-    partes.push(desplegable('pr-activos', 'Préstamos activos',
-      `${plural(a.length, 'préstamo', 'préstamos')} · capital <b>${din(suma('capital'))}</b> · pago mensual <b>${din(suma('pago'))}</b>`,
-      tablaSimple([['Nombre'], ['Capital total', 1], ['Interés restante', 1], ['Pago mensual', 1]], filas, pie)));
+    bloques.push(bloqueDash('cartera', 'Cartera de préstamos', `${plural(a.length, 'cliente', 'clientes')} · ${din(suma('capital'), 0)}`,
+      `${filasParticipacion(a.map((x) => ({ nombre: x.nombre, valor: x.capital, pago: din(x.pago, 0), interes: din(x.interes, 0) })),
+        { columnas: [{ clave: 'pago', nombre: 'Pago mensual' }, { clave: 'interes', nombre: 'Interés restante' }] })}
+      <div class="df-mini-tabla"><div><span>Pago mensual total</span><b>${din(suma('pago'))}</b></div><div><span>Interés restante</span><b>${din(suma('interes'))}</b></div></div>`, { ancho: true }));
   }
 
+  // ---- Inversores
   if (d.inversoresActivos?.length) {
-    const a = d.inversoresActivos;
+    const a = [...d.inversoresActivos].sort((x, y) => (y.capital ?? 0) - (x.capital ?? 0));
     const suma = (k) => a.reduce((t, x) => t + (x[k] ?? 0), 0);
     const fecha = (x) => (x.fecha !== null ? esc(fechaCorta(x.fecha)) : esc(x.fechaTexto || '—'));
-    const filas = a.map((x) => `<tr><td><b>${esc(x.nombre)}</b></td><td>${fecha(x)}</td><td class="num">${din(x.capital)}</td><td class="num">${din(x.pago)}</td></tr>`);
-    const pie = `<tr><td colspan="2">Total</td><td class="num">${din(suma('capital'))}</td><td class="num">${din(suma('pago'))}</td></tr>`;
-    partes.push(desplegable('pr-inversores', 'Inversores activos',
-      `${plural(a.length, 'inversor', 'inversores')} · capital <b>${din(suma('capital'))}</b> · pago mensual <b>${din(suma('pago'))}</b>`,
-      tablaSimple([['Nombre'], ['Compromiso de pago'], ['Capital total', 1], ['Pago mensual', 1]], filas, pie)));
+    bloques.push(bloqueDash('inversores', 'Inversores', `${plural(a.length, 'inversor', 'inversores')} · ${din(suma('capital'), 0)}`,
+      `${filasParticipacion(a.map((x) => ({ nombre: x.nombre, valor: x.capital, pago: din(x.pago, 0), fecha: fecha(x) })),
+        { columnas: [{ clave: 'pago', nombre: 'Pago mensual' }, { clave: 'fecha', nombre: 'Compromiso' }] })}
+      <div class="df-mini-tabla"><div><span>Pago mensual total</span><b>${din(suma('pago'))}</b></div></div>`, { ancho: true }));
   }
 
+  // ---- Cashflow: este mes y el siguiente
   const tx = d.textos ?? {};
   if (tx.cashflowActual || tx.cashflowSiguiente) {
-    const bloque = (titulo, t) => {
-      if (!t) return '';
-      const c = leerCashflow(t.texto);
-      return `<div class="cashflow"><h3>${titulo}</h3>${c.ingresos !== null ? `<div class="fin-fila">
-        <div class="fin-dato fin-ganancia"><div class="cifra">${din(c.ingresos, 0)}</div><div class="sub">ingresos</div></div>
-        <div class="fin-dato fin-gasto"><div class="cifra">${din(c.pagos, 0)}</div><div class="sub">pagos</div></div>
-        <div class="fin-dato fin-sobrante ${c.balance < 0 ? 'negativo' : ''}"><div class="cifra">${din(c.balance, 0)}</div><div class="sub">balance</div></div>
-      </div>` : `<pre class="linea-hoja">${esc(ocultarImportes(t.texto))}</pre>`}</div>`;
-    };
-    const c = tx.cashflowActual ? leerCashflow(tx.cashflowActual.texto) : null;
-    partes.push(desplegable('pr-cashflow', 'Cashflow',
-      c?.balance !== null && c ? `Balance del mes <b>${din(c.balance, 0)}</b>` : 'Mes actual y siguiente',
-      bloque('Mes actual', tx.cashflowActual) + bloque('Mes siguiente', tx.cashflowSiguiente)));
+    const datos = [['Este mes', tx.cashflowActual], ['Mes siguiente', tx.cashflowSiguiente]].filter(([, t]) => t).map(([n, t]) => ({ n, ...leerCashflow(t.texto) }));
+    const max = Math.max(1, ...datos.flatMap((x) => [x.ingresos ?? 0, x.pagos ?? 0]));
+    bloques.push(bloqueDash('cashflow', 'Cashflow', '', datos.map((x) => `
+      <div class="df-cash">
+        <div class="df-cash-cab"><span>${esc(x.n)}</span><b class="${x.balance < 0 ? 'texto-rojo' : 'texto-verde'}">${din(x.balance, 0)}</b></div>
+        <div class="df-cash-fila"><span>Ingresos</span><span class="df-part-pista"><i class="s-generado" style="width:${((x.ingresos ?? 0) / max) * 100}%"></i></span><b>${din(x.ingresos, 0)}</b></div>
+        <div class="df-cash-fila"><span>Pagos</span><span class="df-part-pista"><i class="s-pagado" style="width:${((x.pagos ?? 0) / max) * 100}%"></i></span><b>${din(x.pagos, 0)}</b></div>
+      </div>`).join('')));
   }
 
+  // ---- Cobros de intereses por cliente
   if (tx.cobroIntereses?.texto) {
-    const total = tx.cobroIntereses.texto.match(/TOTAL PENDIENTE ESTE MES:\s*\$?([\d.,]+)/i);
-    partes.push(desplegable('pr-cobro', 'Cobro de intereses a clientes',
-      total ? `Pendiente este mes <b>$${esc(total[1])}</b>` : 'Resumen de cobro',
-      `<pre class="linea-hoja">${esc(ocultarImportes(tx.cobroIntereses.texto))}</pre>`));
+    const grupos = leerCobros(tx.cobroIntereses.texto);
+    const total = grupos.reduce((t, g) => t + g.filas.reduce((s, f) => s + f.monto, 0), 0);
+    bloques.push(bloqueDash('cobros', 'Intereses por cobrar', grupos.length ? `${din(total, 0)}` : '',
+      grupos.length ? grupos.map((g) => `<h3 class="df-sub">${esc(g.titulo)}</h3>
+        <div class="df-lista">${g.filas.map((f) => `<div><span>${esc(nombreBonito(f.nombre))}</span><small>${esc(f.fecha)}</small><b>${din(f.monto, 0)}</b></div>`).join('')}</div>`).join('')
+        : `<pre class="linea-hoja">${esc(ocultarImportes(tx.cobroIntereses.texto))}</pre>`));
   }
 
+  // ---- Pagos a inversores (texto de tu hoja)
   if (tx.pagoMXN?.texto || tx.pagoUSDT?.texto) {
     const total = (tx.pagoMXN?.texto ?? '').match(/TOTAL MXN A PAGAR:\s*\$?([\d.,]+)/i);
-    partes.push(desplegable('pr-pago-inv', 'Pago a inversores',
-      total ? `Este mes en MXN <b>$${esc(total[1])}</b>` : 'MXN y USDT',
+    bloques.push(bloqueDash('pagos-inv', 'Pagos a inversores', total ? `Este mes $${esc(total[1])} MXN` : '',
       `<div class="rejilla-dos rejilla-textos">
-        ${tx.pagoMXN?.texto ? `<div><h3>En MXN</h3><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoMXN.texto))}</pre></div>` : ''}
-        ${tx.pagoUSDT?.texto ? `<div><h3>En USDT</h3><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoUSDT.texto))}</pre></div>` : ''}
+        ${tx.pagoMXN?.texto ? `<div><h3 class="df-sub">En MXN</h3><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoMXN.texto))}</pre></div>` : ''}
+        ${tx.pagoUSDT?.texto ? `<div><h3 class="df-sub">En USDT</h3><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoUSDT.texto))}</pre></div>` : ''}
       </div>`));
   }
 
-  return `<section class="dash-financiero"><h2 class="titulo-seccion">Dashboard financiero</h2>${partes.join('')}${hoja}</section>`;
+  return `<section class="dash-financiero">
+    <div class="seccion-cab"><h2 class="titulo-seccion">Dashboard financiero</h2>${d.url ? `<a class="enlace-vista" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">Abrir en Sheets ${icono('flecha')}</a>` : ''}</div>
+    ${kpis}
+    <div class="df-rejilla">${bloques.join('')}</div>
+  </section>`;
 }
 
 function vistaPrestamos(m) {
