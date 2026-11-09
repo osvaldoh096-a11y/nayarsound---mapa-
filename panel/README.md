@@ -56,6 +56,14 @@ marcar como hecha (escribe `SI` y la fecha) y borrar (vacía la fila). Antes de
 cambiar o borrar, el panel comprueba que la fila sigue siendo la misma tarea.
 También puedes editarlas directamente en Sheets; se ven al actualizar.
 
+### Finanzas por año
+
+El selector de periodo tiene «Todo 2025», «Todo 2026»… (un año aparece en cuanto
+tiene ganancias registradas). Ganancia por negocio: suma de las tablas
+«GANANCIA MES …» de ANALISIS BALANCE GENERAL; gastos y categorías: ANALISIS GASTOS
+PERSONALES por la columna AUX. Si tu hoja trae el resumen anual (AÑO / TOTAL
+GANANCIA / TOTAL GASTOS), el panel lo compara y avisa si no coincide.
+
 ## 2. Acceso y seguridad
 
 - **Google:** el proyecto de Google Cloud «dashboard personal» tiene un ID de cliente en `js/fuentes.js` (no es secreto) y solo acepta el origen `https://osvaldoh096-a11y.github.io`.

@@ -48,11 +48,13 @@ export const ARCHIVOS = {
   gastos: {
     nombre: '🚹GASTOS PERSONALES - OSVALDO',
     id: '1NoUH0e52iilpAKEzt6LAYMe9yEGm_Pd5zfEDXf3AkK4',
-    pestanas: { 'DASHBOARD BALANCE GENERAL': 522944238, 'ANALISIS GASTOS PERSONALES': 0 },
+    pestanas: { 'DASHBOARD BALANCE GENERAL': 522944238, 'ANALISIS GASTOS PERSONALES': 0, 'ANALISIS BALANCE GENERAL': 1266587410 },
     zona: 'America/Mexico_City',
     rangos: {
-      balance: "'DASHBOARD BALANCE GENERAL'!A7:N80",
+      balance: "'DASHBOARD BALANCE GENERAL'!A1:N80",
       gastos: "'ANALISIS GASTOS PERSONALES'!A3:H",
+      // Ganancia de cada negocio por mes, desde 2025 (para ver el año completo).
+      analisis: "'ANALISIS BALANCE GENERAL'!A1:Z2000",
     },
   },
 };

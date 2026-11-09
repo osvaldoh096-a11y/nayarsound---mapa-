@@ -224,6 +224,14 @@ try {
       }
     }
     revisar(await pagina.locator('#grafica-mensual svg').count() === 1, 'Gráfica de evolución mensual dibujada');
+    // Vista por año
+    for (const anio of esperado.finanzas.anios ?? []) {
+      await pagina.selectOption('#sel-mes', `a${anio.y}`);
+      const cifras = await pagina.locator('.rejilla-tiles .cifra').allInnerTexts();
+      const esp = [anio.ganancia, anio.gastos, anio.sobrante].map((c) => dinero(c.valor));
+      revisar(JSON.stringify(cifras) === JSON.stringify(esp) && /del año/.test(await pagina.locator('.rejilla-tiles').innerText()),
+        `Todo ${anio.y}: ${cifras.join(' · ')} (esperado ${esp.join(' · ')})`);
+    }
     if (capturas) {
       mkdirSync(capturas, { recursive: true });
       for (const r of ['inicio', 'nayarsound', 'prestamos', 'finanzas']) {

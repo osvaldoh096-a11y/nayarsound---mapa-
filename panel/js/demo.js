@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092042';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092105';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -136,7 +136,13 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       gastos.push([op++, '', cantidad, c, 'YO', etq, '']);
     });
   });
-  const balance = [ // empieza en la fila 7 de DASHBOARD BALANCE GENERAL
+  // Año anterior (para la vista por año): solo en ANALISIS, como en tu hoja.
+  const anterior = [];
+  for (let m = 6; m <= 12; m++) anterior.push(etiquetaMes(hoy.y - 1, m));
+  anterior.forEach((etq, i) => {
+    categorias.slice(0, 3).forEach((c, k) => gastos.push([op++, '', 500 + i * 100 + k * 50, c, 'YO', etq, '']));
+  });
+  const balanceMeses = [
     ['', '', 'MES', 'NEGOCIO A', 'NEGOCIO B', 'PRESTAMOS', 'OTROS', 'GANANCIA MENSUAL', 'GASTOS PERSONALES', 'SOBRANTE MENSUAL'],
     ...meses.map((etq, i) => {
       const a = 30000 + ((i * 37) % 11) * 4000;
@@ -147,6 +153,29 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       const s = gastos.filter((r) => r[5] === etq).reduce((t, r) => t + r[2], 0);
       return ['', '', etq, a, b, p, o, g, s, g - s];
     }),
+  ];
+  // ANALISIS BALANCE GENERAL: una tabla «GANANCIA MES …» por negocio; NEGOCIO A en dos partes por mes.
+  const nombres = ['NEGOCIO A', 'NEGOCIO B', 'PRESTAMOS', 'OTROS'];
+  const columnas = nombres.map((n) => [
+    ...anterior.map((etq, i) => [etq, n === 'NEGOCIO A' ? 20000 + i * 1000 : n === 'NEGOCIO B' ? 5000 : 0]),
+    ...balanceMeses.slice(1).flatMap((f) => {
+      const v = f[3 + nombres.indexOf(n)];
+      return n === 'NEGOCIO A' ? [[f[2], v - 10000], [f[2], 10000]] : [[f[2], v]];
+    }),
+  ]);
+  const largo = Math.max(...columnas.map((c) => c.length));
+  const analisis = [
+    ['', ...nombres.flatMap((n) => [`GANANCIA MES ${n}`, '', ''])], [], [],
+    ['', ...nombres.flatMap(() => ['MES', 'GANANCIA PERSONAL', ''])],
+    ...Array.from({ length: largo }, (_, k) => ['', ...columnas.flatMap((c) => (c[k] ? [c[k][0], c[k][1], ''] : ['', '', '']))]),
+  ];
+  const totalAnio = balanceMeses.slice(1).reduce((t, f) => [t[0] + f[7], t[1] + f[8]], [0, 0]);
+  const balance = [ // DASHBOARD BALANCE GENERAL desde A1: resumen anual (filas 4-5) y tabla mensual (fila 7)
+    [], [], [],
+    ['', '', 'AÑO', 'TOTAL NEGOCIO A', 'TOTAL NEGOCIO B', 'TOTAL PRESTAMOS', '', '', 'TOTAL GANANCIA', 'TOTAL GASTOS'],
+    ['', '', hoy.y, '', '', '', '', '', totalAnio[0], totalAnio[1]],
+    [],
+    ...balanceMeses,
   ];
 
   const meta = (titulo, pestanas) => ({ titulo, zona: 'America/Mexico_City', pestanas });
@@ -160,7 +189,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     ] } },
     prestamos: { clave: 'prestamos', id: 'DEMO', demo: true, meta: meta('💵REGISTRO DE PRESTAMOS', { DASHBOARD: 3, 'REGISTRO PRESTAMOS': 4, 'REGISTRO DE INVERSORES': 5 }),
       rangos: { dashboard: dashboardPr, registro, inversores } },
-    gastos: { clave: 'gastos', id: 'DEMO', demo: true, meta: meta('🚹GASTOS PERSONALES - OSVALDO', { 'DASHBOARD BALANCE GENERAL': 6, 'ANALISIS GASTOS PERSONALES': 7 }),
-      rangos: { balance, gastos } },
+    gastos: { clave: 'gastos', id: 'DEMO', demo: true, meta: meta('🚹GASTOS PERSONALES - OSVALDO', { 'DASHBOARD BALANCE GENERAL': 6, 'ANALISIS GASTOS PERSONALES': 7, 'ANALISIS BALANCE GENERAL': 8 }),
+      rangos: { balance, gastos, analisis } },
   };
 }

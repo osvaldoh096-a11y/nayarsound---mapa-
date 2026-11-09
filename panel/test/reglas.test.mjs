@@ -167,6 +167,31 @@ test('teléfonos de DJs desde AMAL AGENDA › DATA', () => {
   assert.equal(construirModelo(f, hoy).nayarsound.telefonos.estado, 'sin-columna');
 });
 
+test('finanzas por año: suma ANALISIS BALANCE GENERAL y gastos por AUX', () => {
+  const hoy = { y: 2026, m: 11, d: 7, idx: HOY };
+  const f = fuentesDemo(hoy);
+  // Formatos reales de la hoja: texto con $ y comas, « $ -   » (cero), números sueltos, mes en minúsculas.
+  f.gastos.rangos.analisis = [
+    ['', 'GANANCIA MES NAYARSOUND', '', '', 'GANANCIA MES OTROS'], [], [],
+    ['', 'MES', 'GAN', '', 'MES', 'GAN'],
+    ['', ' JUNIO 2025 ', ' $ 18,696.68 ', '', 'febrero 2026', 17000],
+    ['', 'ENERO 2026', ' $ -   ', '', 'agosto 2026', '1500'],
+    ['', 'SEPTIEMBRE 2026', '-755.54', '', '', ''],
+    ['', 'ENERO 2027', '', '', '', ''],
+  ];
+  const m = construirModelo(f, hoy);
+  const [a25, a26] = m.finanzas.anios;
+  assert.deepEqual(m.finanzas.anios.map((a) => a.y), [2025, 2026]); // 2027 sin importes: no aparece
+  assert.equal(a25.ganancia.valor, 18696.68);
+  assert.equal(a26.negocios.find((n) => n.nombre === 'NAYARSOUND').valor, -755.54);
+  assert.equal(a26.negocios.find((n) => n.nombre === 'OTROS').valor, 18500);
+  assert.equal(a26.sobrante.valor, Math.round((a26.ganancia.valor - a26.gastos.valor) * 100) / 100);
+  assert.ok(a25.gastos.valor > 0 && a25.categorias.length === 3);
+  // Con los datos de ejemplo completos, el año cuadra con el resumen anual de la hoja.
+  const demo = construirModelo(fuentesDemo(hoy), hoy).finanzas.anios.find((a) => a.y === 2026);
+  assert.equal(demo.cuadraHoja, true);
+});
+
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {
   const sabado = idxDesdeYMD(2026, 11, 7) + 25569;
   const jueves = idxDesdeYMD(2026, 11, 5) + 25569;

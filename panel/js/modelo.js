@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611092042';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092042';
+} from './fechas.js?v=202611092105';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092105';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611092042';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611092042';
-import { dinero } from './formato.js?v=202611092042';
+} from './sheets.js?v=202611092105';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611092105';
+import { dinero } from './formato.js?v=202611092105';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -523,6 +523,110 @@ export function modeloPrestamos({ prestamos }, hoyIdx) {
 
 // ---------------------------------------------------------------- Finanzas
 
+/** Importe de una celda: número, o texto como «$ 18,696.68», « $ -   » (cero) o «20730». */
+function importe(v) {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const t = String(v ?? '').trim();
+  if (!t) return null;
+  if (/^\$?\s*-\s*$/.test(t)) return 0;
+  const limpio = t.replace(/[$\s,]/g, '');
+  const n = Number(limpio);
+  return limpio && Number.isFinite(n) ? n : NaN;
+}
+
+/**
+ * Totales por año. Ganancia de cada negocio: tablas «GANANCIA MES …» de
+ * ANALISIS BALANCE GENERAL (la misma fuente que suma tu tabla mensual).
+ * Gastos y categorías: ANALISIS GASTOS PERSONALES por la columna AUX.
+ */
+function finanzasPorAnio(gastos, salida) {
+  const filas = gastos.rangos.analisis;
+  if (!filas?.length) return [];
+  const fEnc = filas.findIndex((f) => (f ?? []).some((v) => normalizar(v) === 'MES'));
+  if (fEnc < 0) return [];
+  const tablas = [];
+  (filas[fEnc] ?? []).forEach((v, c) => {
+    if (normalizar(v) !== 'MES') return;
+    let titulo = '';
+    for (let k = fEnc - 1; k >= 0 && !titulo; k--) titulo = String(filas[k]?.[c] ?? '').trim();
+    tablas.push({ c, nombre: normalizar(titulo).replace(/^GANANCIA (DEL )?MES\s*/, '') || `Columna ${letraColumna(c)}` });
+  });
+  // Mismo orden y nombres que la tabla mensual (NAYARSOUND, ST, …).
+  const orden = salida.negocios.map(normalizar);
+  tablas.sort((a, b) => (orden.indexOf(a.nombre) + 1 || 99) - (orden.indexOf(b.nombre) + 1 || 99));
+  const anios = new Map();
+  const delAnio = (y) => {
+    if (!anios.has(y)) anios.set(y, { y, negocios: new Map(tablas.map((t) => [t.nombre, 0])), conDatos: false, sinNumero: 0, meses: new Set() });
+    return anios.get(y);
+  };
+  for (let f = fEnc + 1; f < filas.length; f++) {
+    for (const t of tablas) {
+      const mes = leerEtiquetaMes(String(filas[f]?.[t.c] ?? '').trim());
+      if (!mes) continue;
+      const v = importe(filas[f]?.[t.c + 1]);
+      if (v === null) continue;
+      const a = delAnio(mes.y);
+      if (Number.isNaN(v)) { a.sinNumero++; continue; }
+      a.negocios.set(t.nombre, a.negocios.get(t.nombre) + v);
+      a.conDatos = true;
+      a.meses.add(mes.m);
+    }
+  }
+  const registros = salida.gastosRegistros ?? [];
+  const nombreDe = (n) => salida.negocios.find((x) => normalizar(x) === n) ?? capitalizarNombre(n);
+  const resultado = [];
+  for (const a of [...anios.values()].filter((x) => x.conDatos).sort((x, y) => x.y - y.y)) {
+    const negocios = [...a.negocios].map(([n, valor]) => ({ nombre: nombreDe(n), valor: redondear(valor), estado: 'ok' }));
+    const ganancia = redondear(negocios.reduce((t, n) => t + n.valor, 0));
+    const delAnioG = registros.filter((r) => leerEtiquetaMes(String(r.mes).trim())?.y === a.y);
+    const categorias = new Map();
+    let totalGastos = 0;
+    for (const r of delAnioG) {
+      if (typeof r.cantidad !== 'number') continue;
+      const nombre = vacio(r.motivo) ? 'Sin motivo' : String(r.motivo).trim();
+      const c = categorias.get(nombre) ?? { nombre, total: 0, registros: 0 };
+      c.total += r.cantidad; c.registros += 1; totalGastos += r.cantidad;
+      categorias.set(nombre, c);
+    }
+    const avisos = [];
+    if (a.sinNumero) avisos.push(`${a.sinNumero} celda(s) de ganancia de ${a.y} en ANALISIS BALANCE GENERAL tienen texto y no se sumaron.`);
+    const celda = (valor) => ({ valor, estado: 'ok', origen: null });
+    const anio = {
+      esAnio: true, y: a.y, etiqueta: String(a.y), negocios,
+      ganancia: celda(ganancia), gastos: celda(redondear(totalGastos)), sobrante: celda(redondear(ganancia - totalGastos)),
+      categorias: [...categorias.values()].sort((x, y) => y.total - x.total),
+      registrosGastos: delAnioG.length, mesesConGanancia: a.meses.size, avisos,
+    };
+    // Comprobación con el resumen anual de tu hoja (AÑO / TOTAL GANANCIA / TOTAL GASTOS), si lo trae.
+    const r = salida.resumenAnual?.find((x) => x.y === a.y);
+    if (r) {
+      anio.cuadraHoja = (r.ganancia === null || Math.abs(r.ganancia - ganancia) < 0.01) && (r.gastos === null || Math.abs(r.gastos - totalGastos) < 0.01);
+      if (!anio.cuadraHoja) avisos.push(`Tu hoja marca para ${a.y} ganancia ${dinero(r.ganancia)} y gastos ${dinero(r.gastos)}; el panel suma ${dinero(ganancia)} y ${dinero(totalGastos)}.`);
+    }
+    resultado.push(anio);
+  }
+  return resultado;
+}
+
+const redondear = (v) => Math.round(v * 100) / 100;
+const capitalizarNombre = (n) => n;
+
+/** Tabla «AÑO | TOTAL … | TOTAL GANANCIA | TOTAL GASTOS» de DASHBOARD BALANCE GENERAL. */
+function resumenAnual(filas) {
+  const f = filas.findIndex((x) => (x ?? []).some((v) => normalizar(v) === 'ANO') && (x ?? []).some((v) => normalizar(v) === 'TOTAL GANANCIA'));
+  if (f < 0) return [];
+  const enc = filas[f].map(normalizar);
+  const cA = enc.indexOf('ANO'); const cG = enc.indexOf('TOTAL GANANCIA'); const cS = enc.indexOf('TOTAL GASTOS');
+  const salida = [];
+  for (let k = f + 1; k < filas.length; k++) {
+    const y = Number(filas[k]?.[cA]);
+    if (!Number.isInteger(y) || y < 2000) break;
+    const num = (c) => { const v = c >= 0 ? importe(filas[k]?.[c]) : null; return typeof v === 'number' && !Number.isNaN(v) ? v : null; };
+    salida.push({ y, ganancia: num(cG), gastos: num(cS) });
+  }
+  return salida;
+}
+
 export function modeloFinanzas({ gastos }, hoy) {
   const avisos = [];
   const salida = { disponible: !!gastos?.rangos, avisos, meses: [], negocios: [] };
@@ -617,6 +721,8 @@ export function modeloFinanzas({ gastos }, hoy) {
   } else {
     avisos.push({ texto: 'No encontré los encabezados CANTIDAD / MOTIVO / AUX en ANALISIS GASTOS PERSONALES; no hay desglose por categoría.', tipo: 'lectura' });
   }
+  salida.resumenAnual = resumenAnual(filas);
+  salida.anios = finanzasPorAnio(gastos, salida);
   return salida;
 }
 

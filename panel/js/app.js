@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092042';
-import { escribirCelda, leerRangos } from './api.js?v=202611092042';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092042';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092042';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092042';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092105';
+import { escribirCelda, leerRangos } from './api.js?v=202611092105';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092105';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092105';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092105';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611092042';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092042';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092042';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092042';
-import { fuentesDemo } from './demo.js?v=202611092042';
-import { icono } from './iconos.js?v=202611092042';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092042';
+} from './fechas.js?v=202611092105';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092105';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092105';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092105';
+import { fuentesDemo } from './demo.js?v=202611092105';
+import { icono } from './iconos.js?v=202611092105';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092105';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -431,7 +431,7 @@ function alCambiar(evento) {
     return;
   }
   const el = evento.target;
-  if (el.id === 'sel-mes') { E.mes = Number(el.value); pintar(); }
+  if (el.id === 'sel-mes') { E.mes = el.value.startsWith('a') ? el.value : Number(el.value); pintar(); }
   if (el.id === 'sel-auto') {
     E.pref.autoMinutos = Number(el.value);
     guardarPreferencias(E.pref);
@@ -612,10 +612,11 @@ function tilesFinanzas(mes, { conOrigen = true } = {}) {
     <div class="sub">${sub}</div>
     ${conOrigen ? enlaceOrigen(celda.origen) : ''}
   </article>`;
-  return tile('tile-ganancia', 'ganancia', 'Ganancia del mes', mes.ganancia, 'Suma de tus negocios, según tu hoja')
+  const del = mes.esAnio ? 'del año' : 'del mes';
+  return tile('tile-ganancia', 'ganancia', `Ganancia ${del}`, mes.ganancia, mes.esAnio ? `Suma de tus negocios en ${mes.y} (ANALISIS BALANCE GENERAL)` : 'Suma de tus negocios, según tu hoja')
     + tile('tile-gasto', 'gasto', 'Gastos personales', mes.gastos,
-      sinGastos ? '<span class="marca-aviso">Sin gastos registrados este mes</span>' : esc(`${mes.registrosGastos ?? '—'} registros`))
-    + tile(`tile-sobrante ${negativo ? 'negativo' : ''}`, 'sobrante', 'Sobrante del mes', mes.sobrante, 'Ganancia − gastos. Resultado calculado, no saldo bancario.');
+      sinGastos ? `<span class="marca-aviso">Sin gastos registrados ${mes.esAnio ? 'este año' : 'este mes'}</span>` : esc(`${mes.registrosGastos ?? '—'} registros`))
+    + tile(`tile-sobrante ${negativo ? 'negativo' : ''}`, 'sobrante', `Sobrante ${del}`, mes.sobrante, 'Ganancia − gastos. Resultado calculado, no saldo bancario.');
 }
 
 /** Ganancia, gastos y sobrante en una fila, como los eventos de hoy y mañana. */
@@ -628,17 +629,32 @@ function resumenFinanzas(mes) {
   const dato = (clase, celda, etiqueta, nota = '') => `
     <div class="fin-dato ${clase}"><div class="cifra">${valorCelda(celda)}</div><div class="sub">${etiqueta}</div>${nota ? `<div class="fin-nota">${nota}</div>` : ''}</div>`;
   return `<div class="fin-fila">
-    ${dato('fin-ganancia', mes.ganancia, 'ganancia del mes')}
+    ${dato('fin-ganancia', mes.ganancia, mes.esAnio ? `ganancia ${mes.y}` : 'ganancia del mes')}
     ${dato('fin-gasto', mes.gastos, 'gastos personales', mes.registrosGastos === 0 ? 'Sin gastos registrados' : '')}
-    ${dato(`fin-sobrante ${negativo ? 'negativo' : ''}`, mes.sobrante, 'sobrante del mes')}
+    ${dato(`fin-sobrante ${negativo ? 'negativo' : ''}`, mes.sobrante, mes.esAnio ? `sobrante ${mes.y}` : 'sobrante del mes')}
   </div><p class="nota">Sobrante = ganancia − gastos. Resultado calculado, no saldo bancario.</p>`;
+}
+
+/** Periodo elegido: un mes de la tabla mensual o un año completo («a2026»). */
+function periodoElegido(fi) {
+  if (typeof E.mes === 'string') {
+    const anio = fi?.anios?.find((a) => `a${a.y}` === E.mes);
+    if (anio) return anio;
+    E.mes = null;
+  }
+  if (E.mes === null || !fi?.meses?.[E.mes]) E.mes = fi?.indiceActual >= 0 ? fi.indiceActual : (fi?.meses?.length ?? 0) - 1;
+  return fi?.meses?.[E.mes] ?? null;
 }
 
 function selectorMes(fi) {
   if (!fi?.meses?.length) return '';
-  if (E.mes === null || !fi.meses[E.mes]) E.mes = fi.indiceActual >= 0 ? fi.indiceActual : fi.meses.length - 1;
-  const opciones = fi.meses.map((x, i) => `<option value="${i}" ${i === E.mes ? 'selected' : ''}>${esc(x.y ? nombreMes(x.y, x.m) : x.etiqueta)}${i === fi.indiceActual ? ' (actual)' : ''}</option>`).join('');
-  return `<label class="selector">${icono('calendario')}<span class="oculto">Mes</span><select id="sel-mes">${opciones}</select></label>`;
+  periodoElegido(fi);
+  const opcionesMes = fi.meses.map((x, i) => `<option value="${i}" ${i === E.mes ? 'selected' : ''}>${esc(x.y ? nombreMes(x.y, x.m) : x.etiqueta)}${i === fi.indiceActual ? ' (actual)' : ''}</option>`).join('');
+  const anioHoy = E.modelo?.hoy?.y;
+  const opcionesAnio = (fi.anios ?? []).slice().reverse().map((a) => `<option value="a${a.y}" ${E.mes === `a${a.y}` ? 'selected' : ''}>Todo ${a.y}${a.y === anioHoy ? ' (en curso)' : ''}</option>`).join('');
+  return `<label class="selector">${icono('calendario')}<span class="oculto">Periodo</span><select id="sel-mes">
+    ${opcionesAnio ? `<optgroup label="Por año">${opcionesAnio}</optgroup><optgroup label="Por mes">${opcionesMes}</optgroup>` : opcionesMes}
+  </select></label>`;
 }
 
 // ------------------------------------------------------------------ Inicio
@@ -654,7 +670,7 @@ function vistaInicio(m) {
     </button>`;
   const fi = m.finanzas;
   const sel = selectorMes(fi);
-  const mes = fi.meses?.[E.mes] ?? m.mesActual;
+  const mes = periodoElegido(fi) ?? m.mesActual;
   return `
   <article class="tarjeta tareas" id="tareas-caja">${htmlTareas()}</article>
   <section class="inicio-rejilla">
@@ -928,7 +944,7 @@ function vistaFinanzas(m) {
     return `<h1 class="titulo-vista">Finanzas</h1><article class="tarjeta tarjeta-error">No hay datos de finanzas.</article>${listaAvisos(fi.avisos, 'Revisión de la lectura')}`;
   }
   const sel = selectorMes(fi);
-  const mes = fi.meses[E.mes];
+  const mes = periodoElegido(fi);
   const negocios = mes.negocios.map((n) => ({ nombre: n.nombre, valor: n.valor, nota: n.estado === 'vacia' ? 'Celda vacía' : n.estado === 'error' ? n.texto : '' }));
   // Todas las categorías, de mayor a menor, con su % del total de gastos del mes.
   const cats = [...(mes.categorias ?? [])].sort((a, b) => b.total - a.total);
@@ -944,14 +960,15 @@ function vistaFinanzas(m) {
   <section class="rejilla-tiles">${tilesFinanzas(mes)}</section>
   <section class="rejilla-dos">
     <article class="tarjeta">
-      <header class="tarjeta-cab"><h2>Ganancia por negocio</h2>${enlaceOrigen(mes.ganancia.origen, `fila ${mes.fila}`)}</header>
+      <header class="tarjeta-cab"><h2>Ganancia por negocio</h2>${mes.esAnio ? '' : enlaceOrigen(mes.ganancia.origen, `fila ${mes.fila}`)}</header>
       ${barras(negocios, { divergente: true })}
     </article>
     <article class="tarjeta">
       <header class="tarjeta-cab"><h2>Gastos por categoría</h2></header>
-      ${barras(catItems, { vacio: mes.registrosGastos === 0 ? 'Sin gastos registrados este mes.' : 'Sin desglose disponible.' })}
+      ${barras(catItems, { vacio: mes.registrosGastos === 0 ? `Sin gastos registrados ${mes.esAnio ? 'este año' : 'este mes'}.` : 'Sin desglose disponible.' })}
       ${catItems.length ? `<div class="graf-total"><span>Total de gastos</span><span>${esc(dinero(totalCats))} <small>100%</small></span></div>` : ''}
       ${mes.gastosCuadran === true ? '<p class="nota ok">✓ Las categorías suman lo mismo que tu hoja.</p>' : ''}
+      ${mes.esAnio && mes.cuadraHoja === true ? `<p class="nota ok">✓ Ganancia y gastos de ${mes.y} coinciden con el total anual de tu hoja.</p>` : ''}
     </article>
   </section>
   <article class="tarjeta">
@@ -961,7 +978,7 @@ function vistaFinanzas(m) {
     <div id="grafica-mensual" class="grafica"></div>
     <div id="tabla-mensual" hidden>${tablaMensual(fi)}</div>
   </article>
-  ${avisosMes.length ? `<article class="tarjeta avisos-abiertos"><h2>Revisión de ${esc(mes.y ? nombreMes(mes.y, mes.m) : mes.etiqueta)}</h2><ul>${[...new Set(avisosMes)].map((a) => `<li>${esc(ocultarImportes(a))}</li>`).join('')}</ul></article>` : ''}
+  ${avisosMes.length ? `<article class="tarjeta avisos-abiertos"><h2>Revisión de ${esc(mes.esAnio ? String(mes.y) : mes.y ? nombreMes(mes.y, mes.m) : mes.etiqueta)}</h2><ul>${[...new Set(avisosMes)].map((a) => `<li>${esc(ocultarImportes(a))}</li>`).join('')}</ul></article>` : ''}
   <p class="nota">La ganancia mensual es la columna GANANCIA MENSUAL de tu hoja (suma de negocios). El sobrante es un resultado calculado; no es saldo bancario ni dinero disponible.</p>`;
 }
 
