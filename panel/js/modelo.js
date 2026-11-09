@@ -7,14 +7,15 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611092113';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092113';
+} from './fechas.js?v=202611092122';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092122';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611092113';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092113';
-import { dinero } from './formato.js?v=202611092113';
+} from './sheets.js?v=202611092122';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092122';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092122';
+import { dinero } from './formato.js?v=202611092122';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -431,6 +432,8 @@ export function modeloPrestamos({ prestamos }, hoyIdx) {
   const salida = { disponible: !!prestamos?.rangos, avisos, pendientes, cobrar: [], pagar: [], liquidaciones: [] };
   if (!prestamos?.rangos) return salida;
   const dashboard = prestamos.rangos.dashboard ?? [];
+  salida.dashboard = leerDashboardPrestamos(dashboard, inicioRango(ARCHIVOS.prestamos.rangos.dashboard));
+  salida.dashboard.url = !prestamos.demo ? urlHoja(prestamos.id, prestamos.meta?.pestanas?.DASHBOARD) : null;
   const celda = textoBajoEncabezado(dashboard, 'RESUMEN GENERAL', inicioRango(ARCHIVOS.prestamos.rangos.dashboard));
   const origen = hacerOrigen(prestamos, 'dashboard', 'DASHBOARD', celda.a1);
   salida.origen = origen;

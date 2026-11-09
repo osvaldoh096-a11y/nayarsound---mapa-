@@ -197,6 +197,20 @@ try {
     const t = esperado.prestamos.totales;
     revisar(cobrar === dinero(t.cobrarMXN, 0) && pagar === dinero(t.pagarMXN, 0), `Préstamos: cobrar ${cobrar}, pagar ${pagar} (esperado ${dinero(t.cobrarMXN, 0)}, ${dinero(t.pagarMXN, 0)})`);
     if (extra?.prestamos) revisar(cobrar === extra.prestamos[0] && pagar === extra.prestamos[1], `  coincide con la hoja: ${extra.prestamos.join(', ')}`);
+    if (!rutaSnapshot) {
+      const secciones = pagina.locator('.dash-financiero details.desplegable');
+      const n = await secciones.count();
+      const abiertas = await pagina.locator('.dash-financiero details[open]').count();
+      revisar(n === 9 && abiertas === 0, `Dashboard financiero: ${n} secciones, todas contraídas`);
+      const resumenes = (await pagina.locator('.dash-financiero summary').allInnerTexts()).join(' | ');
+      revisar(/\$500,000\.00/.test(resumenes) && /\$100,000\.00/.test(resumenes) && /2 préstamos/.test(resumenes) && /-\$3,500/.test(resumenes),
+        'Dashboard financiero: cada sección muestra su cifra clave contraída');
+      await pagina.locator('.dash-financiero summary', { hasText: 'Préstamos activos' }).click();
+      const tabla = await pagina.locator('.dash-financiero details[open] table').innerText();
+      revisar(/CLIENTE UNO/.test(tabla) && /\$500,000\.00/.test(tabla), 'Dashboard financiero: al tocar se ve la tabla con su total');
+      await pagina.locator('.dash-financiero summary', { hasText: 'Resumen financiero' }).click();
+      revisar(/6\.50%/.test(await pagina.locator('.dash-financiero details[open] .lista-datos').innerText()), 'Dashboard financiero: porcentajes como %');
+    }
 
     // Finanzas: mes actual y otro mes
     await pagina.goto(`${url}/panel/#/finanzas`);

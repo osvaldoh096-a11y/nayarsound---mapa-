@@ -1,19 +1,20 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092113';
-import { escribirCelda, leerRangos } from './api.js?v=202611092113';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092113';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092113';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092113';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092122';
+import { escribirCelda, leerRangos } from './api.js?v=202611092122';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092122';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092122';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092122';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611092113';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092113';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092113';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092113';
-import { fuentesDemo } from './demo.js?v=202611092113';
-import { icono } from './iconos.js?v=202611092113';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092113';
+} from './fechas.js?v=202611092122';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092122';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092122';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092122';
+import { fuentesDemo } from './demo.js?v=202611092122';
+import { leerCashflow } from './dashprestamos.js?v=202611092122';
+import { icono } from './iconos.js?v=202611092122';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092122';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -45,6 +46,7 @@ const E = {
   ultimoIntento: 0,
   pendientes: new Map(),
   limpiar: [],
+  abiertos: new Set(),
 };
 
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
@@ -85,6 +87,9 @@ async function arrancar() {
     if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open;
     if (e.target.id === 'deuda-desplegable') E.deudaAbierta = e.target.open;
     if (e.target.id === 'controles-desplegable') E.controlesAbierto = e.target.open;
+    if (e.target.dataset?.desplegable) {
+      if (e.target.open) E.abiertos.add(e.target.dataset.desplegable); else E.abiertos.delete(e.target.dataset.desplegable);
+    }
   }, true);
   document.addEventListener('visibilitychange', revisarAuto);
   setInterval(revisarAuto, 30000);
@@ -895,6 +900,127 @@ function listaAvisos(avisos, titulo) {
 
 // ------------------------------------------------------------------ Préstamos
 
+/** Tarjeta que empieza contraída y se abre al tocarla. */
+function desplegable(id, titulo, resumen, cuerpo) {
+  return `<details class="tarjeta desplegable" data-desplegable="${esc(id)}" ${E.abiertos.has(id) ? 'open' : ''}>
+    <summary>
+      <span class="desp-cab"><h2>${esc(titulo)}</h2>${icono('flecha', 'desp-flecha')}</span>
+      <span class="desp-texto">${resumen}</span>
+    </summary>
+    <div class="desp-cuerpo">${cuerpo}</div>
+  </details>`;
+}
+
+const din = (v, dec = 2) => (typeof v === 'number' ? esc(dinero(v, dec)) : '<span class="sin-dato">—</span>');
+const pctTxt = (v) => (typeof v === 'number' ? `${(v * 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : '—');
+const nombreBonito = (t) => capitalizar(String(t ?? '').toLowerCase());
+
+function tablaSimple(columnas, filas, pie = '') {
+  return `<div class="tabla-desliza"><table class="tabla"><thead><tr>${columnas.map(([t, num]) => `<th class="${num ? 'num' : ''}">${esc(t)}</th>`).join('')}</tr></thead>
+    <tbody>${filas.join('')}</tbody>${pie ? `<tfoot>${pie}</tfoot>` : ''}</table></div>`;
+}
+
+/** Bloques del DASHBOARD de 💵REGISTRO DE PRESTAMOS, cada uno desplegable. */
+function dashboardFinanciero(d) {
+  if (!d?.secciones) return '';
+  const partes = [];
+  const hoja = d.url ? `<p class="nota"><a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">Abrir DASHBOARD en Sheets ↗</a></p>` : '';
+
+  if (d.resumen?.length) {
+    const val = (r) => (r.esPct ? esc(pctTxt(r.valor)) : din(r.valor));
+    const clave = (re) => d.resumen.find((r) => re.test(normalizar(r.etiqueta)));
+    const prestado = clave(/CAPITAL PRESTADO/); const proy = clave(/PROYECCION/);
+    partes.push(desplegable('pr-resumen', 'Resumen financiero',
+      [prestado && `Capital prestado <b>${val(prestado)}</b>`, proy && `proyección mensual <b>${val(proy)}</b>`].filter(Boolean).join(' · '),
+      `<dl class="lista-datos">${d.resumen.map((r) => `<div><dt>${esc(nombreBonito(r.etiqueta))}</dt><dd>${val(r)}</dd></div>`).join('')}</dl>`));
+  }
+
+  if (d.historico || d.porAnio?.length) {
+    const h = d.historico ?? {};
+    const filas = (d.porAnio ?? []).map((a) => `<tr><td>${esc(a.anio)}</td><td class="num">${din(a.generado)}</td><td class="num">${din(a.pagado)}</td><td class="num"><b>${din(a.ganancia)}</b></td></tr>`);
+    const pie = d.historico ? `<tr><td>Total (${esc(String(h.anios ?? ''))} años)</td><td class="num">${din(h.generado)}</td><td class="num">${din(h.pagado)}</td><td class="num">${din(h.ganancia)}</td></tr>` : '';
+    partes.push(desplegable('pr-historico', 'Ganancias históricas',
+      `Ganancia total <b>${din(h.ganancia)}</b>${h.anios ? ` en ${esc(String(h.anios))} años` : ''}`,
+      tablaSimple([['Año'], ['Generado', 1], ['Pagado', 1], ['Ganancia', 1]], filas, pie)));
+  }
+
+  if (d.meses?.filas?.length) {
+    const t = d.meses.total;
+    const filas = d.meses.filas.map((x) => `<tr><td>${esc(nombreBonito(x.mes))}</td><td class="num">${din(x.cobrado)}</td><td class="num">${din(x.pagado)}</td><td class="num"><b>${din(x.ganancia)}</b></td></tr>`);
+    const pie = t ? `<tr><td>${esc(nombreBonito(t.etiqueta))}</td><td class="num">${din(t.cobrado)}</td><td class="num">${din(t.pagado)}</td><td class="num">${din(t.ganancia)}</td></tr>` : '';
+    partes.push(desplegable('pr-meses', `Ganancia por mes${d.meses.anio ? ` · ${d.meses.anio}` : ''}`,
+      t ? `Intereses cobrados <b>${din(t.cobrado)}</b> · ganancia <b>${din(t.ganancia)}</b>` : plural(d.meses.filas.length, 'mes', 'meses'),
+      `${tablaSimple([['Mes'], ['Intereses cobrados', 1], ['Pagado', 1], ['Ganancia', 1]], filas, pie)}
+      <p class="nota">El año lo eliges en tu hoja (celda «AÑO» del DASHBOARD).</p>`));
+  }
+
+  if (d.flujo?.length) {
+    const conValor = d.flujo.filter((x) => typeof x.ganancia === 'number');
+    const ultimo = conValor.at(-1);
+    const filas = [...d.flujo].reverse().map((x) => `<tr><td>${esc(nombreBonito(x.mes))}</td><td class="num">${din(x.ganancia)}</td></tr>`);
+    partes.push(desplegable('pr-flujo', 'Flujo histórico',
+      `${plural(d.flujo.length, 'mes', 'meses')}${ultimo ? ` · ${esc(nombreBonito(ultimo.mes))}: <b>${din(ultimo.ganancia)}</b>` : ''}`,
+      `${tablaSimple([['Mes'], ['Ganancia', 1]], filas)}<p class="nota">Del mes más reciente al más antiguo.</p>`));
+  }
+
+  if (d.prestamosActivos?.length) {
+    const a = d.prestamosActivos;
+    const suma = (k) => a.reduce((t, x) => t + (x[k] ?? 0), 0);
+    const filas = a.map((x) => `<tr><td><b>${esc(x.nombre)}</b></td><td class="num">${din(x.capital)}</td><td class="num">${din(x.interes)}</td><td class="num">${din(x.pago)}</td></tr>`);
+    const pie = `<tr><td>Total</td><td class="num">${din(suma('capital'))}</td><td class="num">${din(suma('interes'))}</td><td class="num">${din(suma('pago'))}</td></tr>`;
+    partes.push(desplegable('pr-activos', 'Préstamos activos',
+      `${plural(a.length, 'préstamo', 'préstamos')} · capital <b>${din(suma('capital'))}</b> · pago mensual <b>${din(suma('pago'))}</b>`,
+      tablaSimple([['Nombre'], ['Capital total', 1], ['Interés restante', 1], ['Pago mensual', 1]], filas, pie)));
+  }
+
+  if (d.inversoresActivos?.length) {
+    const a = d.inversoresActivos;
+    const suma = (k) => a.reduce((t, x) => t + (x[k] ?? 0), 0);
+    const fecha = (x) => (x.fecha !== null ? esc(fechaCorta(x.fecha)) : esc(x.fechaTexto || '—'));
+    const filas = a.map((x) => `<tr><td><b>${esc(x.nombre)}</b></td><td>${fecha(x)}</td><td class="num">${din(x.capital)}</td><td class="num">${din(x.pago)}</td></tr>`);
+    const pie = `<tr><td colspan="2">Total</td><td class="num">${din(suma('capital'))}</td><td class="num">${din(suma('pago'))}</td></tr>`;
+    partes.push(desplegable('pr-inversores', 'Inversores activos',
+      `${plural(a.length, 'inversor', 'inversores')} · capital <b>${din(suma('capital'))}</b> · pago mensual <b>${din(suma('pago'))}</b>`,
+      tablaSimple([['Nombre'], ['Compromiso de pago'], ['Capital total', 1], ['Pago mensual', 1]], filas, pie)));
+  }
+
+  const tx = d.textos ?? {};
+  if (tx.cashflowActual || tx.cashflowSiguiente) {
+    const bloque = (titulo, t) => {
+      if (!t) return '';
+      const c = leerCashflow(t.texto);
+      return `<div class="cashflow"><h3>${titulo}</h3>${c.ingresos !== null ? `<div class="fin-fila">
+        <div class="fin-dato fin-ganancia"><div class="cifra">${din(c.ingresos, 0)}</div><div class="sub">ingresos</div></div>
+        <div class="fin-dato fin-gasto"><div class="cifra">${din(c.pagos, 0)}</div><div class="sub">pagos</div></div>
+        <div class="fin-dato fin-sobrante ${c.balance < 0 ? 'negativo' : ''}"><div class="cifra">${din(c.balance, 0)}</div><div class="sub">balance</div></div>
+      </div>` : `<pre class="linea-hoja">${esc(ocultarImportes(t.texto))}</pre>`}</div>`;
+    };
+    const c = tx.cashflowActual ? leerCashflow(tx.cashflowActual.texto) : null;
+    partes.push(desplegable('pr-cashflow', 'Cashflow',
+      c?.balance !== null && c ? `Balance del mes <b>${din(c.balance, 0)}</b>` : 'Mes actual y siguiente',
+      bloque('Mes actual', tx.cashflowActual) + bloque('Mes siguiente', tx.cashflowSiguiente)));
+  }
+
+  if (tx.cobroIntereses?.texto) {
+    const total = tx.cobroIntereses.texto.match(/TOTAL PENDIENTE ESTE MES:\s*\$?([\d.,]+)/i);
+    partes.push(desplegable('pr-cobro', 'Cobro de intereses a clientes',
+      total ? `Pendiente este mes <b>$${esc(total[1])}</b>` : 'Resumen de cobro',
+      `<pre class="linea-hoja">${esc(ocultarImportes(tx.cobroIntereses.texto))}</pre>`));
+  }
+
+  if (tx.pagoMXN?.texto || tx.pagoUSDT?.texto) {
+    const total = (tx.pagoMXN?.texto ?? '').match(/TOTAL MXN A PAGAR:\s*\$?([\d.,]+)/i);
+    partes.push(desplegable('pr-pago-inv', 'Pago a inversores',
+      total ? `Este mes en MXN <b>$${esc(total[1])}</b>` : 'MXN y USDT',
+      `<div class="rejilla-dos rejilla-textos">
+        ${tx.pagoMXN?.texto ? `<div><h3>En MXN</h3><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoMXN.texto))}</pre></div>` : ''}
+        ${tx.pagoUSDT?.texto ? `<div><h3>En USDT</h3><pre class="linea-hoja">${esc(ocultarImportes(tx.pagoUSDT.texto))}</pre></div>` : ''}
+      </div>`));
+  }
+
+  return `<section class="dash-financiero"><h2 class="titulo-seccion">Dashboard financiero</h2>${partes.join('')}${hoja}</section>`;
+}
+
 function vistaPrestamos(m) {
   const pr = m.prestamos;
   if (!pr.disponible) return '<article class="tarjeta tarjeta-error">No hay datos de préstamos.</article>';
@@ -932,6 +1058,7 @@ function vistaPrestamos(m) {
     ${pr.liquidaciones.length ? `<div class="cifra-linea"><span class="cifra">${esc(dinero(t.capitalMXN, 0))}</span><span class="sub">en los próximos 30 días</span></div>` : ''}
     ${liquidaciones}
   </article>
+  ${dashboardFinanciero(pr.dashboard)}
   <p class="nota">Fuente: recordatorio de 5 días de tu hoja ${enlaceOrigen(pr.origen)}. Montos en MXN redondeados como en tu hoja; USDT convertido a ${TIPO_CAMBIO_USDT} MXN, la tasa de tus fórmulas. No se incluyen vencidos.</p>
   ${listaAvisos(pr.avisos, 'Revisión de la lectura')}`;
 }

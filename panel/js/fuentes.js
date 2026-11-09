@@ -40,7 +40,7 @@ export const ARCHIVOS = {
     pestanas: { DASHBOARD: 873980962, 'REGISTRO PRESTAMOS': 2091243089, 'REGISTRO DE INVERSORES': 523120444 },
     zona: 'America/Los_Angeles',
     rangos: {
-      dashboard: "'DASHBOARD'!A1:E60",
+      dashboard: "'DASHBOARD'!A1:R150",
       registro: "'REGISTRO PRESTAMOS'!A8:M",
       inversores: "'REGISTRO DE INVERSORES'!A9:R",
     },

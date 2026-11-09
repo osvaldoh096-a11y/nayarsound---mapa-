@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092113';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092122';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -121,7 +121,34 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     `💵 Capital: $${pagoTxt(100000)}`,
     `⏳ Faltan 10 días | 📅 ${String(ymdDesdeIdx(h + 10).d).padStart(2, '0')}-${MESES[ymdDesdeIdx(h + 10).m - 1].slice(0, 3).toLowerCase()}`,
   ].join('\n');
-  const dashboardPr = rejilla([[], ['', 'RESUMEN FINANCIERO'], [], ['', 'RESUMEN GENERAL'], [], ['', textoPrestamos]], 5);
+  // DASHBOARD de préstamos con los mismos bloques que tu hoja (cifras inventadas).
+  const dashboardPr = rejilla([
+    ['', 'RESUMEN FINANCIERO', '', '', 'GANANCIAS HISTORICAS', '', '', '', '', 'FLUJO HISTORICO', '', '', 'PRESTAMOS ACTIVOS'],
+    [],
+    ['', 'CAPITAL PRESTADO', 500000],
+    ['', 'CAPITAL PROPIO', 300000, '', 'TOTAL AÑOS', 'TOTAL GENERADO', 'TOTAL PAGADO', 'GANANCIA TOTAL', '', 'MES', 'GANANCIA', '', 'NOMBRE', 'CAPITAL TOTAL', 'INTERES RESTANTE TOTAL', 'PAGO MENSUAL'],
+    ['', 'CAPITAL DE INVERSORES', 200000, '', 2, 150000, 50000, 100000, '', 'ENERO 2026', 4000, '', ' CLIENTE UNO ', 300000, 60000, 20000],
+    ['', 'INTERES PROMEDIO MENSUAL', 0.065, '', '', '', '', '', '', 'FEBRERO 2026', -1500, '', ' CLIENTE DOS ', 200000, 40000, 10000],
+    ['', 'PROYECCION MENSUAL', 30000, '', 'AÑO', 'GENERADO', 'PAGADO', 'GANANCIA', '', 'MARZO 2026', 2500],
+    ['', 'RESTANTE PROPIO', 120000, '', 2025, 90000, 30000, 60000],
+    ['', '', '', '', 2026, 60000, 20000, 40000],
+    [],
+    ['', 'RESUMEN GENERAL', '', '', 'AÑO', 2026, '', '', '', '', '', '', 'INVERSORES ACTIVOS'],
+    ['', '', '', '', 'MES', 'INTERESES COBRADOS', 'PAGADO', 'GANANCIA TOTAL'],
+    ['', textoPrestamos, '', '', 'ENERO 2026', 5000, 1000, 4000, '', '', '', '', 'NOMBRE', 'FECHA COMPROMISO PAGO', 'CAPITAL TOTAL', 'PAGO MENSUAL'],
+    ['', '', '', '', 'FEBRERO 2026', 2000, 3500, -1500, '', '', '', '', ' INVERSOR DEMO UNO ', serial(h + 10), 100000, 3000],
+    ['', '', '', '', 'TOTAL MESES 2', 7000, 4500, 2500, '', '', '', '', ' INVERSOR DEMO DOS ', serial(h + 40), 100000, 0],
+    [],
+    ['', 'CASHFLOW MES ACTUAL', '', '', 'PAGO A INVERSORES MXN', '', 'PAGO A INVERSORES USDT'],
+    [],
+    ['', '💰 Ingresos: $6.000 | 💸 Pagos: $9.500 | 📊 Balance: $-3.500', '', '', '🟢 MES ACTUAL\n💵 TOTAL MXN A PAGAR: $3,000', '', '🟢 MES ACTUAL\n💵 TOTAL: $900 MXN | 50 USDT'],
+    ['', 'CASHFLOW MES SIGUIENTE'],
+    [],
+    ['', '💰 Ingresos: $12.000 | 💸 Pagos: $3.000 | 📊 Balance: $9.000'],
+    ['', 'COBRO INTERESES CLIENTES'],
+    [],
+    ['', '📌 RESUMEN DE COBRO\n\n📊 TOTAL PENDIENTE ESTE MES: $6.000'],
+  ], 16);
 
   // ---------------- GASTOS PERSONALES (tabla mensual y gastos por motivo)
   const categorias = ['COMIDA', 'TRANSPORTE', 'RENTA', 'SERVICIOS', 'ENTRETENIMIENTO', 'SALUD'];
