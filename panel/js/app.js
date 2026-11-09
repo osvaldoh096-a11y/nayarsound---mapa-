@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090327';
-import { escribirCelda, leerRangos } from './api.js?v=202611090327';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090327';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090327';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090327';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090335';
+import { escribirCelda, leerRangos } from './api.js?v=202611090335';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090335';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090335';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090335';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090327';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090327';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090327';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090327';
-import { fuentesDemo } from './demo.js?v=202611090327';
-import { icono } from './iconos.js?v=202611090327';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, telefonoDe, URL_TELEFONOS } from './tareas.js?v=202611090327';
+} from './fechas.js?v=202611090335';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090335';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090335';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090335';
+import { fuentesDemo } from './demo.js?v=202611090335';
+import { icono } from './iconos.js?v=202611090335';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090335';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -286,6 +286,10 @@ async function guardarPagoDj(boton) {
 }
 
 /** Enlace de WhatsApp con el mensaje ya escrito (tú solo tocas «Enviar» en WhatsApp). */
+function telefonoDe(nombre) {
+  return E.modelo?.nayarsound?.telefonos?.mapa.get(normalizar(nombre)) ?? null;
+}
+
 function botonWhatsApp(p) {
   const tel = telefonoDe(p.titulo);
   if (!tel?.numero) return '';
@@ -294,11 +298,15 @@ function botonWhatsApp(p) {
 }
 
 function avisoTelefono(p) {
-  if (T.estado !== 'ok') return '';
+  const t = E.modelo?.nayarsound?.telefonos;
+  if (!t || t.estado === 'sin-datos') return '';
   const tel = telefonoDe(p.titulo);
   if (tel?.numero) return '';
-  const texto = tel ? `El teléfono de ${p.titulo} en tu hoja no es válido («${tel.texto || 'vacío'}»).` : `${p.titulo} no está en tu lista de teléfonos.`;
-  return `<p class="nota">${esc(texto)} <a href="${URL_TELEFONOS}" target="_blank" rel="noopener noreferrer">Agregar teléfono ↗</a></p>`;
+  let texto;
+  if (t.estado === 'sin-columna') texto = 'Para enviar por WhatsApp, agrega una columna «TELEFONO» junto a los DJs en AMAL AGENDA › DATA.';
+  else if (!tel) texto = `${p.titulo} no está en la lista de DJs de AMAL AGENDA › DATA.`;
+  else texto = tel.texto ? `El teléfono de ${p.titulo} en AMAL AGENDA › DATA no es válido («${tel.texto}»).` : `Falta el teléfono de ${p.titulo} en AMAL AGENDA › DATA.`;
+  return `<p class="nota">${esc(texto)}${t.url ? ` <a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">Abrir DATA ↗</a>` : ''}</p>`;
 }
 
 async function copiarMensaje(boton) {

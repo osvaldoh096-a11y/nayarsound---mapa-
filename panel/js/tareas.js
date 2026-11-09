@@ -3,10 +3,10 @@
 // también desde Sheets. Antes de cambiar o borrar una fila se comprueba que
 // sigue siendo la misma tarea.
 
-import { TAREAS } from './fuentes.js?v=202611090327';
-import { leerRangos, agregarFila, escribirRango, borrarRango } from './api.js?v=202611090327';
-import { esc, plural } from './formato.js?v=202611090327';
-import { icono } from './iconos.js?v=202611090327';
+import { TAREAS } from './fuentes.js?v=202611090335';
+import { leerRangos, agregarFila, escribirRango, borrarRango } from './api.js?v=202611090335';
+import { esc, plural } from './formato.js?v=202611090335';
+import { icono } from './iconos.js?v=202611090335';
 
 const H = `'${TAREAS.pestana}'`;
 const RANGO = `${H}!A2:D`;
@@ -34,39 +34,9 @@ export function leerFilas(valores) {
   })).filter((t) => t.texto);
 }
 
-/** Número para WhatsApp: solo dígitos; 10 dígitos se toman como de México (52). */
-export function numeroWhatsApp(texto) {
-  const d = String(texto ?? '').replace(/\D/g, '');
-  if (d.length === 10) return `52${d}`;
-  if (d.length >= 11 && d.length <= 15) return d;
-  return null;
-}
-
-function claveNombre(n) {
-  return String(n ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
-}
-
-export function leerTelefonos(valores) {
-  const mapa = new Map();
-  for (const f of valores ?? []) {
-    const nombre = claveNombre(f?.[0]);
-    const numero = numeroWhatsApp(f?.[1]);
-    if (nombre) mapa.set(nombre, { numero, texto: String(f?.[1] ?? '').trim() });
-  }
-  return mapa;
-}
-
-/** { numero } si el DJ tiene teléfono válido; { numero: null, texto } si está mal escrito; null si no aparece. */
-export function telefonoDe(nombre) {
-  return T.telefonos?.get(claveNombre(nombre)) ?? null;
-}
-
-export const URL_TELEFONOS = `https://docs.google.com/spreadsheets/d/${TAREAS.id}/edit#gid=${TAREAS.gidTelefonos}`;
-
 export function usarDemo() {
   Object.assign(T, {
     demo: true, estado: 'ok', error: null,
-    telefonos: leerTelefonos([['DJ ALFA', '33 1234 5678']]),
     lista: [
       { fila: 2, texto: 'Llamar al proveedor de luces', hecha: false },
       { fila: 3, texto: 'Revisar contrato del evento del sábado', hecha: false },
@@ -79,9 +49,8 @@ export async function cargarTareas(token) {
   if (T.demo) return;
   if (T.estado !== 'ok') T.estado = 'leyendo';
   try {
-    const [valores, telefonos] = await leerRangos(token, TAREAS.id, [RANGO, `'${TAREAS.telefonos}'!A2:B`]);
+    const [valores] = await leerRangos(token, TAREAS.id, [RANGO]);
     T.lista = leerFilas(valores);
-    T.telefonos = leerTelefonos(telefonos);
     T.estado = 'ok';
     T.error = null;
   } catch (error) {

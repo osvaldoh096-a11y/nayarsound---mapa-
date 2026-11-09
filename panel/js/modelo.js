@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611090327';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611090327';
+} from './fechas.js?v=202611090335';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611090335';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611090327';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611090327';
-import { dinero } from './formato.js?v=202611090327';
+} from './sheets.js?v=202611090335';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611090335';
+import { dinero } from './formato.js?v=202611090335';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -91,6 +91,46 @@ function filasAgenda(fuente) {
     });
   }
   return { eventos, controles, faltan, encabezado };
+}
+
+// ---------------------------------------------------------------- Teléfonos de DJs
+
+const ENC_TELEFONO = ['TELEFONO', 'TELEFONOS', 'TEL', 'CELULAR', 'CEL', 'WHATSAPP', 'NUMERO', 'NUMERO DE TELEFONO'];
+
+/** Número para WhatsApp: solo dígitos; 10 dígitos se toman como de México (52). */
+export function numeroWhatsApp(texto) {
+  const d = String(texto ?? '').replace(/\D/g, '');
+  if (d.length === 10) return `52${d}`;
+  if (d.length >= 11 && d.length <= 15) return d;
+  return null;
+}
+
+/**
+ * Teléfonos de AMAL AGENDA › DATA: busca la fila con «NOMBRE» y una columna
+ * de teléfono («TELEFONO», «CELULAR», «WHATSAPP»…) y los empareja por fila.
+ * Devuelve { estado: 'ok'|'sin-columna'|'sin-datos', mapa, origen }.
+ */
+export function telefonosDjs(fuente) {
+  const filas = fuente?.rangos?.djs;
+  const vacio = (estado) => ({ estado, mapa: new Map(), url: fuente && !fuente.demo ? urlHoja(fuente.id, fuente.meta?.pestanas?.DATA) : null });
+  if (!filas) return vacio('sin-datos');
+  const inicio = inicioRango(ARCHIVOS.agenda.rangos.djs);
+  for (let f = 0; f < filas.length; f++) {
+    const enc = (filas[f] ?? []).map(normalizar);
+    const cNombre = enc.indexOf('NOMBRE');
+    if (cNombre < 0) continue;
+    const cTel = enc.findIndex((e) => ENC_TELEFONO.includes(e));
+    if (cTel < 0) return { ...vacio('sin-columna'), columna: letraColumna(inicio.col + cNombre + 1) };
+    const mapa = new Map();
+    for (let k = f + 1; k < filas.length; k++) {
+      const nombre = normalizar(filas[k]?.[cNombre]);
+      if (!nombre) continue;
+      const texto = String(filas[k]?.[cTel] ?? '').trim();
+      mapa.set(nombre, { numero: numeroWhatsApp(texto), texto, a1: `${letraColumna(inicio.col + cTel)}${inicio.fila + k}` });
+    }
+    return { ...vacio('ok'), mapa };
+  }
+  return vacio('sin-columna');
 }
 
 /** Minutos desde medianoche de una hora de la hoja: fracción de día o texto («16:30», «6:00 p.m.»). */
@@ -591,6 +631,7 @@ export function ordenarPendientes(lista) {
 
 export function construirModelo(fuentes, hoy) {
   const nayarsound = modeloNayarsound(fuentes, hoy.idx, hoy.minuto ?? null);
+  nayarsound.telefonos = telefonosDjs(fuentes.agenda);
   const prestamos = modeloPrestamos(fuentes, hoy.idx);
   const finanzas = modeloFinanzas(fuentes, hoy);
 

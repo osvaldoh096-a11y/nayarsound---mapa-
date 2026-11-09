@@ -26,10 +26,12 @@ export const ARCHIVOS = {
   agenda: {
     nombre: 'AMAL AGENDA',
     id: '1FKaobilQ1HNHXntMxnFgoPld5In4dwSNsQgt-78yk4o',
-    pestanas: { AGENDA: 0 },
+    pestanas: { AGENDA: 0, DATA: 1286754118 },
     zona: 'America/Mexico_City',
     rangos: {
       agenda: "'AGENDA'!A9:T",
+      // DJs de planta (CIUDAD, NOMBRE, COORDENADAS, SONIDO, TELEFONO): de aquí sale el WhatsApp.
+      djs: "'DATA'!A2:Z200",
     },
   },
   prestamos: {
@@ -64,8 +66,4 @@ export const TAREAS = {
   id: '1A49h6L76bZUVkUaIzf_lYCwG2Hh-biPjbwGbYXpJrz4',
   pestana: 'TAREAS',
   gid: 1899581123,
-  // Teléfonos de los DJs para «Enviar por WhatsApp» (DJ, TELEFONO). Viven en
-  // tu hoja, no en el código: el repositorio es público.
-  telefonos: 'TELEFONOS DJ',
-  gidTelefonos: 777,
 };

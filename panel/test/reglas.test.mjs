@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda, minutosDeHora } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
@@ -152,6 +152,19 @@ test('los eventos que ya terminaron (inicio + TOT.HORAS) dejan de ser pendientes
   assert.equal(minutosDeHora('6:00 p.m.'), 1080);
   assert.equal(minutosDeHora('12:15 a.m.'), 15);
   assert.equal(minutosDeHora('sin hora'), null);
+});
+
+test('teléfonos de DJs desde AMAL AGENDA › DATA', () => {
+  const hoy = { y: 2026, m: 11, d: 7, idx: HOY };
+  const m = construirModelo(fuentesDemo(hoy), hoy);
+  assert.equal(m.nayarsound.telefonos.estado, 'ok');
+  assert.equal(m.nayarsound.telefonos.mapa.get('DJ ALFA').numero, '523312345678');
+  assert.equal(m.nayarsound.telefonos.mapa.get('DJ GAMA').numero, null);
+  assert.equal(numeroWhatsApp('+52 33 1750 4081'), '523317504081');
+  assert.equal(numeroWhatsApp('#ERROR!'), null);
+  const f = fuentesDemo(hoy);
+  f.agenda.rangos.djs = [['', 'CIUDAD', 'NOMBRE', 'COORDENADAS', 'SONIDO'], ['', 'GDL', 'X', '1,2', 'M']];
+  assert.equal(construirModelo(f, hoy).nayarsound.telefonos.estado, 'sin-columna');
 });
 
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {

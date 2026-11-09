@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611090327';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611090335';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -153,7 +153,11 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   return {
     nayarsound: { clave: 'nayarsound', id: 'DEMO', demo: true, meta: meta('🐯NAYARSOUND - PERSONAL', { DASHBOARD: 1, 'AGENDA Y VENTAS': 2 }),
       rangos: { dashboard: dashboardNs, ventas } },
-    agenda: { clave: 'agenda', id: 'DEMO', demo: true, meta: meta('AMAL AGENDA', { AGENDA: 0 }), rangos: { agenda: agendaFilas } },
+    agenda: { clave: 'agenda', id: 'DEMO', demo: true, meta: meta('AMAL AGENDA', { AGENDA: 0 }), rangos: { agenda: agendaFilas, djs: [
+      ['', 'DJ CON PENDIENTES', 'FECHAS DJ', '', 'FECHA', '', '', '', '', '', '', '', '', '', '', 'CIUDAD', 'NOMBRE', 'COORDENADAS', 'SONIDO', 'TELEFONO'],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'GUADALAJARA', 'DJ ALFA', '20.6, -103.4', 'MACKIE', '(33) 1234-5678'],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'LEON', 'DJ GAMA', '21.1, -101.6', 'MACKIE', '123'],
+    ] } },
     prestamos: { clave: 'prestamos', id: 'DEMO', demo: true, meta: meta('💵REGISTRO DE PRESTAMOS', { DASHBOARD: 3, 'REGISTRO PRESTAMOS': 4, 'REGISTRO DE INVERSORES': 5 }),
       rangos: { dashboard: dashboardPr, registro, inversores } },
     gastos: { clave: 'gastos', id: 'DEMO', demo: true, meta: meta('🚹GASTOS PERSONALES - OSVALDO', { 'DASHBOARD BALANCE GENERAL': 6, 'ANALISIS GASTOS PERSONALES': 7 }),
