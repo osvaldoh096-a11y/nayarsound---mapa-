@@ -1,7 +1,7 @@
 // Gráficas sencillas sin librerías: barras en HTML y líneas en SVG, con
 // información al pasar el dedo o el cursor.
 
-import { dinero, esc, esPrivado } from './formato.js?v=202611092201';
+import { dinero, esc, esPrivado } from './formato.js?v=202611092213';
 
 function compacto(v) {
   if (esPrivado()) return '$***';
@@ -16,7 +16,7 @@ function compacto(v) {
  * Barras horizontales. items: [{ nombre, valor (número o null), nota }]
  * divergente: los negativos crecen hacia la izquierda desde el cero.
  */
-export function barras(items, { divergente = false, decimales = 2, vacio = 'Sin datos' } = {}) {
+export function barras(items, { divergente = false, decimales = 2, vacio = 'Sin datos', formato = null } = {}) {
   if (!items.length) return `<p class="vacio">${esc(vacio)}</p>`;
   const valores = items.map((i) => i.valor).filter((v) => typeof v === 'number');
   const max = Math.max(0, ...valores);
@@ -28,7 +28,7 @@ export function barras(items, { divergente = false, decimales = 2, vacio = 'Sin 
     const ancho = tieneValor ? (Math.abs(i.valor) / rango) * 100 : 0;
     const izquierda = tieneValor && i.valor < 0 ? cero - ancho : cero;
     const clase = tieneValor && i.valor < 0 ? 'neg' : 'pos';
-    const valorTexto = tieneValor ? dinero(i.valor, decimales) : (i.nota || 'Sin dato');
+    const valorTexto = tieneValor ? (formato ? formato(i.valor) : dinero(i.valor, decimales)) : (i.nota || 'Sin dato');
     const tip = `${i.nombre}: ${valorTexto}${i.detalle ? ` · ${i.detalle}` : ''}`;
     return `<div class="graf-fila" data-tip="${esc(tip)}" tabindex="0">
       <span class="graf-nombre">${esc(i.nombre)}</span>

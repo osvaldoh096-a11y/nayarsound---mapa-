@@ -1,20 +1,20 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092201';
-import { escribirCelda, leerRangos } from './api.js?v=202611092201';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092201';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092201';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092201';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092213';
+import { escribirCelda, leerRangos } from './api.js?v=202611092213';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092213';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092213';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092213';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611092201';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092201';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092201';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092201';
-import { fuentesDemo } from './demo.js?v=202611092201';
-import { leerCashflow } from './dashprestamos.js?v=202611092201';
-import { icono } from './iconos.js?v=202611092201';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092201';
+} from './fechas.js?v=202611092213';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092213';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092213';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092213';
+import { fuentesDemo } from './demo.js?v=202611092213';
+import { leerCashflow } from './dashprestamos.js?v=202611092213';
+import { icono } from './iconos.js?v=202611092213';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092213';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -785,12 +785,119 @@ function vistaNayarsound(m) {
   if (!ns.disponible) return '<article class="tarjeta tarjeta-error">No hay datos de NayarSound.</article>';
   return `
   <h1 class="titulo-vista">NayarSound</h1>
+  <div class="pf">${operacionNs(ns.operacion, m)}</div>
   <div class="rejilla-ns">
     ${tarjetaAgenda(ns.agenda, m.hoy.idx)}
     ${tarjetaDeuda(ns.deuda)}
   </div>
   ${tarjetaControles(ns.controles)}
   ${listaAvisos(ns.avisos, 'Revisión de la lectura')}`;
+}
+
+const nombreMesCorto = (x) => `${MES_CORTO[x.m - 1]}${x.m === 1 ? ` ${String(x.y).slice(2)}` : ''}`;
+const nombreMesLargo = (x) => capitalizar(MESES[x.m - 1].toLowerCase());
+const cuenta = (n) => Number(n ?? 0).toLocaleString('es-MX');
+
+/** Cambio contra el mes anterior: «▲ 12%» en verde / «▼ 8%» en rojo. */
+function cambio(actual, antes) {
+  if (!antes) return '';
+  const p = (actual - antes) / Math.abs(antes);
+  if (!Number.isFinite(p)) return '';
+  const sube = p >= 0;
+  return `<span class="ns-cambio ${sube ? 'sube' : 'baja'}">${sube ? '▲' : '▼'} ${Math.abs(Math.round(p * 100))}%</span>`;
+}
+
+/** Columnas por mes: realizados (sólido) + agendados (claro); el mes actual resaltado. */
+function columnasMeses(serie, kActual) {
+  const max = Math.max(1, ...serie.map((x) => x.eventos));
+  return `<div class="ns-cols">${serie.map((x) => {
+    const tip = `${nombreMesLargo(x)} ${x.y}: ${x.eventos} eventos (${x.realizados} realizados, ${x.agendados} por realizar) · generado ${dinero(x.generado, 0)}${x.conGanancia ? ` · tu ganancia ${dinero(x.gananciaPersonal, 0)}` : ''}`;
+    return `<div class="ns-col ${x.k === kActual ? 'actual' : ''} ${x.k > kActual ? 'futuro' : ''}" data-tip="${esc(tip)}" tabindex="0">
+      <span class="ns-col-num">${x.eventos || ''}</span>
+      <div class="ns-col-pila">
+        <i class="ns-ag" style="height:${(x.agendados / max) * 100}%"></i><i class="ns-re" style="height:${(x.realizados / max) * 100}%"></i>
+      </div>
+      <span class="ns-col-etq">${esc(nombreMesCorto(x))}</span>
+    </div>`;
+  }).join('')}</div>
+  <div class="leyenda"><span><i class="muestra ns-re"></i>Realizados</span><span><i class="muestra ns-ag"></i>Por realizar</span></div>`;
+}
+
+function operacionNs(op, m) {
+  if (!op) return '';
+  const { anterior: a, actual: c, proximo: p } = op;
+  const kpi = (color, etiqueta, valor, sub) => `<article class="tarjeta pf-kpi pf-c-${color}">
+    <div class="pf-kpi-etq"><i class="pf-punto" aria-hidden="true"></i>${etiqueta}</div><div class="pf-kpi-valor">${valor}</div>
+    <div class="pf-kpi-sub">${sub}</div></article>`;
+  const promedio = c.realizados ? c.gananciaPersonal / c.realizados : null;
+  const kpis = `<section class="pf-kpis">
+    ${kpi('azul', `Eventos de ${MESES[c.m - 1].toLowerCase()}`, esc(cuenta(c.eventos)), `${cuenta(c.realizados)} realizados · ${cuenta(c.agendados)} por realizar ${cambio(c.eventos, a.eventos)}`)}
+    ${kpi('azul', 'Generado del mes', cifraDoble(c.generado), `Total de eventos ${cambio(c.generado, a.generado)}`)}
+    ${kpi('verde', 'Tu ganancia del mes', cifraDoble(c.gananciaPersonal), promedio !== null ? `${din(promedio, 0)} por evento realizado` : 'Aún sin eventos realizados')}
+    ${kpi('ambar', `Agendados ${MESES[p.m - 1].toLowerCase()}`, esc(cuenta(p.eventos)), `${din(p.generado, 0)} por cobrar en eventos`)}
+  </section>`;
+
+  // Mes anterior · este mes · próximo mes
+  const filaComp = (etq, f, { dinero: esDinero = false, solo = null } = {}) => `<tr><td>${etq}</td>${[a, c, p].map((x, i) => `<td class="num">${solo && !solo[i] ? '<span class="sin-dato">—</span>' : esDinero ? din(f(x), 0) : esc(cuenta(f(x)))}</td>`).join('')}</tr>`;
+  const comparativo = `<article class="tarjeta">
+    <header class="pf-cab"><h2>Mes anterior · este mes · próximo</h2></header>
+    <table class="pf-tabla ns-comp"><thead><tr><th></th><th class="num">${esc(nombreMesLargo(a))}</th><th class="num actual">${esc(nombreMesLargo(c))}</th><th class="num">${esc(nombreMesLargo(p))}</th></tr></thead><tbody>
+      ${filaComp('Eventos', (x) => x.eventos)}
+      ${filaComp('Realizados', (x) => x.realizados)}
+      ${filaComp('Generado', (x) => x.generado, { dinero: true })}
+      ${filaComp('Pagado a DJs', (x) => x.pagoDj, { dinero: true, solo: [true, true, false] })}
+      ${filaComp('Tu ganancia', (x) => x.gananciaPersonal, { dinero: true, solo: [true, true, false] })}
+    </tbody></table>
+    <p class="nota">De AGENDA Y VENTAS. La ganancia solo cuenta eventos ya realizados; el próximo mes muestra lo agendado.</p>
+  </article>`;
+
+  // Gráficas
+  const kActual = c.k;
+  const eventosMes = `<article class="tarjeta">
+    <header class="pf-cab"><h2>Eventos por mes</h2><span class="pf-cab-der">Últimos 12 meses y los próximos 2</span></header>
+    ${columnasMeses(op.serie, kActual)}
+  </article>`;
+  const dias = op.porDia;
+  const maxDia = Math.max(1, ...dias.map((d) => d.eventos));
+  const semana = `<article class="tarjeta">
+    <header class="pf-cab"><h2>Próximos 7 días</h2><span class="pf-cab-der">${cuenta(dias.reduce((t, d) => t + d.eventos, 0))} eventos</span></header>
+    <div class="ns-dias">${dias.map((d, i) => `<div class="ns-dia" data-tip="${esc(`${capitalizar(fechaLarga(d.idx))}: ${d.eventos} eventos · ${dinero(d.generado, 0)}`)}" tabindex="0">
+      <span class="ns-col-num">${d.eventos || ''}</span><div class="ns-col-pila"><i class="ns-re" style="height:${(d.eventos / maxDia) * 100}%"></i></div>
+      <span class="ns-col-etq">${i === 0 ? 'Hoy' : esc(fechaCorta(d.idx).split(' ')[0])}<small>${esc(String(ymdDesdeIdx(d.idx).d))}</small></span></div>`).join('')}</div>
+  </article>`;
+  const fmtEventos = (v) => `${cuenta(v)} ${v === 1 ? 'evento' : 'eventos'}`;
+  const desglose = (titulo, lista, nota = '', { tal = false } = {}) => `<article class="tarjeta">
+    <header class="pf-cab"><h2>${titulo}</h2><span class="pf-cab-der">${esc(nombreMesLargo(c))}</span></header>
+    ${barras(lista.slice(0, 8).map((x) => ({ nombre: tal ? x.nombre : nombreBonito(x.nombre), valor: x.eventos, detalle: dinero(x.generado, 0) })), { formato: fmtEventos, vacio: 'Sin eventos este mes.' })}
+    ${nota}
+  </article>`;
+
+  // Números del DASHBOARD
+  const d = op.dashboard ?? {};
+  const o = d.operacion;
+  const filtro = d.filtro ? `${nombreBonito(d.filtro.ciudad)} · ${nombreBonito(d.filtro.mes)}` : '';
+  const datoD = (etq, x, { resaltar = false } = {}) => (x ? `<div class="pf-dato ${resaltar ? 'resaltar' : ''}"><span>${etq}</span><b>${din(x.valor)}${x.pct !== null && x.pct !== undefined ? ` <small class="pf-sub-in">${esc(pctTxt(x.pct, 0))}</small>` : ''}</b></div>` : '');
+  const seccionesDash = [];
+  if (o) {
+    seccionesDash.push(seccionPF('ns-operacion', 'ambar', `Operación mensual${filtro ? ` · ${esc(filtro)}` : ''}`,
+      `Generado <b>${din(o.generado?.valor, 0)}</b> · ganancia neta <b class="texto-verde">${din(o.neta?.valor, 0)}</b>`,
+      `<div class="pf-datos">${datoD('Generado', o.generado)}${datoD('Pagado a DJs', o.djs)}${datoD('Publicidad', o.publicidad)}${datoD('Operación y at. cliente', o.operacion)}${datoD('Ganancia neta mensual', o.neta, { resaltar: true })}${datoD('Ganancia neta personal', o.netaPersonal)}${datoD('Te queda por evento', o.porEvento)}</div>
+      ${d.roas && (d.roas.ventas || d.roas.neta) ? `<div class="df-mini-tabla"><div><span>Por $1 en ads vende</span><b>${esc(String(d.roas.ventas ?? '—'))}x</b></div><div><span>Por $1 en ads gana neto</span><b>${esc(String(d.roas.neta ?? '—'))}x</b></div></div>` : ''}
+      <p class="nota">Con el filtro de ciudad y mes que tienes elegido en tu DASHBOARD.</p>`));
+  }
+  if (d.historico || d.personal) {
+    const h = d.historico ?? {};
+    seccionesDash.push(seccionPF('ns-historico', 'verde', 'Resultado histórico',
+      `${d.realizadosTexto ? `${esc(capitalizar(d.realizadosTexto.toLowerCase()))} · ` : ''}utilidad acumulada <b>${din(h.utilidad, 0)}</b>`,
+      `<div class="pf-datos">${h.stock !== undefined ? `<div class="pf-dato"><span>Inversión total en stock</span><b>${din(h.stock)}</b></div>` : ''}${h.utilidad !== undefined ? `<div class="pf-dato"><span>Utilidad acumulada</span><b>${din(h.utilidad)}</b></div>` : ''}${h.excedente !== undefined ? `<div class="pf-dato resaltar"><span>Excedente sobre inversión</span><b>${din(h.excedente)}</b></div>` : ''}</div>
+      ${d.personal ? `<h3 class="df-sub">Ganancia personal histórica</h3><div class="pf-datos">${d.personal.map((x) => `<div class="pf-dato ${x.total ? 'resaltar' : ''}"><span>${esc(nombreBonito(x.etiqueta))}</span><b>${din(x.valor)}</b></div>`).join('')}</div>` : ''}`));
+  }
+
+  return `${kpis}
+    <section class="pf-fila ns-fila-graf">${eventosMes}${semana}</section>
+    ${comparativo}
+    <section class="ns-fila-3">${desglose('Por ciudad', op.ciudades)}${desglose('DJs con más eventos', op.djs, op.sinDj ? `<p class="nota texto-rojo">${plural(op.sinDj, 'evento', 'eventos')} sin DJ asignado.</p>` : '', { tal: true })}${desglose('Tipo de evento', op.tipos)}</section>
+    ${seccionesDash.length ? `<section class="pf-fila">${seccionesDash.join('')}</section>` : ''}`;
 }
 
 function tarjetaAgenda(agenda, hoyIdx) {
@@ -907,7 +1014,7 @@ function listaAvisos(avisos, titulo) {
 
 const din = (v, dec = 2) => (typeof v === 'number' ? esc(dinero(v, dec)) : '<span class="sin-dato">—</span>');
 const pctTxt = (v, dec = 1) => (typeof v === 'number' ? `${(v * 100).toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec })}%` : '—');
-const ACENTOS = { interes: 'interés', proyeccion: 'proyección', dia: 'día', prestamos: 'préstamos', prestamo: 'préstamo', utilidad: 'utilidad' };
+const ACENTOS = { leon: 'león', interes: 'interés', proyeccion: 'proyección', dia: 'día', prestamos: 'préstamos', prestamo: 'préstamo', utilidad: 'utilidad' };
 const nombreBonito = (t) => capitalizar(String(t ?? '').toLowerCase().replace(/\p{L}+/gu, (w) => ACENTOS[w] ?? w));
 const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 

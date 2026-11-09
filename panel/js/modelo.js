@@ -7,16 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611092201';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092201';
+} from './fechas.js?v=202611092213';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092213';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611092201';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092201';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092201';
-import { modeloST } from './st.js?v=202611092201';
-import { dinero } from './formato.js?v=202611092201';
+} from './sheets.js?v=202611092213';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092213';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092213';
+import { modeloST } from './st.js?v=202611092213';
+import { modeloOperacion } from './nsops.js?v=202611092213';
+import { dinero } from './formato.js?v=202611092213';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -180,6 +181,7 @@ function tablaVentas(fuente) {
     dj: ['DJ', 1], fecha: 'FECHA', ciudad: 'CIUDAD', entregar: 'ENTREGAR A OSVALDO',
     total: 'TOTAL EVENTO', anticipo: 'ANTICIPO', gas: 'GAS A COBRAR', horas: 'TOT.HORAS', dia: 'DIA',
     pagado: 'PAGADO', pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP', sonido: 'SONIDO DE',
+    tipo: 'TIPO EVENTO', ganancia: 'GANANCIA', ganancia2: 'GANANCIA 2',
   }, inicio);
   const letra = (clave) => (indices[clave] >= 0 ? letraColumna(inicio.col + indices[clave]) : null);
   const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago'), pagoDj: letra('pagoDj') };
@@ -336,6 +338,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
   const celdaDeuda = textoBajoEncabezado(dashboard, 'RECORDATORIO DE DEUDA', inicioDash);
   const origenDeuda = hacerOrigen(nayarsound, 'dashboard', 'DASHBOARD', celdaDeuda.a1);
   const ventas = tablaVentas(nayarsound);
+  salida.operacion = modeloOperacion(ventas?.registros ?? [], dashboard, hoyIdx);
   if (!celdaDeuda.encontrado) {
     salida.deuda = { estado: 'no-encontrado', personas: [], origen: origenDeuda };
     avisos.push({ texto: 'No encontré el encabezado «RECORDATORIO DE DEUDA» en DASHBOARD.', tipo: 'lectura' });

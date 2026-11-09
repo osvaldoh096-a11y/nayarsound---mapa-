@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092201';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092213';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -74,6 +74,22 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       entregar + 1000, 500, 300, 800, entregar + 500, entregar + 500, entregar, 'SI', '', '', 'DEUDOR', 'NO']),
     [4, 'EJEMPLO', 'TEPIC', 'DJ DELTA', serial(h - 1), 'BODA', 5, 'CLIENTE DEMO', 2500, 500, 0, 700, 1300, 650, 650, 'SI', '', '', 'PAGADO', 'SI'],
   ];
+  // Historial de eventos (14 meses) para la operación mensual: ya pagados o por realizar.
+  const ciudadesDemo = ['GUADALAJARA', 'TEPIC', 'LEON', 'MONTERREY'];
+  const tiposDemo = ['CUMPLEAÑOS', 'XV', 'BODA', 'BAUTIZO'];
+  const djsDemo = ['DJ ALFA', 'DJ BETA', 'DJ GAMA', 'DJ DELTA', 'DJ SOL'];
+  let opDemo = 100;
+  for (let d = -330; d <= 50; d += 3) {
+    const n = 1 + ((Math.abs(d) * 7) % 4);
+    for (let i = 0; i < n; i++) {
+      const idx = h + d;
+      const total = 2500 + ((d + i * 3) % 3 === 0 ? 1000 : 500);
+      const hecho = idx < h - 1;
+      const pagoDj = 1200;
+      ventas.push([opDemo++, 'OSVALDO', ciudadesDemo[(i + Math.abs(d)) % 4], djsDemo[(i + Math.abs(d)) % 5], serial(idx), tiposDemo[(i + d + 400) % 4], 5, 'CLIENTE DEMO',
+        total, 100, 0, hecho ? pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj - 100 : '', hecho ? 'SI' : 'NO', '', '', hecho ? 'PAGADO' : '', hecho ? 'SI' : '']);
+    }
+  }
   const fmt = (n) => n.toLocaleString('en-US');
   const personas = [...new Set(deudas.map((d) => d[0]))].sort();
   const mesLargo = (idx) => MESES[ymdDesdeIdx(idx).m - 1].toLowerCase();
@@ -83,7 +99,13 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       .map((d) => `📅 ${String(ymdDesdeIdx(d[1]).d).padStart(2, '0')} ${mesLargo(d[1])} - ${DIAS[diaSemana(d[1])].toLowerCase()}`).join('\n')}`;
   }).join('\n\n')}\n\n💰 TOTAL DE DEUDA: $${fmt(deudas.reduce((s, d) => s + d[2], 0))}`;
   const dashboardNs = rejilla([
-    [], ['', 'EVENTOS DE EJEMPLO'], [], ['', 'RECORDATORIOS'], ['', textoAgenda], [], [], ['', 'RECORDATORIO DE DEUDA'], ['', textoDeuda],
+    ['', '120 EVENTOS REALIZADOS AL DÍA DE HOY'], [], ['', 'CIUDAD', 'MES'], [], ['', 'GLOBAL', 'OCTUBRE 2026'], [], ['', 'OPERACION MENSUAL DE GLOBAL'], [],
+    ['', 'GENERADO', 100000], ['', 'PAGADO A DJS', '$48,000 (48%)'], ['', 'PUBLICIDAD', '$7,000 (7%)'], ['', 'OPERACION Y AT CLIENTE', '$2,000 (2%)'],
+    ['', 'GANANCIA NETA MENSUAL', 43000], ['', 'GANANCIA NETA MENSUAL PER.', 40000], ['', 'ME QUEDA X EVENTO', 1100], [],
+    ['', 'POR CADA $1 MXN INVERTIDO EN ADS'], ['', 'GENERO EN VENTAS', 'GANANCIA NETA'], ['', '$14.29x', '$6.14x'], [],
+    ['', 'RESULTADO HISTORICO DE GLOBAL'], ['', 'INVERSION TOTAL STOCK', 50000], ['', 'UTILIDAD ACUMULADA ', 250000], ['', 'EXCEDENTE SOBRE INVERSION', 200000], [],
+    ['', 'GANANCIA PERSONAL HISTORICA'], ['', 'UTILIDAD TEPIC (50%)', 40000], ['', 'UTILIDAD GUADALAJARA (100%)', 90000], ['', 'TOTAL GANANCIA PERSONAL ', 130000], [],
+    ['', 'RECORDATORIOS'], ['', textoAgenda], [], [], ['', 'RECORDATORIO DE DEUDA'], ['', textoDeuda],
   ], 5);
 
   // ---------------- REGISTRO DE PRESTAMOS
