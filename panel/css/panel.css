@@ -364,6 +364,14 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 .rangos { font-size: 12.5px; word-break: break-all; }
 .fecha-mini { display: inline-block; font-size: 12px; background: var(--suave); padding: 2px 7px; border-radius: 6px; margin: 1px 0; white-space: nowrap; }
 .lista-controles { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.lista-buscar { list-style: none; padding: 0; margin: 10px 0 0; border: 1px solid var(--borde); border-radius: 12px; overflow: hidden; }
+.lista-buscar li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--borde); }
+.lista-buscar li:first-child { border-top: 0; }
+.lista-buscar li.pronto { background: var(--coral-fondo); }
+.lista-buscar b { font-weight: 650; }
+.lista-buscar small { display: block; color: var(--tenue); font-size: 12.5px; }
+.lb-ciudad { font-weight: 600; }
+.lb-enlace { color: var(--tenue); font-size: 12.5px; text-decoration: none; white-space: nowrap; }
 .avisos summary { cursor: pointer; font-weight: 600; color: var(--tinta-2); }
 .avisos ul, .avisos-abiertos ul { margin: 8px 0 0; padding-left: 18px; color: var(--tinta-2); font-size: 13.5px; }
 .avisos-abiertos h2 { font-size: 15px; }

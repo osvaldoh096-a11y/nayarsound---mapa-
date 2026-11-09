@@ -110,6 +110,14 @@ try {
 
     // NayarSound
     await pagina.goto(`${url}/panel/#/nayarsound`);
+    {
+      await pagina.waitForSelector('.lista-controles');
+      const avisos = await pagina.locator('.lista-controles').innerText();
+      revisar(!/sin DJ|Orden de fechas|hora de inicio/i.test(avisos), 'Avisos de captura: sin «vacío», «fecha desordenada» ni «hora de inicio»');
+      const buscar = await pagina.locator('.lista-buscar li').allInnerTexts();
+      if (!rutaSnapshot) revisar(buscar.length === 2 && /Guadalajara/.test(buscar[0]) && /mañana/.test(buscar[0]) && /Tepic/.test(buscar[1]) && /en 5 días/.test(buscar[1]),
+        `DJ «buscar»: fecha y ciudad, de la más cercana a la más lejana (${buscar.map((b) => b.replace(/\s+/g, ' ')).join(' | ')})`);
+    }
     await pagina.waitForSelector('.dia');
     const deuda = esperado.nayarsound.deuda;
     if (deuda?.estado === 'ok') {

@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611090047';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611090307';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -25,6 +25,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   // ---------------- AMAL AGENDA (filas 9-11 controles, 12 encabezados)
   const eventos = [
     ['GUADALAJARA', 'DJ ALFA', h, 20 / 24, 5, 3000, 300],
+    ['TEPIC', 'BUSCAR', h + 5, 18 / 24, 4, 2800, ''],
     ['GUADALAJARA', 'DJ BETA', h, 18 / 24, 4, 2800, 250],
     ['GUADALAJARA', 'DJ BETA', h, 22 / 24, 3, 2500, 250],
     ['GUADALAJARA', '', h, 17 / 24, 5, 3200, 300],
@@ -35,7 +36,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     ['GUADALAJARA', 'DJ ALFA', h - 3, 20 / 24, 5, 3000, 300],
   ];
   const agendaFilas = [
-    ['', '', '', 'HAY 1 BUSCAR ❌'],
+    ['', '', '', 'HAY 2 BUSCAR ❌'],
     ['', '', '', 'HAY 1 VACIO ❌'],
     ['', '', '', '', '✅ Fechas en orden', '', 'HAY 1 ERRORES ❌', '', '', '', '', 'EN ORDEN ✅', '', 'HAY 1 ERRORES ❌'],
     ['', 'SONIDO DE', 'CIUDAD', 'DJ', 'FECHA', 'TIPO EVENTO', 'INICIO DEL EVENTO', 'TOT.HORAS', 'CLIENTE',

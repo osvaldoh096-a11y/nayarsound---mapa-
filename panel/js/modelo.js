@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611090047';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611090047';
+} from './fechas.js?v=202611090307';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611090307';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611090047';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611090047';
-import { dinero } from './formato.js?v=202611090047';
+} from './sheets.js?v=202611090307';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611090307';
+import { dinero } from './formato.js?v=202611090307';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -49,7 +49,6 @@ function urgenciaPorFecha(fechaIdx, hoyIdx) {
 const REGLAS_EVENTO = [
   { id: 'buscar', texto: 'DJ por buscar', prueba: (e) => e.realizado === 'NO' && normalizar(e.dj) === 'BUSCAR' },
   { id: 'sin-dj', texto: 'Sin DJ', prueba: (e) => e.realizado === 'NO' && vacio(e.dj) },
-  { id: 'sin-inicio', texto: 'Sin hora de inicio', prueba: (e) => vacio(e.inicio) },
   { id: 'sin-total', texto: 'Sin total del evento', prueba: (e) => vacio(e.total) },
   { id: 'sin-gas', texto: 'Sin gas a cobrar', prueba: (e) => normalizar(e.ciudad) === 'GUADALAJARA' && vacio(e.gas) },
 ];
@@ -95,10 +94,13 @@ function filaPorOp(registro, desfase) {
     ? registro.op + desfase : registro.fila;
 }
 
+const ETIQUETA_BUSCAR = 'Eventos con DJ «buscar»';
+const CONTROLES_OCULTOS = ['Eventos sin DJ', 'Orden de fechas en la agenda', 'Eventos sin hora de inicio'];
+
 function etiquetaControl(c) {
   const col = normalizar(c.columna);
   const t = normalizar(c.texto);
-  if (col === 'DJ' && t.includes('BUSCAR')) return 'Eventos con DJ «buscar»';
+  if (col === 'DJ' && t.includes('BUSCAR')) return ETIQUETA_BUSCAR;
   if (col === 'DJ' && t.includes('VACIO')) return 'Eventos sin DJ';
   if (col === 'FECHA') return 'Orden de fechas en la agenda';
   if (col === 'INICIO DEL EVENTO') return 'Eventos sin hora de inicio';
@@ -301,10 +303,25 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
       .filter((c) => normalizar(c.columna) === 'DJ') // pago de DJ; PAGADO ya es el recordatorio de deuda
       .map((c) => ({ ...c, fuente: nayarsound, pestana: 'AGENDA Y VENTAS', rango: 'ventas' })),
   ];
-  salida.controles = controles.map((c) => ({
-    estado: c.estado, texto: c.texto, cantidad: c.cantidad, etiqueta: etiquetaControl(c),
-    origen: hacerOrigen(c.fuente, c.rango, c.pestana, c.a1),
-  }));
+  // Eventos con DJ «buscar» (misma regla que AGENDA!D9: REALIZADO = NO), de la fecha más cercana a la más lejana.
+  const porBuscar = (datosAgenda.eventos ?? [])
+    .filter((e) => e.banderas.some((b) => b.id === 'buscar'))
+    .sort((a, b) => a.idx - b.idx || String(a.hora ?? '').localeCompare(String(b.hora ?? '')))
+    .map((e) => ({
+      idx: e.idx, ciudad: String(e.ciudad ?? '').trim(), hora: e.hora, tipo: String(e.tipo ?? '').trim(), fila: e.fila,
+      origen: hacerOrigen(agenda, 'agenda', 'AGENDA', `D${e.fila}`),
+    }));
+  salida.controles = controles
+    // Sin DJ, orden de fechas y hora de inicio los revisa tu equipo: no se muestran.
+    .filter((c) => !CONTROLES_OCULTOS.includes(etiquetaControl(c)))
+    .map((c) => {
+      const etiqueta = etiquetaControl(c);
+      return {
+        estado: c.estado, texto: c.texto, cantidad: c.cantidad, etiqueta,
+        origen: hacerOrigen(c.fuente, c.rango, c.pestana, c.a1),
+        eventos: etiqueta === ETIQUETA_BUSCAR && datosAgenda.eventos ? porBuscar : null,
+      };
+    });
   return salida;
 }
 

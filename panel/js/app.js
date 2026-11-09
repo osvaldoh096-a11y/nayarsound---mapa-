@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090047';
-import { escribirCelda, leerRangos } from './api.js?v=202611090047';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090047';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090047';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090047';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090307';
+import { escribirCelda, leerRangos } from './api.js?v=202611090307';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090307';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090307';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090307';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090047';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090047';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090047';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090047';
-import { fuentesDemo } from './demo.js?v=202611090047';
-import { icono } from './iconos.js?v=202611090047';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090047';
+} from './fechas.js?v=202611090307';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090307';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090307';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090307';
+import { fuentesDemo } from './demo.js?v=202611090307';
+import { icono } from './iconos.js?v=202611090307';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090307';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -682,7 +682,7 @@ function alertasPorNegocio(m) {
   if ((!E.filtro || E.filtro === 'aviso') && controles.length) {
     filasNs.push({ urg: 'aviso', fecha: null, html: `<a class="fila-pend u-aviso" href="#/nayarsound">
       <span class="fp-icono tipo-aviso">${icono('aviso')}</span>
-      <span class="fp-texto"><span class="fp-titulo">Avisos de captura en tus hojas</span><small>${esc(controles.map((c) => c.etiqueta).join(' · '))}</small></span>
+      <span class="fp-texto"><span class="fp-titulo">Avisos de captura en tus hojas</span><small>${esc(controles.map((c) => (c.eventos?.length ? `DJ por buscar: ${c.eventos.map((e) => `${fechaCorta(e.idx)} ${capitalizar(e.ciudad.toLowerCase())}`).join(', ')}` : c.etiqueta)).join(' · '))}</small></span>
       <span class="fp-derecha"><span class="fp-monto fp-conteo">${controles.length}<small>${controles.length === 1 ? 'aviso' : 'avisos'}</small></span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>Revisar</span></span></a>` });
   }
   bloques.push({ nombre: 'NayarSound', ruta: 'nayarsound', filas: filasNs, disponible: m.nayarsound.disponible });
@@ -785,13 +785,29 @@ function tarjetaDeuda(deuda) {
   </article>`;
 }
 
+/** Eventos con DJ «buscar»: cuándo y en qué ciudad, del más cercano al más lejano. */
+function listaBuscar(eventos) {
+  if (!eventos) return '';
+  if (!eventos.length) return '<p class="nota">No encontré en la agenda los eventos con «buscar»; revisa la hoja.</p>';
+  const hoyIdx = hoyCDMX().idx;
+  return `<ul class="lista-buscar">${eventos.map((e) => {
+    const faltan = e.idx - hoyIdx;
+    const cuando = faltan === 0 ? 'hoy' : faltan === 1 ? 'mañana' : faltan > 1 ? `en ${faltan} días` : `hace ${-faltan} días`;
+    return `<li class="${faltan <= 7 ? 'pronto' : ''}">
+      <span class="lb-fecha"><b>${esc(capitalizar(fechaCorta(e.idx)))}</b><small>${esc(cuando)}${e.hora ? ` · ${esc(e.hora)}` : ''}</small></span>
+      <span class="lb-ciudad">${esc(capitalizar(e.ciudad.toLowerCase()) || 'Sin ciudad')}${e.tipo ? `<small>${esc(capitalizar(e.tipo.toLowerCase()))}</small>` : ''}</span>
+      ${e.origen.url ? `<a class="lb-enlace" href="${esc(e.origen.url)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir fila ${e.fila}">fila ${e.fila} ↗</a>` : ''}
+    </li>`;
+  }).join('')}</ul>`;
+}
+
 function tarjetaControles(controles) {
   if (!controles?.length) return '';
   const fallas = controles.filter((c) => c.estado !== 'ok');
   const bien = controles.length - fallas.length;
   return `<article class="tarjeta">
     <header class="tarjeta-cab"><h2>Avisos de captura</h2></header>
-    ${fallas.length ? `<ul class="lista-controles">${fallas.map((c) => `<li><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${esc(c.texto.replace(/[❌✅]/gu, '').trim())}</span> ${esc(c.etiqueta)} ${enlaceOrigen(c.origen)}</li>`).join('')}</ul>` : '<p class="vacio">Todo en orden.</p>'}
+    ${fallas.length ? `<ul class="lista-controles">${fallas.map((c) => `<li><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${esc(c.texto.replace(/[❌✅]/gu, '').trim())}</span> ${esc(c.etiqueta)} ${enlaceOrigen(c.origen)}${listaBuscar(c.eventos)}</li>`).join('')}</ul>` : '<p class="vacio">Todo en orden.</p>'}
     ${bien ? `<p class="nota">${plural(bien, 'control', 'controles')} en orden.</p>` : ''}
   </article>`;
 }

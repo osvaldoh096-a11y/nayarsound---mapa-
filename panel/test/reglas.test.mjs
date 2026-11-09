@@ -121,9 +121,15 @@ test('modelo con datos de ejemplo: pendientes únicos y separados de los eventos
   // Finanzas: mes actual y categorías que cuadran con la hoja
   assert.equal(m.mesActual.etiqueta, 'NOVIEMBRE 2026');
   assert.ok(m.finanzas.meses.every((x) => x.gastosCuadran !== false));
-  // Banderas de acción según las reglas actuales de la agenda
+  // La hora de inicio la revisa tu equipo: ya no genera bandera.
   const gama = m.pendientes.find((p) => p.titulo === 'DJ GAMA' && p.tipo === 'agenda');
-  assert.deepEqual(gama.banderas.map((b) => b.id), ['sin-inicio']);
+  assert.deepEqual(gama.banderas.map((b) => b.id), []);
+  // Avisos de captura: solo «buscar» (y los que no se ocultan), con sus eventos en orden de fecha.
+  const etiquetas = m.nayarsound.controles.map((c) => c.etiqueta);
+  assert.ok(!etiquetas.some((e) => /sin DJ|Orden de fechas|hora de inicio/.test(e)));
+  const buscar = m.nayarsound.controles.find((c) => /buscar/.test(c.etiqueta));
+  assert.deepEqual(buscar.eventos.map((e) => e.ciudad), ['GUADALAJARA', 'TEPIC']);
+  assert.ok(buscar.eventos[0].idx < buscar.eventos[1].idx);
 });
 
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {
