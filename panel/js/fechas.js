@@ -41,11 +41,12 @@ export function diaSemanaIdx(idx) {
 /** Hoy en Ciudad de México: { y, m, d, idx }. */
 export function hoyCDMX(ahora = new Date()) {
   const partes = new Intl.DateTimeFormat('en-CA', {
-    timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).formatToParts(ahora);
   const v = (t) => Number(partes.find((p) => p.type === t).value);
   const y = v('year'); const m = v('month'); const d = v('day');
-  return { y, m, d, idx: idxDesdeYMD(y, m, d) };
+  // minuto: minutos transcurridos del día en Ciudad de México (para saber si un evento ya terminó).
+  return { y, m, d, idx: idxDesdeYMD(y, m, d), minuto: (v('hour') % 24) * 60 + v('minute') };
 }
 
 /** Número de serie de Google Sheets (días desde 1899-12-30) a día entero. */

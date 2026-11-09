@@ -1,19 +1,19 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090307';
-import { escribirCelda, leerRangos } from './api.js?v=202611090307';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090307';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611090307';
-import { construirModelo, entregarCon } from './modelo.js?v=202611090307';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611090319';
+import { escribirCelda, leerRangos } from './api.js?v=202611090319';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611090319';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611090319';
+import { construirModelo, entregarCon } from './modelo.js?v=202611090319';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar,
-} from './fechas.js?v=202611090307';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090307';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090307';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090307';
-import { fuentesDemo } from './demo.js?v=202611090307';
-import { icono } from './iconos.js?v=202611090307';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090307';
+} from './fechas.js?v=202611090319';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611090319';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611090319';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611090319';
+import { fuentesDemo } from './demo.js?v=202611090319';
+import { icono } from './iconos.js?v=202611090319';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas } from './tareas.js?v=202611090319';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -545,7 +545,8 @@ function filaDiaAgenda(dia, pendientes, hoyIdx) {
   const urgencia = pendientes[0]?.urgencia ?? 'proximo';
   const titulo = dia.idx === hoyIdx ? 'Eventos de hoy' : dia.idx === hoyIdx + 1 ? 'Eventos de mañana' : `Eventos del ${fechaCorta(dia.idx)}`;
   const detalle = [plural(djs, 'DJ', 'DJs'), plural(dia.eventos ?? 0, 'evento', 'eventos'), plural(ciudades, 'ciudad', 'ciudades'),
-    sinDj ? `${sinDj} sin DJ` : '', conAccion ? `${conAccion} requieren acción` : ''].filter(Boolean).join(' · ');
+    sinDj ? `${sinDj} sin DJ` : '', conAccion ? `${conAccion} requieren acción` : '',
+    dia.realizados ? `${dia.realizados} ya ${dia.realizados === 1 ? 'realizado' : 'realizados'}` : ''].filter(Boolean).join(' · ');
   return `<button class="fila-pend u-${urgencia}" data-dia="${dia.idx}">
     <span class="fp-icono tipo-agenda">${icono('calendario')}</span>
     <span class="fp-texto"><span class="fp-titulo">${esc(titulo)}</span><small>${esc(detalle)}</small></span>
@@ -739,10 +740,11 @@ function tarjetaAgenda(agenda, hoyIdx) {
         <div class="djs">${c.djs.map((dj) => {
     const p = pendientesDia(dia.idx).find((x) => !x.sinDj && x.titulo === dj.nombre && x.ciudad === c.ciudad);
     const accion = dj.banderas?.length;
-    return `<button class="dj ${accion ? 'requiere' : ''}" ${p ? `data-pendiente="${esc(p.id)}"` : ''}>
+    const hecho = !p && dj.realizados > 0;
+    return `<button class="dj ${accion && !hecho ? 'requiere' : ''} ${hecho ? 'realizado' : ''}" ${p ? `data-pendiente="${esc(p.id)}"` : ''}>
             <b>${esc(dj.nombre)}</b>${dj.eventos > 1 ? `<span class="dj-n">×${dj.eventos}</span>` : ''}
             ${dj.horas?.length ? `<span class="dj-hora">${esc(dj.horas.join(' · '))}</span>` : ''}
-            ${accion ? `<span class="dj-accion">${esc(dj.banderas.map((b) => b.texto).join(' · '))}</span>` : ''}
+            ${hecho ? '<span class="dj-hecho">Realizado</span>' : accion ? `<span class="dj-accion">${esc(dj.banderas.map((b) => b.texto).join(' · '))}</span>` : ''}
           </button>`;
   }).join('')}</div>
       </div>`).join('');
@@ -1039,7 +1041,7 @@ function abrirPendiente(p) {
       return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · Enviar <b class="enviar-valor" ${previa ? `data-enviar-fila="${r.fila}"` : ''}>${esc(dinero(r.importe.valor))}</b>` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}${editar}</li>`;
     }).join('')}</ul></section>`;
   } else if (p.registros?.length) {
-    registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.hora ? `${esc(r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;
+    registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.rango ?? r.hora ? `${esc(r.rango ?? r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;
   }
   const mensaje = p.mensaje ? `<section class="det-mensaje">
       <div class="det-mensaje-cab"><h3>Mensaje para enviar</h3>
@@ -1075,7 +1077,7 @@ function abrirDia(idx) {
       ${p.horas?.length ? ` · ${esc(p.horas.join(' · '))}` : ''}${p.banderas?.length ? ` · <span class="mal">${esc(p.banderas.map((b) => b.texto).join(', '))}</span>` : ''}</li>`).join('')}</ul></section>`).join('');
   abrirDialogo(`
     <header class="det-cab">${chipUrgencia({ urgencia: idx <= hoyIdx ? 'hoy' : 'proximo', fechaIdx: idx }, hoyIdx)}<h2>${esc(capitalizar(fechaLarga(idx)))}</h2></header>
-    <p><b>${dia.eventos ?? '—'}</b> eventos · <b>${pendientes.length}</b> pendientes (uno por DJ y uno por evento sin DJ)</p>
+    <p><b>${dia.eventos ?? '—'}</b> ${dia.eventos === 1 ? 'evento' : 'eventos'} · <b>${pendientes.length}</b> ${pendientes.length === 1 ? 'pendiente' : 'pendientes'}${dia.realizados ? ` · <b>${dia.realizados}</b> ya ${dia.realizados === 1 ? 'realizado' : 'realizados'}` : ''}</p>
     ${bloques}
     ${bloqueOrigen({ origen: E.modelo.nayarsound.agenda.origen, linea: dia.lineas.join('\n') })}`);
 }

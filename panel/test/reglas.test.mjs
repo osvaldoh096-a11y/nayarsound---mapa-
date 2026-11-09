@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
@@ -130,6 +130,28 @@ test('modelo con datos de ejemplo: pendientes únicos y separados de los eventos
   const buscar = m.nayarsound.controles.find((c) => /buscar/.test(c.etiqueta));
   assert.deepEqual(buscar.eventos.map((e) => e.ciudad), ['GUADALAJARA', 'TEPIC']);
   assert.ok(buscar.eventos[0].idx < buscar.eventos[1].idx);
+});
+
+test('los eventos que ya terminaron (inicio + TOT.HORAS) dejan de ser pendientes', () => {
+  const hoy = { y: 2026, m: 11, d: 7, idx: HOY, minuto: 22 * 60 + 30 }; // 10:30 p.m.
+  const m = construirModelo(fuentesDemo(hoy), hoy);
+  const deHoy = m.pendientes.filter((p) => p.tipo === 'agenda' && p.fechaIdx === HOY);
+  // Terminados: DJ BETA de 6 a 10 p.m. y el evento sin DJ de 5 a 10 p.m.
+  assert.deepEqual(deHoy.map((p) => p.titulo).sort(), ['DJ ALFA', 'DJ BETA', 'DJ DELTA', 'DJ GAMA']);
+  const beta = deHoy.find((p) => p.titulo === 'DJ BETA');
+  assert.equal(beta.eventos, 1);
+  assert.deepEqual(beta.horas, ['10:00 p.m. a 1:00 a.m.']);
+  assert.equal(m.nayarsound.agenda.dias.find((d) => d.idx === HOY).realizados, 2);
+  // Sin TOT.HORAS no se sabe cuándo termina: sigue pendiente (DJ GAMA).
+  // Sin hora actual (pruebas antiguas) no se quita nada por horario.
+  const sinHora = construirModelo(fuentesDemo(hoy), { ...hoy, minuto: undefined });
+  assert.equal(sinHora.pendientes.filter((p) => p.tipo === 'agenda' && p.fechaIdx === HOY).length, 5);
+  assert.equal(typeof hoyCDMX().minuto, 'number');
+  assert.equal(minutosDeHora(14 / 24), 840);
+  assert.equal(minutosDeHora('16:30'), 990);
+  assert.equal(minutosDeHora('6:00 p.m.'), 1080);
+  assert.equal(minutosDeHora('12:15 a.m.'), 15);
+  assert.equal(minutosDeHora('sin hora'), null);
 });
 
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {

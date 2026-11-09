@@ -7,14 +7,14 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611090307';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611090307';
+} from './fechas.js?v=202611090319';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611090319';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611090307';
-import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611090307';
-import { dinero } from './formato.js?v=202611090307';
+} from './sheets.js?v=202611090319';
+import { ARCHIVOS, TIPO_CAMBIO_USDT } from './fuentes.js?v=202611090319';
+import { dinero } from './formato.js?v=202611090319';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -67,7 +67,13 @@ function filasAgenda(fuente) {
     .map((r) => ({ ...r, fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha), realizado: normalizar(r.realizado) }))
     .filter((r) => r.idx !== null);
   for (const e of eventos) {
-    e.hora = horaDesdeFraccion(e.inicio);
+    // Hora de término: inicio + TOT.HORAS (puede pasar de medianoche).
+    e.inicioMin = minutosDeHora(e.inicio);
+    e.hora = e.inicioMin !== null ? horaDesdeFraccion(e.inicioMin / 1440) : null;
+    const horas = typeof e.horas === 'number' ? e.horas : Number(String(e.horas ?? '').replace(',', '.').trim() || NaN);
+    e.finMin = e.inicioMin !== null && Number.isFinite(horas) && horas > 0 ? e.inicioMin + Math.round(horas * 60) : null;
+    e.horaFin = e.finMin !== null ? horaDesdeFraccion((e.finMin % 1440) / 1440) : null;
+    e.rango = e.hora ? (e.horaFin ? `${e.hora} a ${e.horaFin}` : e.hora) : null;
     e.banderas = REGLAS_EVENTO.filter((r) => r.prueba(e)).map((r) => ({ id: r.id, texto: r.texto }));
   }
   // Celdas de control (filas 9 a 11 de AGENDA) con su encabezado de la fila 12.
@@ -85,6 +91,18 @@ function filasAgenda(fuente) {
     });
   }
   return { eventos, controles, faltan, encabezado };
+}
+
+/** Minutos desde medianoche de una hora de la hoja: fracción de día o texto («16:30», «6:00 p.m.»). */
+export function minutosDeHora(valor) {
+  if (typeof valor === 'number' && Number.isFinite(valor)) return Math.round((valor - Math.floor(valor)) * 1440) % 1440;
+  const m = String(valor ?? '').trim().toLowerCase().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])?\.?\s*m?\.?$/);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = Number(m[2]);
+  if (m[3] === 'p' && h < 12) h += 12;
+  if (m[3] === 'a' && h === 12) h = 0;
+  return h < 24 && min < 60 ? h * 60 + min : null;
 }
 
 // La columna OP de tus hojas es el número de fila menos un desfase
@@ -182,7 +200,18 @@ export function mensajeDeuda(nombre, filas) {
   return `*PAGOS PENDIENTES - ${nombre}*\n\n${bloques.join('\n\n')}\n\n━━━━━━━━━━━━━━\n💰 *TOTAL A ENVIAR: $${miles.format(total)}*`;
 }
 
-export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
+/**
+ * ¿El evento ya se realizó? REALIZADO = SI en AMAL AGENDA, o ya pasó su hora
+ * de término (inicio + TOT.HORAS) en Ciudad de México. Sin TOT.HORAS no se
+ * puede saber la hora de término y solo cuenta REALIZADO.
+ */
+export function eventoTerminado(e, hoyIdx, minuto) {
+  if (e.realizado === 'SI') return true;
+  if (e.idx < hoyIdx) return true;
+  return e.idx === hoyIdx && typeof minuto === 'number' && e.finMin !== null && e.finMin <= minuto;
+}
+
+export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) {
   const avisos = [];
   const pendientes = [];
   const salida = { disponible: !!nayarsound?.rangos, avisos, pendientes, agenda: null, deuda: null, controles: [] };
@@ -214,17 +243,25 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
               && (normalizar(e.ciudad) === normalizar(grupo.ciudad) || (vacio(e.ciudad) && normalizar(grupo.ciudad) === 'SIN CIUDAD')))
               .map((e) => ({ ...e, url: urlFila(agenda, 'AGENDA', e.fila) }))
             : null;
-          dj.horas = dj.registros ? dj.registros.map((e) => e.hora).filter(Boolean) : [];
+          for (const e of dj.registros ?? []) e.terminado = eventoTerminado(e, hoyIdx, minuto);
+          dj.horas = dj.registros ? dj.registros.map((e) => e.rango).filter(Boolean) : [];
           dj.banderas = dj.registros ? [...new Map(dj.registros.flatMap((e) => e.banderas).map((b) => [b.id, b])).values()] : [];
           if (dj.registros && dj.registros.length !== dj.eventos) {
             avisos.push({ texto: `No ubiqué en AMAL AGENDA todos los eventos de ${dj.nombre} (${grupo.ciudad}, ${fechaLarga(dia.idx)}).`, tipo: 'enlace' });
           }
+          // Los eventos que ya se realizaron dejan de ser pendientes.
+          const activos = dj.registros && dj.registros.length === dj.eventos ? dj.registros.filter((e) => !e.terminado) : null;
+          dj.realizados = activos ? dj.registros.length - activos.length : 0;
+          dia.realizados = (dia.realizados ?? 0) + dj.realizados;
+          if (activos && !activos.length) continue;
           pendientes.push({
             id: `agenda|${dia.idx}|${normalizar(grupo.ciudad)}|${normalizar(dj.nombre)}`,
             negocio: 'NayarSound', tipo: 'agenda', grupo: `agenda|${dia.idx}`,
             titulo: dj.nombre, subtitulo: grupo.ciudad, ciudad: grupo.ciudad, marca: grupo.marca,
-            fechaIdx: dia.idx, urgencia: urgenciaPorFecha(dia.idx, hoyIdx), eventos: dj.eventos,
-            horas: dj.horas, banderas: dj.banderas, registros: dj.registros, origen: origenAgenda,
+            fechaIdx: dia.idx, urgencia: urgenciaPorFecha(dia.idx, hoyIdx), eventos: activos ? activos.length : dj.eventos,
+            horas: activos ? activos.map((e) => e.rango).filter(Boolean) : dj.horas,
+            banderas: activos ? [...new Map(activos.flatMap((e) => e.banderas).map((b) => [b.id, b])).values()] : dj.banderas,
+            registros: activos ?? dj.registros, origen: origenAgenda,
             linea: grupo.linea,
           });
         }
@@ -234,12 +271,13 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
       const cantidadSinDj = dia.eventosSinDj ?? 0;
       for (let i = 0; i < cantidadSinDj; i++) {
         const fila = dia.sinDj?.[i] ?? null;
+        if (fila && eventoTerminado(fila, hoyIdx, minuto)) { dia.realizados = (dia.realizados ?? 0) + 1; continue; }
         pendientes.push({
           id: `agenda-sin-dj|${dia.idx}|${fila?.fila ?? i}`,
           negocio: 'NayarSound', tipo: 'agenda', grupo: `agenda|${dia.idx}`,
           titulo: 'Evento sin DJ asignado', subtitulo: fila?.ciudad ? String(fila.ciudad).trim() : 'Sin ciudad',
           ciudad: fila?.ciudad ?? '', fechaIdx: dia.idx, urgencia: urgenciaPorFecha(dia.idx, hoyIdx), eventos: 1,
-          horas: fila?.hora ? [fila.hora] : [], banderas: fila?.banderas ?? [{ id: 'sin-dj', texto: 'Sin DJ' }],
+          horas: fila?.rango ? [fila.rango] : [], banderas: fila?.banderas ?? [{ id: 'sin-dj', texto: 'Sin DJ' }],
           registros: fila ? [fila] : null, origen: origenAgenda, sinDj: true,
         });
       }
@@ -308,7 +346,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx) {
     .filter((e) => e.banderas.some((b) => b.id === 'buscar'))
     .sort((a, b) => a.idx - b.idx || String(a.hora ?? '').localeCompare(String(b.hora ?? '')))
     .map((e) => ({
-      idx: e.idx, ciudad: String(e.ciudad ?? '').trim(), hora: e.hora, tipo: String(e.tipo ?? '').trim(), fila: e.fila,
+      idx: e.idx, ciudad: String(e.ciudad ?? '').trim(), hora: e.rango, tipo: String(e.tipo ?? '').trim(), fila: e.fila,
       origen: hacerOrigen(agenda, 'agenda', 'AGENDA', `D${e.fila}`),
     }));
   salida.controles = controles
@@ -552,7 +590,7 @@ export function ordenarPendientes(lista) {
 }
 
 export function construirModelo(fuentes, hoy) {
-  const nayarsound = modeloNayarsound(fuentes, hoy.idx);
+  const nayarsound = modeloNayarsound(fuentes, hoy.idx, hoy.minuto ?? null);
   const prestamos = modeloPrestamos(fuentes, hoy.idx);
   const finanzas = modeloFinanzas(fuentes, hoy);
 
