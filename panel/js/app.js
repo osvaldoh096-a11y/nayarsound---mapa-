@@ -1,25 +1,26 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092154';
-import { escribirCelda, leerRangos } from './api.js?v=202611092154';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092154';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092154';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092154';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092201';
+import { escribirCelda, leerRangos } from './api.js?v=202611092201';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092201';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611092201';
+import { construirModelo, entregarCon } from './modelo.js?v=202611092201';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611092154';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092154';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092154';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092154';
-import { fuentesDemo } from './demo.js?v=202611092154';
-import { leerCashflow } from './dashprestamos.js?v=202611092154';
-import { icono } from './iconos.js?v=202611092154';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092154';
+} from './fechas.js?v=202611092201';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092201';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092201';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092201';
+import { fuentesDemo } from './demo.js?v=202611092201';
+import { leerCashflow } from './dashprestamos.js?v=202611092201';
+import { icono } from './iconos.js?v=202611092201';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092201';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
   nayarsound: { titulo: 'NayarSound', archivos: ['nayarsound', 'agenda'] },
   prestamos: { titulo: 'Panel financiero', archivos: ['prestamos'] },
+  st: { titulo: 'ST · Sistemas y Tecnología', archivos: ['st'] },
   finanzas: { titulo: 'Finanzas', archivos: ['gastos'] },
   fuentes: { titulo: 'Fuentes y ajustes', archivos: [] },
 };
@@ -61,6 +62,7 @@ const MENU = [
   { ruta: 'inicio', texto: 'Inicio', corto: 'Inicio', icono: 'inicio' },
   { ruta: 'nayarsound', texto: 'NayarSound', corto: 'NayarSound', icono: 'musica' },
   { ruta: 'prestamos', texto: 'Préstamos e inversores', corto: 'Préstamos', icono: 'prestamos' },
+  { ruta: 'st', texto: 'ST', corto: 'ST', icono: 'computadora' },
   { ruta: 'finanzas', texto: 'Finanzas', corto: 'Finanzas', icono: 'finanzas' },
 ];
 
@@ -462,7 +464,7 @@ function pintar() {
   if (E.ruta === 'fuentes') { vista.innerHTML = vistaFuentes(); return; }
   if (!E.modelo) { vista.innerHTML = E.cargando ? vistaCargando() : vistaEntrarGoogle(); return; }
   const banda = bandaEstado(VISTAS[E.ruta].archivos);
-  const contenido = { inicio: vistaInicio, nayarsound: vistaNayarsound, prestamos: vistaPrestamos, finanzas: vistaFinanzas }[E.ruta](E.modelo);
+  const contenido = { inicio: vistaInicio, nayarsound: vistaNayarsound, prestamos: vistaPrestamos, st: vistaST, finanzas: vistaFinanzas }[E.ruta](E.modelo);
   vista.innerHTML = banda + contenido;
   activarTips(vista);
   marcarNegativos(vista);
@@ -1244,6 +1246,81 @@ function montarGraficaMensual() {
 }
 
 // ------------------------------------------------------------------ Fuentes y ajustes
+
+// ------------------------------------------------------------------ ST
+
+function vistaST(m) {
+  const st = m.st;
+  if (!st?.disponible) {
+    const f = E.fuentes.st;
+    return `<article class="tarjeta tarjeta-error">No hay datos de ST${f?.error ? `: ${esc(f.error.mensaje)}` : '.'}</article>`;
+  }
+  const so = st.socios ?? {}; const ne = st.negocio ?? {};
+  const filtro = st.filtro && (normalizar(st.filtro.ciudad) !== 'GLOBAL' || normalizar(st.filtro.mes) !== 'GLOBAL')
+    ? `${esc(nombreBonito(st.filtro.ciudad))} · ${esc(nombreBonito(st.filtro.mes))}` : 'Global (todas las ciudades, todo el tiempo)';
+  const kpi = (color, etiqueta, valor, sub) => `<article class="tarjeta pf-kpi pf-c-${color}">
+    <div class="pf-kpi-etq"><i class="pf-punto" aria-hidden="true"></i>${etiqueta}</div><div class="pf-kpi-valor">${cifraDoble(valor)}</div>
+    <div class="pf-kpi-sub">${sub}</div></article>`;
+  const kpis = `<section class="pf-kpis">
+    ${kpi('azul', 'Total de ventas', so.ventas ?? ne.ventas, `Stock pagado ${din(so.stock ?? ne.stock, 0)}`)}
+    ${kpi('ambar', 'Utilidad del negocio', ne.utilidad, st.roas?.ventas ? `Cada $1 en ads vende ${esc(String(st.roas.ventas))}x` : 'Después de stock, ads y operación')}
+    ${kpi('verde', 'Ganancia personal', so.personal, `Operativa ${din(so.operativa, 0)}`)}
+    ${kpi('verde', 'Caja disponible', st.caja?.disponible ?? null, st.caja ? `Generado ${din(st.caja.generado, 0)}` : 'Caja Tepic')}
+  </section>`;
+
+  const dato = (etq, v, { clase = '', resaltar = false } = {}) => `<div class="pf-dato ${resaltar ? 'resaltar' : ''}"><span>${etq}</span><b class="${clase}">${din(v)}</b></div>`;
+  const secciones = [];
+
+  // Este mes (REGISTRO DE VENTAS)
+  const mes = st.mes;
+  const filaVenta = (x) => `<tr><td>${x.idx !== null ? esc(diaMes(x.idx)) : '—'}</td><td>${esc(nombreBonito(x.ciudad))}</td><td>${esc(nombreBonito(x.kit))}${x.programa ? `<small class="pf-sub">${esc(nombreBonito(x.programa))}</small>` : ''}</td><td class="num">${din(x.venta, 0)}</td><td class="num">${din(x.personal, 0)}</td><td>${x.liquidado ? '<span class="pf-estado ok">Pagado</span>' : '<span class="pf-estado mal">Por cobrar</span>'}</td></tr>`;
+  const nombreMesHoy = MESES[m.hoy.m - 1].toLowerCase();
+  secciones.push(seccionPF('st-mes', 'azul', `Ventas de ${nombreMesHoy}`,
+    mes.cantidad ? `${plural(mes.cantidad, 'venta', 'ventas')} · vendido <b>${din(mes.venta, 0)}</b> · tu ganancia <b class="texto-verde">${din(mes.personal, 0)}</b>` : 'Sin ventas registradas este mes',
+    mes.cantidad ? tablaPF([['Fecha'], ['Ciudad'], ['Kit'], ['Venta', 1], ['Tu ganancia', 1], ['Pago']], [...mes.ventas].sort((a, b) => (b.idx ?? 0) - (a.idx ?? 0)).map(filaVenta))
+      : `<p class="vacio">Sin ventas de ${nombreMesHoy} en el REGISTRO DE VENTAS.</p>${st.ultimas.length ? `<h3 class="df-sub">Últimas ventas</h3>${tablaPF([['Fecha'], ['Ciudad'], ['Kit'], ['Venta', 1], ['Tu ganancia', 1], ['Pago']], st.ultimas.map(filaVenta))}` : ''}`));
+
+  // Ventas por cobrar (LIQUIDADO distinto de SI)
+  if (st.sinLiquidar.length) {
+    const total = st.sinLiquidar.reduce((t, x) => t + (x.venta ?? 0), 0);
+    secciones.push(seccionPF('st-cobrar', 'rojo', 'Ventas por cobrar', `<b class="texto-rojo">${plural(st.sinLiquidar.length, 'venta', 'ventas')}</b> sin liquidar · <b>${din(total, 0)}</b>`,
+      tablaPF([['Op.'], ['Fecha'], ['Cliente'], ['Kit'], ['Venta', 1]], st.sinLiquidar.map((x) => `<tr><td>${esc(x.op)}</td><td>${x.idx !== null ? esc(diaMes(x.idx)) : '—'}</td><td>${esc(x.cliente || '—')}</td><td>${esc(nombreBonito(x.kit))}</td><td class="num">${din(x.venta, 0)}</td></tr>`))));
+  }
+
+  // Ganancia del negocio
+  secciones.push(seccionPF('st-negocio', 'ambar', 'Ganancia del negocio', `Utilidad <b>${din(ne.utilidad)}</b>${st.roas?.neta ? ` · cada $1 en ads deja ${esc(String(st.roas.neta))}x neto` : ''}`,
+    `<div class="pf-datos">${dato('Total de ventas', ne.ventas)}${dato('Pagado stock', ne.stock)}${dato('Pagado publicidad', ne.publicidad)}${dato('Pagado operación y at. cliente', ne.operacion)}${dato('Utilidad del negocio', ne.utilidad, { resaltar: true })}</div>
+    ${st.roas ? `<div class="df-mini-tabla"><div><span>Por $1 en ads vende</span><b>${esc(String(st.roas.ventas ?? '—'))}x</b></div><div><span>Por $1 en ads gana neto</span><b>${esc(String(st.roas.neta ?? '—'))}x</b></div></div>` : ''}`));
+
+  // Ganancia de socios y personal
+  secciones.push(seccionPF('st-socios', 'verde', 'Ganancia de socios y personal', `Tu ganancia <b class="texto-verde">${din(so.personal)}</b>`,
+    `<div class="pf-datos">${dato('Total de ventas', so.ventas)}${dato('Pagado stock', so.stock)}${dato('Destinado a caja', so.caja)}${dato('Ganancia total operativa', so.operativa)}${dato('Ganancia neta personal', so.personal, { resaltar: true })}</div>
+    ${st.historica?.length ? `<h3 class="df-sub">Ganancia personal histórica</h3><div class="pf-datos">${st.historica.map((x) => dato(esc(nombreBonito(x.etiqueta)), x.valor, { resaltar: x.total })).join('')}</div>` : ''}`));
+
+  // Rendimiento por ciudad
+  if (st.ciudades?.length) {
+    secciones.push(seccionPF('st-ciudades', 'azul', 'Rendimiento por ciudad', st.ciudades.filter((x) => !x.total).map((x) => `${esc(nombreBonito(x.ciudad))} <b>${x.roasVenta ?? '—'}x</b>`).join(' · '),
+      tablaPF([['Ciudad'], ['Publicidad', 1], ['Vendido', 1], ['Neto', 1], ['$1 en ads vende', 1], ['$1 en ads neto', 1]],
+        st.ciudades.filter((x) => !x.total).map((x) => `<tr><td>${esc(nombreBonito(x.ciudad))}</td><td class="num">${din(x.ads, 0)}</td><td class="num">${din(x.vendido, 0)}</td><td class="num">${din(x.neto, 0)}</td><td class="num">${x.roasVenta ?? '—'}x</td><td class="num">${x.roasNeto ?? '—'}x</td></tr>`),
+        { pie: st.ciudades.filter((x) => x.total).map((x) => `<tr><td>Total</td><td class="num">${din(x.ads, 0)}</td><td class="num">${din(x.vendido, 0)}</td><td class="num">${din(x.neto, 0)}</td><td class="num">${x.roasVenta ?? '—'}x</td><td class="num">${x.roasNeto ?? '—'}x</td></tr>`).join('') })));
+  }
+
+  // Caja y stock
+  if (st.caja || st.stock?.length) {
+    const sinStock = st.stock.filter((c) => c.items.some((i) => i.cantidad === 0));
+    secciones.push(seccionPF('st-stock', 'rojo', 'Caja y stock',
+      [st.caja ? `Caja disponible <b>${din(st.caja.disponible, 0)}</b>` : '', sinStock.length ? `<b class="texto-rojo">sin stock en ${sinStock.map((c) => esc(nombreBonito(c.ciudad))).join(', ')}</b>` : ''].filter(Boolean).join(' · '),
+      `${st.caja ? `<div class="pf-datos">${dato('Generado en caja', st.caja.generado)}${dato('Gastado', st.caja.gastado)}${dato('Disponible', st.caja.disponible, { resaltar: true })}</div>` : ''}
+      ${st.stock.map((c) => `<h3 class="df-sub">Stock ${esc(nombreBonito(c.ciudad))}</h3><div class="pf-datos">${c.items.map((i) => `<div class="pf-dato"><span>${esc(i.nota && i.cantidad === 0 ? 'No hay stock' : nombreBonito(i.producto))}</span><b class="${i.cantidad === 0 ? 'texto-rojo' : ''}">${i.cantidad === null ? '—' : i.cantidad === 0 && i.nota ? '' : esc(String(i.cantidad))}</b></div>`).join('')}</div>`).join('')}`));
+  }
+
+  return `<div class="pf">
+    ${kpis}
+    <section class="pf-fila">${secciones.join('')}</section>
+    <p class="nota">Fuente: 🖥️ST ${st.url ? `<a href="${esc(st.url)}" target="_blank" rel="noopener noreferrer">DASHBOARD ↗</a>` : 'DASHBOARD'} con el filtro que tienes elegido en tu hoja: <b>${filtro}</b>. Ventas del ${st.urlVentas ? `<a href="${esc(st.urlVentas)}" target="_blank" rel="noopener noreferrer">REGISTRO DE VENTAS ↗</a>` : 'REGISTRO DE VENTAS'}.</p>
+    ${st.avisos.length ? listaAvisos(st.avisos.map((t) => ({ texto: t })), 'Revisión de la lectura') : ''}
+  </div>`;
+}
 
 function vistaFuentes() {
   const filas = ORDEN_ARCHIVOS.map((k) => {

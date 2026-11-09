@@ -58,9 +58,20 @@ export const ARCHIVOS = {
       analisis: "'ANALISIS BALANCE GENERAL'!A1:Z2000",
     },
   },
+  st: {
+    nombre: '🖥️ST- SISTEMAS Y TECNOLOGIA - PERSONAL',
+    id: '1fL0oow1VQZLS9sVqjdXSHQlwvQuBR5z5TW_UDd245BA',
+    pestanas: { DASHBOARD: 393168975, 'HOJA DE VENTAS': 1293603055, 'STOCK, OPERACION': 1527462282 },
+    zona: 'America/Los_Angeles',
+    rangos: {
+      dashboard: "'DASHBOARD'!A1:F120",
+      ventas: "'HOJA DE VENTAS'!A8:Z",
+      stock: "'STOCK, OPERACION'!K1:R80",
+    },
+  },
 };
 
-export const ORDEN_ARCHIVOS = ['nayarsound', 'agenda', 'prestamos', 'gastos'];
+export const ORDEN_ARCHIVOS = ['nayarsound', 'agenda', 'prestamos', 'gastos', 'st'];
 
 // Lista de tareas del Inicio: un archivo propio, aparte de tus hojas de
 // negocio. Columnas: TAREA, HECHA (SI), CREADA, COMPLETADA.

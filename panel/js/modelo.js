@@ -7,15 +7,16 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611092154';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092154';
+} from './fechas.js?v=202611092201';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611092201';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611092154';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092154';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092154';
-import { dinero } from './formato.js?v=202611092154';
+} from './sheets.js?v=202611092201';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611092201';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611092201';
+import { modeloST } from './st.js?v=202611092201';
+import { dinero } from './formato.js?v=202611092201';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -846,6 +847,9 @@ export function construirModelo(fuentes, hoy) {
   nayarsound.telefonos = telefonosDjs(fuentes.agenda);
   const prestamos = modeloPrestamos(fuentes, hoy.idx);
   const finanzas = modeloFinanzas(fuentes, hoy);
+  const st = modeloST(fuentes.st, hoy);
+  if (st.disponible) st.url = fuentes.st.demo ? null : urlHoja(fuentes.st.id, fuentes.st.meta?.pestanas?.DASHBOARD);
+  if (st.disponible) st.urlVentas = fuentes.st.demo ? null : urlHoja(fuentes.st.id, fuentes.st.meta?.pestanas?.['HOJA DE VENTAS']);
 
   // Un pendiente = una acción concreta; si se repite (misma clave), cuenta una vez.
   const unicos = new Map();
@@ -873,5 +877,6 @@ export function construirModelo(fuentes, hoy) {
     nayarsound,
     prestamos,
     finanzas,
+    st,
   };
 }

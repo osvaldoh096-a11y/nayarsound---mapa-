@@ -228,6 +228,17 @@ try {
       const alerta = await pagina.locator('.pf-inv.con-alerta').allInnerTexts();
       revisar(alerta.length === 1 && /INVERSOR DEMO UNO/.test(alerta[0]) && /faltan 10 días/.test(alerta[0]), 'Inversores: alerta de liquidación a 30 días o menos, con fecha y días');
       revisar(/USDT/.test(filasInv.join(' ')) && /MXN/.test(filasInv.join(' ')), 'Inversores: importe con moneda (MXN o USDT)');
+      // ST
+      await pagina.goto(`${url}/panel/#/st`);
+      await pagina.waitForSelector('.pf-kpis');
+      const kst = await pagina.locator('.pf-kpi .pf-kpi-valor .solo-escritorio').allInnerTexts();
+      revisar(JSON.stringify(kst) === JSON.stringify(['$200,000.00', '$71,000.00', '$38,000.00', '$5,000.00']), `ST: ventas, utilidad, ganancia personal y caja (${kst.join(' · ')})`);
+      const secST = await pagina.locator('.pf details.pf-sec').evaluateAll((els) => els.map((e) => e.dataset.pf));
+      revisar(secST.includes('st-cobrar') && secST.includes('st-negocio') && secST.includes('st-stock') && await pagina.locator('.pf details.pf-sec[open]').count() === 0, `ST: secciones desplegables (${secST.join(', ')})`);
+      revisar(/1 venta/.test(await pagina.locator('[data-pf="st-cobrar"] > summary').innerText()), 'ST: ventas sin liquidar');
+      revisar(/sin stock en Guadalajara/.test(await pagina.locator('[data-pf="st-stock"] > summary').innerText()), 'ST: avisa sin stock por ciudad');
+      await pagina.goto(`${url}/panel/#/prestamos`);
+      await pagina.waitForSelector('.pf-tabs');
       await pagina.locator('.pf-tab', { hasText: 'Historial' }).click();
       await pagina.locator('[data-pf="h-flujo"] > summary').click();
       revisar(await pagina.locator('.df-cols .df-col').count() === 3, 'Panel financiero: historial con flujo mensual');
@@ -270,7 +281,7 @@ try {
     }
     if (capturas) {
       mkdirSync(capturas, { recursive: true });
-      for (const r of ['inicio', 'nayarsound', 'prestamos', 'finanzas']) {
+      for (const r of ['inicio', 'nayarsound', 'prestamos', 'st', 'finanzas']) {
         await pagina.goto(`${url}/panel/#/${r}`);
         await pagina.waitForTimeout(150);
         await pagina.screenshot({ path: `${capturas}/escritorio-${r}.png`, fullPage: true });
@@ -288,7 +299,7 @@ try {
   {
     const { pagina, contexto, errores } = await nuevaPagina({ ancho: 390, alto: 844, movil: true });
     await entrar(pagina);
-    for (const r of ['inicio', 'nayarsound', 'prestamos', 'finanzas', 'fuentes']) {
+    for (const r of ['inicio', 'nayarsound', 'prestamos', 'st', 'finanzas', 'fuentes']) {
       await pagina.goto(`${url}/panel/#/${r}`);
       await pagina.waitForTimeout(150);
       const desborde = await pagina.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092154';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611092201';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -216,6 +216,30 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     ...balanceMeses,
   ];
 
+  // ---------------- ST (cifras inventadas con la misma forma que tu hoja)
+  const stDashboard = [
+    ['CIUDAD', 'MES'], [], ['GLOBAL', 'GLOBAL'], [], ['GANANCIA SOCIOOS MENSUAL DE GLOBAL'], [], [],
+    ['TOTAL DE VENTAS', 200000], [], ['PAGADO STOCK', 110000], [], ['DESTINADO A CAJA', 20000], [], ['GANANCIA TOTAL OPERATIVA', 70000], [],
+    ['GANANCIA NETA MENSUAL PERSONAL', 38000], [], [], ['GANANCIA DE NEGOCIO MENSUAL DE GLOBAL'], [], ['TOTAL DE VENTAS', 200000], [], ['PAGADO STOCK', 110000], [],
+    ['PAGADO PUBLICIDAD', 10000], [], ['PAGADO OPERACION Y AT CLIENTE', 9000], [], [], ['UTILIDAD NEGOCIO', 71000], [], ['POR CADA $1 MXN INVERTIDO EN ADS'],
+    ['GENERO EN VENTAS', 'GANANCIA NETA'], ['$20.00x', '$7.10x'], [], [], ['GANANCIA PERSONAL HISTORICA'], [], [],
+    ['UTILIDAD TEPIC (50%)', 30000], ['UTILIDAD GUADALAJARA (100%)', 8000], ['TOTAL GANANCIA PERSONAL ', 38000], [], ['GLOBAL'], [],
+    ['INDICADOR ROA POR CIUDAD: PUBLICIDAD → VENDIDO → NETO'],
+    ['CIUDAD', 'PUBLICIDAD (ADS)', 'VENDIDO (GENERADO)', 'NETO (GANANCIA OPERATIVA)', '$1 EN ADS, VENDE', '$1 EN ADS NETO'],
+    ['GUADALAJARA', 2000, 30000, 8000, '$15.00x', '$4.00x'], ['TEPIC', 8000, 170000, 62000, '$21.25x', '$7.75x'], ['TOTAL', 10000, 200000, 70000, '$20.00x', '$7.00x'],
+  ];
+  const stVentas = [
+    ['OP', 'FECHA', 'CIUDAD', 'CLIENTE', 'PROGRAMA ', 'KIT', 'PRODUCTO 1', '', '', '', '', '', '', '', '', '', '', '', '', '', ' TOT.STOCK ', 'VENTA', 'DESTINADO A CAJA', 'GANANCIA TOTAL', 'GANANCIA /2 O /1', 'LIQUIDADO'],
+    ...[[h - 40, 'TEPIC', 'USO RUDO', 6700, 'SI'], [h - 6, 'TEPIC', 'BASICO', 5700, 'SI'], [h - 2, 'GUADALAJARA', 'TABLET', 6700, 'NO'], [h - 1, 'TEPIC', 'CAMARA', 7000, 'SI']]
+      .map(([idx, ciudad, kit, venta, liq], i) => [i + 1, serial(idx), ciudad, 'CLIENTE DEMO', 'ELEVENTA', kit, 'PRODUCTO', ...Array(13).fill(''), venta * 0.5, venta, venta * 0.1, venta * 0.4, venta * 0.2, liq]),
+  ];
+  const stStock = [
+    ['CAJA TEPIC'], ['$20,000 generado en caja'], ['$-15,000 gastado'], [], ['$5,000 disponible'], [], [],
+    ['', '', '', '', '', '', 'TEPIC', 'GUADALAJARA'],
+    ['', '', '', '', '', '', '5 ROLLOS - 8 en stock', 'NO HAY STOCK'],
+    ['', '', '', '', '', '', 'TARJETA WIFI - 40 en stock'],
+  ];
+
   const meta = (titulo, pestanas) => ({ titulo, zona: 'America/Mexico_City', pestanas });
   return {
     nayarsound: { clave: 'nayarsound', id: 'DEMO', demo: true, meta: meta('🐯NAYARSOUND - PERSONAL', { DASHBOARD: 1, 'AGENDA Y VENTAS': 2 }),
@@ -229,5 +253,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       rangos: { dashboard: dashboardPr, registro, inversores } },
     gastos: { clave: 'gastos', id: 'DEMO', demo: true, meta: meta('🚹GASTOS PERSONALES - OSVALDO', { 'DASHBOARD BALANCE GENERAL': 6, 'ANALISIS GASTOS PERSONALES': 7, 'ANALISIS BALANCE GENERAL': 8 }),
       rangos: { balance, gastos, analisis } },
+    st: { clave: 'st', id: 'DEMO', demo: true, meta: meta('🖥️ST- SISTEMAS Y TECNOLOGIA - PERSONAL', { DASHBOARD: 9, 'HOJA DE VENTAS': 10, 'STOCK, OPERACION': 11 }),
+      rangos: { dashboard: stDashboard, ventas: stVentas, stock: stStock } },
   };
 }
