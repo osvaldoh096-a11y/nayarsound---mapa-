@@ -390,6 +390,22 @@ try {
     const yTareas = (await caja.boundingBox()).y;
     const yPend = (await pagina.locator('.protagonista').boundingBox()).y;
     revisar(yTareas < yPend, `Tareas arriba del Inicio${movil ? ' (celular)' : ''}`);
+    // Hábitos: marcar hoy escribe una fila con la fecha y SI; desmarcar lo borra.
+    await pagina.waitForSelector('#habitos-caja .hb-fila');
+    revisar((await pagina.locator('.hb-nombre').allInnerTexts()).join() === 'Ir al gym,Caminar 30 minutos', 'Hábitos: ir al gym y caminar 30 minutos');
+    await pagina.locator('.hb-check').first().click();
+    for (let i = 0; i < 30 && lecturas.habitos.length < 2; i++) await pagina.waitForTimeout(100);
+    const filaHb = lecturas.habitos[1] ?? [];
+    revisar(typeof filaHb[0] === 'number' && filaHb[1] === 'SI' && filaHb[2] === '', `Hábitos: marcar «Ir al gym» guarda la fecha y SI (${JSON.stringify(filaHb)})`);
+    revisar(/1\s*día seguido/.test(await pagina.locator('.hb-fila').first().innerText()), 'Hábitos: cuenta la racha de días');
+    await pagina.waitForFunction(() => !/Guardando/.test(document.querySelector('#habitos-caja .tareas-estado')?.textContent ?? ''));
+    await pagina.locator('.hb-check').nth(1).click();
+    for (let i = 0; i < 30 && lecturas.habitos[1]?.[2] !== 'SI'; i++) await pagina.waitForTimeout(100);
+    revisar(lecturas.habitos[1]?.[2] === 'SI' && lecturas.habitos.length === 2, 'Hábitos: el segundo hábito usa la misma fila del día');
+    await pagina.waitForFunction(() => !/Guardando/.test(document.querySelector('#habitos-caja .tareas-estado')?.textContent ?? ''));
+    await pagina.locator('.hb-check').first().click();
+    for (let i = 0; i < 30 && lecturas.habitos[1]?.[1] !== ''; i++) await pagina.waitForTimeout(100);
+    revisar(lecturas.habitos[1]?.[1] === '', 'Hábitos: desmarcar quita el SI');
     revisar(/Llamar al banco/.test(await caja.innerText()), 'Lee las tareas de la hoja TAREAS');
     await caja.locator('input[name="tarea"]').fill('=HYPERLINK("x")  Comprar   cables');
     await caja.locator('input[name="tarea"]').press('Enter');
@@ -406,7 +422,7 @@ try {
     await caja.locator('.tarea', { hasText: 'cables' }).locator('[data-accion="borrar-tarea"]').click();
     for (let i = 0; i < 30 && lecturas.tareas.some((f) => /cables/.test(f[0] ?? '')); i++) await pagina.waitForTimeout(100);
     revisar(!lecturas.tareas.some((f) => /cables/.test(f[0] ?? '')) && !/cables/.test(await caja.innerText()), 'Borrar: vacía la fila en la hoja y la quita de la lista');
-    revisar(lecturas.filter((l) => l.clave === 'tareas' && l.metodo !== 'GET').every((l) => /^'TAREAS'!/.test(l.celda)), 'Las tareas solo escriben en la pestaña TAREAS de su propio archivo');
+    revisar(lecturas.filter((l) => l.clave === 'tareas' && l.metodo !== 'GET').every((l) => /^'(TAREAS|HABITOS)'!/.test(l.celda)), 'Tareas y hábitos solo escriben en sus pestañas (TAREAS, HABITOS) de su propio archivo');
     // La fila cambió en la hoja: no se toca.
     lecturas.tareas[1][0] = 'Otra cosa';
     await caja.locator('details.tareas-hechas summary').click();

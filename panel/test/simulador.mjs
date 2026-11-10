@@ -114,7 +114,8 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
   // Hoja propia del panel: pestañas TAREAS y SINDICATO en memoria (fila 1 = encabezados).
   const sindicato = [['DATO', 'VALOR', '', 'FECHA', 'ABONO', 'NOTA'], ['MONTO', 208738.08], ['TOTAL A PAGAR', 247476], ['PAGO MENSUAL', 10310],
     ['NUMERO DE PAGOS MENSUALES', 24], ['INICIO PRIMERA QUINCENA', 46311], ['FIN ULTIMA QUINCENA', 47041], ['TASA ANUAL', 0.13], ['QUINCENAS', 48], ['INTERES TOTAL', 38737.92]];
-  const hojas = { TAREAS: tareas, SINDICATO: sindicato };
+  const habitos = [['FECHA', 'IR AL GYM', 'CAMINAR 30 MINUTOS']];
+  const hojas = { TAREAS: tareas, SINDICATO: sindicato, HABITOS: habitos };
   function tareasSim(ruta, url, metodo, cors) {
     const ok = (cuerpo) => ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
     const sub = decodeURIComponent(url.pathname.split('/values')[1] ?? '');
@@ -160,6 +161,7 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     return ok({});
   }
   lecturas.sindicato = sindicato;
+  lecturas.habitos = habitos;
   lecturas.tareas = tareas;
   return lecturas;
 }

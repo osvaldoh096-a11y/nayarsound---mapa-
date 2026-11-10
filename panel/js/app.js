@@ -1,21 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611092314';
-import { escribirCelda, leerRangos } from './api.js?v=202611092314';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611092314';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611092314';
-import { construirModelo, entregarCon } from './modelo.js?v=202611092314';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611100136';
+import { escribirCelda, leerRangos } from './api.js?v=202611100136';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611100136';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611100136';
+import { construirModelo, entregarCon } from './modelo.js?v=202611100136';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611092314';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611092314';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611092314';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611092314';
-import { fuentesDemo } from './demo.js?v=202611092314';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611092314';
-import { leerCashflow } from './dashprestamos.js?v=202611092314';
-import { icono } from './iconos.js?v=202611092314';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611092314';
+} from './fechas.js?v=202611100136';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611100136';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611100136';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611100136';
+import { fuentesDemo } from './demo.js?v=202611100136';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611100136';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611100136';
+import { leerCashflow } from './dashprestamos.js?v=202611100136';
+import { icono } from './iconos.js?v=202611100136';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611100136';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -128,6 +129,7 @@ function cargarDemo() {
   E.modelo = construirModelo(datosDisponibles(E.fuentes), hoyCDMX());
   if (!T.demo) usarDemo();
   if (!SIND.demo) usarDemoSindicato(hoyCDMX().idx);
+  if (!HB.demo) usarDemoHabitos(hoyCDMX().idx);
   pintar();
 }
 
@@ -154,7 +156,7 @@ async function actualizar({ interactivo = false } = {}) {
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token), cargarSindicato(token)]);
+    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token), cargarSindicato(token), cargarHabitos(token)]);
     E.fuentes = fuentes;
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
     if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }
@@ -203,6 +205,10 @@ function alHacerClic(evento) {
     Object.assign(T, { estado: 'sin-leer', lista: [], error: null });
     location.hash = '#/inicio';
     pintar();
+  }
+  if (accion === 'habito') {
+    alternarHabito(Number(el.dataset.col), hoyCDMX().idx, tokenParaEscribir, pintarHabitos);
+    return;
   }
   if (accion === 'borrar-abono') {
     const a = SIND.abonos.find((x) => String(x.fila) === el.dataset.fila);
@@ -406,6 +412,12 @@ function alEnviar(evento) {
   if (!texto.trim()) { entrada.focus(); return; }
   entrada.value = '';
   agregarTarea(texto, tokenParaEscribir, pintarTareas);
+}
+
+/** Repinta solo la tarjeta de hábitos. */
+function pintarHabitos() {
+  const caja = $('#habitos-caja');
+  if (caja) caja.innerHTML = htmlHabitos(hoyCDMX().idx);
 }
 
 /** Repinta solo la tarjeta de tareas, conservando el foco del cuadro de texto. */
@@ -710,7 +722,10 @@ function vistaInicio(m) {
   const sel = selectorMes(fi);
   const mes = periodoElegido(fi) ?? m.mesActual;
   return `
-  <article class="tarjeta tareas" id="tareas-caja">${htmlTareas()}</article>
+  <section class="inicio-arriba">
+    <article class="tarjeta tareas" id="tareas-caja">${htmlTareas()}</article>
+    <article class="tarjeta habitos" id="habitos-caja">${htmlHabitos(m.hoy.idx)}</article>
+  </section>
   <section class="inicio-rejilla">
     <article class="tarjeta protagonista">
       <div class="tarjeta-cab"><h2 class="etq-cab">${icono('pendientes')}Pendientes</h2>${E.filtro ? `<button class="boton-texto" data-filtro="${E.filtro}">Quitar filtro</button>` : ''}</div>

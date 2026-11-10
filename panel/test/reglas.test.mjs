@@ -253,6 +253,19 @@ test('inversiones activas: pago del mes y alerta de liquidación (como REGISTRO 
   assert.deepEqual([p61.estado, p61.idx, p61.monto, p61.moneda], ['pagado', idxDesdeYMD(2026, 11, 8), 1500, 'MXN']);
 });
 
+test('hábitos: racha, días del mes y total', async () => {
+  const { HB, leerHabitos, estadisticas } = await import('../js/habitos.js');
+  const ser = (d) => idxDesdeYMD(2026, 11, d) + 25569;
+  Object.assign(HB, leerHabitos([['FECHA', 'IR AL GYM', 'CAMINAR 30 MINUTOS'],
+    [ser(3), 'SI', ''], [ser(4), 'SI', 'SI'], [ser(5), 'SI', 'SI'], [ser(6), '', 'SI'], [ser(8), 'SI', 'SI'], [ser(9), 'si', 'SI']]));
+  const hoy = idxDesdeYMD(2026, 11, 10);
+  const gym = estadisticas(1, hoy);
+  assert.deepEqual([gym.hoy, gym.racha, gym.mes, gym.total, gym.mejor], [false, 2, 5, 5, 3]); // racha hasta ayer (8 y 9)
+  const caminar = estadisticas(2, hoy);
+  assert.deepEqual([caminar.racha, caminar.mes, caminar.mejor], [2, 5, 3]);
+  assert.equal(gym.semana.length, 7);
+});
+
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {
   const sabado = idxDesdeYMD(2026, 11, 7) + 25569;
   const jueves = idxDesdeYMD(2026, 11, 5) + 25569;

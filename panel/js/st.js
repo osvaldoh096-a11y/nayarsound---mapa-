@@ -2,8 +2,8 @@
 // el REGISTRO DE VENTAS y el resumen de stock y caja. No recalcula lo que la
 // hoja ya calcula: lo toma por su etiqueta.
 
-import { normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha } from './fechas.js?v=202611092314';
-import { importeCelda } from './dashprestamos.js?v=202611092314';
+import { normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha } from './fechas.js?v=202611100136';
+import { importeCelda } from './dashprestamos.js?v=202611100136';
 
 const texto = (v) => String(v ?? '').trim();
 const MESES_TXT = { ENE: 1, FEB: 2, MAR: 3, ABR: 4, MAY: 5, JUN: 6, JUL: 7, AGO: 8, SEP: 9, SEPT: 9, OCT: 10, NOV: 11, DIC: 12 };

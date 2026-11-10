@@ -896,3 +896,31 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .sd-cal-fila .pf-estado { justify-self: end; }
 .sd-cal-fila.pagado { color: var(--tenue); }
 @media (max-width: 960px) { .sd-rejilla { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Hábitos ---------- */
+.inicio-arriba { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-bottom: 18px; align-items: start; }
+.inicio-arriba .tareas { margin-bottom: 0; }
+.hb-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.hb-cab h2 { margin-right: auto; font-size: 15.5px; font-weight: 650; }
+.hb-fila { padding: 12px 0; border-bottom: 1px solid var(--borde); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; }
+.hb-fila:last-child { border-bottom: 0; }
+.hb-check { display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; min-width: 0; }
+.hb-caja { width: 26px; height: 26px; flex: none; border-radius: 8px; border: 2px solid var(--borde); display: grid; place-items: center; font-weight: 800; color: #fff; transition: background var(--t), border-color var(--t); }
+.hb-fila.hecho .hb-caja { background: var(--verde); border-color: var(--verde); }
+.hb-nombre { font-size: 15.5px; font-weight: 600; }
+.hb-fila.hecho .hb-nombre { color: var(--verde-tinta); }
+.hb-semana { display: flex; gap: 4px; }
+.hb-semana i { width: 22px; height: 22px; border-radius: 6px; background: var(--suave); display: grid; place-items: center; }
+.hb-semana i b { font-size: 10px; font-weight: 600; color: var(--tenue); font-style: normal; }
+.hb-semana i.si { background: var(--verde-fondo); box-shadow: inset 0 0 0 1.5px var(--verde); }
+.hb-semana i.si b { color: var(--verde-tinta); }
+.hb-semana i.hoy { outline: 2px solid var(--azul); outline-offset: 1px; }
+.hb-datos { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--tenue); padding-left: 38px; }
+.hb-datos b { color: var(--tinta); font-variant-numeric: tabular-nums; }
+.hb-racha.activa b { color: var(--verde-tinta); }
+.hb-racha.activa::before { content: "🔥 "; }
+@media (max-width: 960px) { .inicio-arriba { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .hb-fila { grid-template-columns: minmax(0, 1fr); }
+  .hb-semana { padding-left: 38px; }
+}
