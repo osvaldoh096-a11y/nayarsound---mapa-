@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611120418';
-import { escribirCelda, leerRangos } from './api.js?v=202611120418';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611120418';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611120418';
-import { construirModelo, entregarCon } from './modelo.js?v=202611120418';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611120711';
+import { escribirCelda, leerRangos } from './api.js?v=202611120711';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611120711';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611120711';
+import { construirModelo, entregarCon } from './modelo.js?v=202611120711';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611120418';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611120418';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611120418';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611120418';
-import { fuentesDemo } from './demo.js?v=202611120418';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611120418';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611120418';
-import { leerCashflow } from './dashprestamos.js?v=202611120418';
-import { icono } from './iconos.js?v=202611120418';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611120418';
+} from './fechas.js?v=202611120711';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611120711';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611120711';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611120711';
+import { fuentesDemo } from './demo.js?v=202611120711';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611120711';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611120711';
+import { leerCashflow } from './dashprestamos.js?v=202611120711';
+import { icono } from './iconos.js?v=202611120711';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611120711';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -607,9 +607,17 @@ function accionTag(accion) {
   return `<span class="accion-tag ${accion === 'COBRAR' ? 'cobrar' : 'pagar'}">${accion === 'COBRAR' ? 'Cobrar' : 'Pagar'}</span>`;
 }
 
-const COLOR_POR_CIUDAD = { GUADALAJARA: 'violeta', LEON: 'naranja', TEPIC: 'azul', MONTERREY: 'verde' };
+// Colores de cada ciudad, los mismos de la columna CIUDAD en AGENDA Y VENTAS.
+const COLOR_HEX_CIUDAD = { GUADALAJARA: '#6A0DAD', TEPIC: '#1E5EFF', LEON: '#FF9900', MONTERREY: '#FF0000' };
+const COLOR_POR_CIUDAD = { GUADALAJARA: 'violeta', LEON: 'naranja', TEPIC: 'azul', MONTERREY: 'rojo-ciudad' };
+/** Nombre de la ciudad con su color de fondo, como en tu hoja. */
+function chipCiudad(ciudad, extra = '') {
+  const n = normalizar(ciudad);
+  const color = COLOR_HEX_CIUDAD[n] ?? '#6B7280';
+  return `<span class="chip-ciudad" style="--cc:${color}">${esc(nombreBonito(ciudad) || 'Sin ciudad')}${extra}</span>`;
+}
 function etiquetaCiudad(ciudad) {
-  return `<span class="ciudad-tag"><i class="punto-ciudad c-${COLOR_POR_CIUDAD[normalizar(ciudad)] ?? 'gris'}" aria-hidden="true"></i>${esc(capitalizar(String(ciudad).toLowerCase()))}</span>`;
+  return `<span class="ciudad-tag">${chipCiudad(ciudad)}</span>`;
 }
 
 const ICONO_TIPO = { agenda: 'calendario', deuda: 'dinero', cobrar: 'cobrar', pagar: 'pagar', liquidar: 'pagar' };
@@ -955,7 +963,7 @@ function tarjetaAgenda(agenda, hoyIdx) {
     const urg = dia.idx <= hoyIdx ? 'hoy' : 'proximo';
     const ciudades = dia.ciudades.map((c) => `
       <div class="ciudad">
-        <div class="ciudad-cab"><i class="punto-ciudad c-${COLOR_CIUDAD[c.marca] ?? 'gris'}" aria-hidden="true"></i>${esc(c.ciudad)}
+        <div class="ciudad-cab">${chipCiudad(c.ciudad)}
           <span class="ciudad-num">${c.djs.reduce((s, d) => s + d.eventos, 0)}</span></div>
         <div class="djs">${c.djs.map((dj) => {
     const p = pendientesDia(dia.idx).find((x) => !x.sinDj && x.titulo === dj.nombre && x.ciudad === c.ciudad);
@@ -1022,7 +1030,7 @@ function listaBuscar(eventos) {
     const cuando = faltan === 0 ? 'hoy' : faltan === 1 ? 'mañana' : faltan > 1 ? `en ${faltan} días` : `hace ${-faltan} días`;
     return `<li class="${faltan <= 7 ? 'pronto' : ''}">
       <span class="lb-fecha"><b>${esc(capitalizar(fechaCorta(e.idx)))}</b><small>${esc(cuando)}${e.hora ? ` · ${esc(e.hora)}` : ''}</small></span>
-      <span class="lb-ciudad">${esc(capitalizar(e.ciudad.toLowerCase()) || 'Sin ciudad')}${e.tipo ? `<small>${esc(capitalizar(e.tipo.toLowerCase()))}</small>` : ''}</span>
+      <span class="lb-ciudad">${chipCiudad(e.ciudad)}${e.tipo ? `<small>${esc(capitalizar(e.tipo.toLowerCase()))}</small>` : ''}</span>
       ${e.origen.url ? `<a class="lb-enlace" href="${esc(e.origen.url)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir fila ${e.fila}">fila ${e.fila} ↗</a>` : ''}
     </li>`;
   }).join('')}</ul>`;
@@ -1669,7 +1677,7 @@ function abrirDia(idx) {
   const grupos = [...porCiudad.values()].map((g) => ({ ...g, filas: g.filas.sort((a, b) => a.inicio - b.inicio || a.p.titulo.localeCompare(b.p.titulo)) }))
     .sort((a, b) => a.filas[0].inicio - b.filas[0].inicio || b.filas.length - a.filas.length);
   const bloques = grupos.map((g) => `
-    <section><h3>${esc(nombreBonito(g.nombre))} · ${g.filas.length}</h3>
+    <section><h3 class="det-ciudad">${chipCiudad(g.nombre)}<span>${g.filas.length} ${g.filas.length === 1 ? 'evento' : 'eventos'}</span></h3>
     <ul class="det-lista det-horario">${g.filas.map((f) => `<li><span class="det-hora">${esc(f.hora || 'Sin hora')}</span>
       <button class="boton-texto" data-pendiente="${esc(f.p.id)}">${f.p.sinDj ? 'Sin DJ asignado' : esc(f.p.titulo)}</button>${f.banderas.length ? ` <span class="mal">${esc(f.banderas.map((b) => b.texto).join(', '))}</span>` : ''}</li>`).join('')}</ul></section>`).join('');
   abrirDialogo(`
