@@ -111,6 +111,17 @@ try {
     // NayarSound
     await pagina.goto(`${url}/panel/#/nayarsound`);
     if (!rutaSnapshot) {
+      // Detalle del día: por ciudad y por hora de inicio (sin DJ dentro de su ciudad).
+      await pagina.goto(`${url}/panel/#/inicio`);
+      await pagina.locator('[data-dia]').first().click();
+      await pagina.waitForSelector('#detalle[open] .det-horario');
+      const gdl = await pagina.locator('#detalle .det-horario').first().locator('li').allInnerTexts();
+      const horas = await pagina.locator('#detalle .det-horario').first().locator('.det-hora').allInnerTexts();
+      revisar(/guadalajara/i.test(await pagina.locator('#detalle section h3').first().innerText())
+        && JSON.stringify(horas.map((h) => h.split(' a ')[0])) === JSON.stringify(['5:00 p.m.', '6:00 p.m.', '8:00 p.m.', '10:00 p.m.'])
+        && /Sin DJ asignado/.test(gdl[0]), `Día: agrupado por ciudad y de la hora más temprana a la más tarde (${horas.join(' | ')} · ${JSON.stringify(gdl[0])} · ${await pagina.locator('#detalle section h3').first().innerText()})`);
+      await pagina.locator('#detalle [data-cerrar]').first().click();
+      await pagina.goto(`${url}/panel/#/nayarsound`);
       await pagina.waitForSelector('.ns-cols');
       const op = esperado.nayarsound.operacion;
       revisar(await pagina.locator('.ns-col').count() === 14 && await pagina.locator('.ns-col.actual').count() === 1, 'NayarSound: eventos por mes (12 atrás, 2 adelante) con el mes actual resaltado');

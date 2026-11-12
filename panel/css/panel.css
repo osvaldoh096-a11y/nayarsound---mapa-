@@ -924,3 +924,8 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
   .hb-fila { grid-template-columns: minmax(0, 1fr); }
   .hb-semana { padding-left: 38px; }
 }
+.det-horario { list-style: none; padding-left: 0; }
+.det-horario li { display: grid; grid-template-columns: 170px 1fr; gap: 4px 10px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--borde); }
+.det-horario li .mal { grid-column: 2; }
+.det-hora { font-variant-numeric: tabular-nums; color: var(--tinta-2); font-size: 14px; }
+@media (max-width: 640px) { .det-horario li { grid-template-columns: 128px 1fr; } .det-hora { font-size: 13px; } }

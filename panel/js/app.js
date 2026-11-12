@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611100136';
-import { escribirCelda, leerRangos } from './api.js?v=202611100136';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611100136';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611100136';
-import { construirModelo, entregarCon } from './modelo.js?v=202611100136';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611120418';
+import { escribirCelda, leerRangos } from './api.js?v=202611120418';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611120418';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611120418';
+import { construirModelo, entregarCon } from './modelo.js?v=202611120418';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611100136';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611100136';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611100136';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611100136';
-import { fuentesDemo } from './demo.js?v=202611100136';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611100136';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611100136';
-import { leerCashflow } from './dashprestamos.js?v=202611100136';
-import { icono } from './iconos.js?v=202611100136';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611100136';
+} from './fechas.js?v=202611120418';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611120418';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611120418';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611120418';
+import { fuentesDemo } from './demo.js?v=202611120418';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611120418';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611120418';
+import { leerCashflow } from './dashprestamos.js?v=202611120418';
+import { icono } from './iconos.js?v=202611120418';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611120418';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1653,16 +1653,25 @@ function abrirDia(idx) {
   const dia = E.modelo.nayarsound.agenda?.dias.find((d) => d.idx === idx);
   if (!dia) return;
   const pendientes = [...E.pendientes.values()].filter((p) => p.grupo === `agenda|${idx}`);
+  // Agrupado por ciudad; dentro de cada ciudad, un renglón por evento ordenado
+  // por hora de inicio (de más temprano a más tarde). Los sin DJ van en su ciudad.
   const porCiudad = new Map();
   for (const p of pendientes) {
-    const k = p.sinDj ? 'Sin DJ asignado' : p.ciudad;
-    if (!porCiudad.has(k)) porCiudad.set(k, []);
-    porCiudad.get(k).push(p);
+    const ciudad = normalizar(p.sinDj ? (p.subtitulo || 'Sin ciudad') : p.ciudad) || 'SIN CIUDAD';
+    if (!porCiudad.has(ciudad)) porCiudad.set(ciudad, { nombre: ciudad, filas: [] });
+    const regs = (p.registros ?? []).filter((r) => r);
+    if (regs.length) {
+      for (const r of regs) porCiudad.get(ciudad).filas.push({ p, inicio: r.inicioMin ?? Infinity, hora: r.rango ?? r.hora ?? '', banderas: r.banderas ?? [] });
+    } else {
+      porCiudad.get(ciudad).filas.push({ p, inicio: Infinity, hora: (p.horas ?? []).join(' · '), banderas: p.banderas ?? [] });
+    }
   }
-  const bloques = [...porCiudad.entries()].map(([ciudad, lista]) => `
-    <section><h3>${esc(ciudad)} · ${lista.reduce((s, p) => s + p.eventos, 0)}</h3>
-    <ul class="det-lista">${lista.map((p) => `<li><button class="boton-texto" data-pendiente="${esc(p.id)}">${esc(p.sinDj ? p.subtitulo : p.titulo)}${p.eventos > 1 ? ` ×${p.eventos}` : ''}</button>
-      ${p.horas?.length ? ` · ${esc(p.horas.join(' · '))}` : ''}${p.banderas?.length ? ` · <span class="mal">${esc(p.banderas.map((b) => b.texto).join(', '))}</span>` : ''}</li>`).join('')}</ul></section>`).join('');
+  const grupos = [...porCiudad.values()].map((g) => ({ ...g, filas: g.filas.sort((a, b) => a.inicio - b.inicio || a.p.titulo.localeCompare(b.p.titulo)) }))
+    .sort((a, b) => a.filas[0].inicio - b.filas[0].inicio || b.filas.length - a.filas.length);
+  const bloques = grupos.map((g) => `
+    <section><h3>${esc(nombreBonito(g.nombre))} · ${g.filas.length}</h3>
+    <ul class="det-lista det-horario">${g.filas.map((f) => `<li><span class="det-hora">${esc(f.hora || 'Sin hora')}</span>
+      <button class="boton-texto" data-pendiente="${esc(f.p.id)}">${f.p.sinDj ? 'Sin DJ asignado' : esc(f.p.titulo)}</button>${f.banderas.length ? ` <span class="mal">${esc(f.banderas.map((b) => b.texto).join(', '))}</span>` : ''}</li>`).join('')}</ul></section>`).join('');
   abrirDialogo(`
     <header class="det-cab">${chipUrgencia({ urgencia: idx <= hoyIdx ? 'hoy' : 'proximo', fechaIdx: idx }, hoyIdx)}<h2>${esc(capitalizar(fechaLarga(idx)))}</h2></header>
     <p><b>${dia.eventos ?? '—'}</b> ${dia.eventos === 1 ? 'evento' : 'eventos'} · <b>${pendientes.length}</b> ${pendientes.length === 1 ? 'pendiente' : 'pendientes'}${dia.realizados ? ` · <b>${dia.realizados}</b> ya ${dia.realizados === 1 ? 'realizado' : 'realizados'}` : ''}</p>

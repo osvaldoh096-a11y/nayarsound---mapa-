@@ -2,9 +2,9 @@
 // pestaña SINDICATO de tu hoja «TO DO · Dashboard personal» (datos del
 // préstamo en A:B; abonos en D:F: FECHA, ABONO, NOTA).
 
-import { TAREAS } from './fuentes.js?v=202611100136';
-import { leerRangos, agregarFila, borrarRango } from './api.js?v=202611100136';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611100136';
+import { TAREAS } from './fuentes.js?v=202611120418';
+import { leerRangos, agregarFila, borrarRango } from './api.js?v=202611120418';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611120418';
 
 const H = "'SINDICATO'";
 export const URL_SINDICATO = `https://docs.google.com/spreadsheets/d/${TAREAS.id}/edit#gid=778`;
