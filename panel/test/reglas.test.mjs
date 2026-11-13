@@ -266,6 +266,17 @@ test('hábitos: racha, días del mes y total', async () => {
   assert.equal(gym.semana.length, 7);
 });
 
+test('AGENDA Y VENTAS con la columna ESTADO en lugar de PAGADO', () => {
+  const hoy = { y: 2026, m: 11, d: 7, idx: HOY };
+  const f = fuentesDemo(hoy);
+  const enc = f.nayarsound.rangos.ventas.findIndex((r) => r.includes('PAGADO'));
+  f.nayarsound.rangos.ventas[enc] = f.nayarsound.rangos.ventas[enc].map((v) => (v === 'PAGADO' ? 'ESTADO' : v));
+  const m = construirModelo(f, hoy);
+  assert.ok(m.nayarsound.operacion.actual.eventos > 0);
+  const deuda = m.pendientes.find((p) => p.tipo === 'deuda');
+  assert.ok(deuda.registros.length > 0);
+});
+
 test('mensaje de pagos pendientes con la fórmula de AGENDA Y VENTAS!I3', () => {
   const sabado = idxDesdeYMD(2026, 11, 7) + 25569;
   const jueves = idxDesdeYMD(2026, 11, 5) + 25569;

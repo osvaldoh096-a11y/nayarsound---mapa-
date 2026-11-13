@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611120711';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611120711';
+} from './fechas.js?v=202611130532';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611130532';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611120711';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611120711';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611120711';
-import { modeloST } from './st.js?v=202611120711';
-import { modeloOperacion } from './nsops.js?v=202611120711';
-import { dinero } from './formato.js?v=202611120711';
+} from './sheets.js?v=202611130532';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611130532';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611130532';
+import { modeloST } from './st.js?v=202611130532';
+import { modeloOperacion } from './nsops.js?v=202611130532';
+import { dinero } from './formato.js?v=202611130532';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -175,12 +175,15 @@ function tablaVentas(fuente) {
   const filas = fuente?.rangos?.ventas;
   if (!filas) return null;
   const inicio = inicioRango(ARCHIVOS.nayarsound.rangos.ventas);
-  const encabezado = buscarFilaEncabezado(filas, ['FECHA', 'PAGADO', 'ENTREGAR A OSVALDO']);
+  // La columna del estado de pago se llama PAGADO o ESTADO (según la versión de tu hoja).
+  let colPagado = 'PAGADO';
+  let encabezado = buscarFilaEncabezado(filas, ['FECHA', 'PAGADO', 'ENTREGAR A OSVALDO']);
+  if (encabezado < 0) { colPagado = 'ESTADO'; encabezado = buscarFilaEncabezado(filas, ['FECHA', 'ESTADO', 'ENTREGAR A OSVALDO']); }
   if (encabezado < 0) return null;
   const { registros, indices } = tablaPorEncabezados(filas, encabezado, {
     dj: ['DJ', 1], fecha: 'FECHA', ciudad: 'CIUDAD', entregar: 'ENTREGAR A OSVALDO',
     total: 'TOTAL EVENTO', anticipo: 'ANTICIPO', gas: 'GAS A COBRAR', horas: 'TOT.HORAS', dia: 'DIA',
-    pagado: 'PAGADO', pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP', sonido: 'SONIDO DE',
+    pagado: colPagado, pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP', sonido: 'SONIDO DE',
     tipo: 'TIPO EVENTO', ganancia: 'GANANCIA', ganancia2: 'GANANCIA 2',
   }, inicio);
   const letra = (clave) => (indices[clave] >= 0 ? letraColumna(inicio.col + indices[clave]) : null);
@@ -371,7 +374,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
     if (!deuda.cuadraFechas) avisos.push({ texto: 'En el recordatorio de deuda, el número de fechas no coincide con el de eventos.', tipo: 'formato' });
     for (const l of deuda.noReconocidas) avisos.push({ texto: `Línea no reconocida en RECORDATORIO DE DEUDA: «${l}»`, tipo: 'formato' });
     // Comprobación cruzada con «❌ FALTAN N DE PAGAR» (AGENDA Y VENTAS, columna PAGADO).
-    const faltan = ventas?.controles.find((c) => normalizar(c.columna) === 'PAGADO');
+    const faltan = ventas?.controles.find((c) => ['PAGADO', 'ESTADO'].includes(normalizar(c.columna)));
     if (faltan && faltan.cantidad !== null && deuda.estado === 'ok') {
       const eventos = deuda.personas.reduce((s, p) => s + p.eventos, 0);
       deuda.cruce = { texto: faltan.texto, coincide: faltan.cantidad === eventos, eventos };

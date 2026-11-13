@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611120711';
-import { escribirCelda, leerRangos } from './api.js?v=202611120711';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611120711';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611120711';
-import { construirModelo, entregarCon } from './modelo.js?v=202611120711';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611130532';
+import { escribirCelda, leerRangos } from './api.js?v=202611130532';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611130532';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611130532';
+import { construirModelo, entregarCon } from './modelo.js?v=202611130532';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611120711';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611120711';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611120711';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611120711';
-import { fuentesDemo } from './demo.js?v=202611120711';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611120711';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611120711';
-import { leerCashflow } from './dashprestamos.js?v=202611120711';
-import { icono } from './iconos.js?v=202611120711';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611120711';
+} from './fechas.js?v=202611130532';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611130532';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611130532';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611130532';
+import { fuentesDemo } from './demo.js?v=202611130532';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611130532';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611130532';
+import { leerCashflow } from './dashprestamos.js?v=202611130532';
+import { icono } from './iconos.js?v=202611130532';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611130532';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },

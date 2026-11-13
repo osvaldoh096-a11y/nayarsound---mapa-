@@ -1,7 +1,7 @@
 // Gráficas sencillas sin librerías: barras en HTML y líneas en SVG, con
 // información al pasar el dedo o el cursor.
 
-import { dinero, esc, esPrivado } from './formato.js?v=202611120711';
+import { dinero, esc, esPrivado } from './formato.js?v=202611130532';
 
 function compacto(v) {
   if (esPrivado()) return '$***';
@@ -123,12 +123,18 @@ export function lineas(contenedor, { etiquetas, etiquetasCortas, series }) {
 // ---------- información flotante compartida ----------
 
 let tip = null;
+let reloj = null;
 function nodoTip() {
   if (!tip) {
     tip = document.createElement('div');
     tip.className = 'tip';
     tip.setAttribute('role', 'tooltip');
     document.body.appendChild(tip);
+    // En el celular el dedo no «sale» de la barra: se oculta al deslizar, al tocar otra cosa o a los pocos segundos.
+    const ocultar = () => ocultarTip();
+    window.addEventListener('scroll', ocultar, { passive: true, capture: true });
+    document.addEventListener('touchmove', ocultar, { passive: true });
+    document.addEventListener('pointerdown', (e) => { if (!e.target.closest?.('[data-tip], svg')) ocultarTip(); });
   }
   return tip;
 }
@@ -142,10 +148,16 @@ export function mostrarTip(html, cx, cy) {
   const top = Math.max(8, cy - height - 12);
   t.style.left = `${left}px`;
   t.style.top = `${top}px`;
+  clearTimeout(reloj);
+  if (matchMedia('(hover: none)').matches) reloj = setTimeout(ocultarTip, 2500);
 }
 
 export function ocultarTip() {
+  clearTimeout(reloj);
   if (tip) tip.style.display = 'none';
+  // Quita el foco que deja el toque en la barra para que no vuelva a aparecer.
+  const activo = document.activeElement;
+  if (activo?.matches?.('[data-tip]')) activo.blur();
 }
 
 /** Activa el tooltip de las barras (atributo data-tip) dentro de un contenedor. */
