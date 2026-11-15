@@ -20,7 +20,7 @@ export const ARCHIVOS = {
     zona: 'America/Los_Angeles',
     rangos: {
       dashboard: "'DASHBOARD'!A1:E200",
-      ventas: "'AGENDA Y VENTAS'!A11:U",
+      ventas: "'AGENDA Y VENTAS'!A11:W",
     },
   },
   agenda: {

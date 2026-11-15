@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611150625';
-import { escribirCelda, leerRangos } from './api.js?v=202611150625';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611150625';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611150625';
-import { construirModelo, entregarCon } from './modelo.js?v=202611150625';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611150652';
+import { escribirCelda, leerRangos, agregarFila } from './api.js?v=202611150652';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611150652';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611150652';
+import { construirModelo, entregarCon } from './modelo.js?v=202611150652';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611150625';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611150625';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611150625';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611150625';
-import { fuentesDemo } from './demo.js?v=202611150625';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611150625';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611150625';
-import { leerCashflow } from './dashprestamos.js?v=202611150625';
-import { icono } from './iconos.js?v=202611150625';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611150625';
+} from './fechas.js?v=202611150652';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611150652';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611150652';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611150652';
+import { fuentesDemo } from './demo.js?v=202611150652';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611150652';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611150652';
+import { leerCashflow } from './dashprestamos.js?v=202611150652';
+import { icono } from './iconos.js?v=202611150652';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611150652';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -240,7 +240,7 @@ async function marcarPagado(boton) {
   const texto = filas.length === 1
     ? `¿Marcar como pagado el evento de ${p.titulo} del ${fechaLarga(filas[0].idx)}?`
     : `¿Marcar como pagados los ${filas.length} eventos de ${p.titulo}?`;
-  if (!confirm(`${texto}\n\nSe escribirá «SI» en la columna PAGO de AGENDA Y VENTAS.`)) return;
+  if (!confirm(`${texto}\n\nSe guardará «SI» en la pestaña PAGOS DJ (columna PAGADO).`)) return;
   let token = tokenVigente();
   try {
     if (!token) token = await iniciarSesion();
@@ -251,7 +251,7 @@ async function marcarPagado(boton) {
   const hechos = [];
   try {
     for (const r of filas) {
-      await escribirVerificado(token, p, r, p.pago.columnas.pago, 'SI', 'PAGO');
+      await escribirVerificado(token, p, r, 'pagado', 'SI');
       hechos.push(r.fila);
     }
     $('#detalle').close();
@@ -265,26 +265,40 @@ async function marcarPagado(boton) {
 }
 
 /**
- * Vuelve a leer la fila y comprueba que sigue siendo el mismo DJ, la misma
- * fecha y DEUDOR, y que la celda destino no tiene fórmula; luego escribe.
+ * Guarda en la pestaña PAGOS DJ (por la CLAVE del evento, no por número de
+ * fila). Antes vuelve a leer la fila de AGENDA Y VENTAS y comprueba que sigue
+ * siendo el mismo DJ, la misma fecha y la misma clave. Si la clave ya está en
+ * PAGOS DJ actualiza esa fila; si no, agrega una nueva.
+ *   campo: 'pagoDj' (columna E) o 'pagado' (columna F).
  */
-async function escribirVerificado(token, p, r, letraDestino, valor, nombreColumna) {
+const HOJA_PAGOS = 'PAGOS DJ';
+async function escribirVerificado(token, p, r, campo, valor) {
   const { archivo, pestana, columnas } = p.pago;
+  if (!columnas.clave || !r.clave) throw new Error(`El evento de ${p.titulo} del ${fechaLarga(r.idx)} no tiene CLAVE en AGENDA Y VENTAS (columna CLAVE). No se escribió nada.`);
   const n = (letra) => [...letra].reduce((t, c) => t * 26 + c.charCodeAt(0) - 64, 0);
-  const letras = Object.values(columnas).filter(Boolean);
+  const letras = [columnas.dj, columnas.fecha, columnas.clave].filter(Boolean);
   const desde = letras.reduce((a, b) => (n(a) <= n(b) ? a : b));
   const hasta = letras.reduce((a, b) => (n(a) >= n(b) ? a : b));
-  const [valores] = await leerRangos(token, archivo, [`'${pestana}'!${desde}${r.fila}:${hasta}${r.fila}`]);
+  const [valores, claves] = await leerRangos(token, archivo, [`'${pestana}'!${desde}${r.fila}:${hasta}${r.fila}`, `'${HOJA_PAGOS}'!A1:A5000`]);
   const fila = valores?.[0] ?? [];
   const col = (letra) => fila[n(letra) - n(desde)];
   const coincide = normalizar(col(columnas.dj)) === normalizar(p.titulo)
     && Math.floor(Number(col(columnas.fecha))) - 25569 === r.idx
-    && normalizar(col(columnas.pagado)) === 'DEUDOR';
-  if (!coincide) throw new Error(`La fila ${r.fila} cambió en tu hoja (ya no es el evento de ${p.titulo} del ${fechaLarga(r.idx)} como deudor). No se escribió nada en ella.`);
-  const celda = `'${pestana}'!${letraDestino}${r.fila}`;
-  const [formula] = await leerRangos(token, archivo, [celda], { modo: 'FORMULA' });
-  if (String(formula?.[0]?.[0] ?? '').startsWith('=')) throw new Error(`La celda ${nombreColumna} de la fila ${r.fila} tiene una fórmula; no se modificó.`);
-  await escribirCelda(token, archivo, celda, valor);
+    && String(col(columnas.clave) ?? '').trim() === String(r.clave).trim();
+  if (!coincide) throw new Error(`El evento de ${p.titulo} del ${fechaLarga(r.idx)} cambió en tu hoja. Toca «Actualizar» y vuelve a intentarlo. No se escribió nada.`);
+  const clave = String(r.clave).trim();
+  const ahora = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Mexico_City', dateStyle: 'short', timeStyle: 'short' }).format(new Date());
+  const i = (claves ?? []).findIndex((f, k) => k > 0 && String(f?.[0] ?? '').trim() === clave);
+  if (i > 0) {
+    const letra = campo === 'pagoDj' ? 'E' : 'F';
+    await escribirCelda(token, archivo, `'${HOJA_PAGOS}'!${letra}${i + 1}`, valor);
+    await escribirCelda(token, archivo, `'${HOJA_PAGOS}'!G${i + 1}`, ahora);
+  } else {
+    const { y: ay, m: am, d: ad } = ymdDesdeIdx(r.idx);
+    const nueva = [clave, `${ay}-${String(am).padStart(2, '0')}-${String(ad).padStart(2, '0')}`, String(r.dj ?? p.titulo).trim(), String(r.cliente ?? '').trim(),
+      campo === 'pagoDj' ? valor : '', campo === 'pagado' ? valor : '', ahora];
+    await agregarFila(token, archivo, `'${HOJA_PAGOS}'!A1:G1`, nueva, { entrada: 'RAW' });
+  }
 }
 
 /** Cambia el pago al DJ (columna «DJ» de AGENDA Y VENTAS) de un evento. */
@@ -305,7 +319,7 @@ async function guardarPagoDj(boton) {
   boton.textContent = 'Guardando…';
   if (estado) { estado.textContent = ''; estado.className = 'pagodj-estado'; }
   try {
-    await escribirVerificado(token, p, r, p.pago.columnas.pagoDj, valor, 'DJ');
+    await escribirVerificado(token, p, r, 'pagoDj', valor);
     // Se queda en esta ventana: marca guardado y pasa al siguiente evento.
     r.pagoDj = valor;
     boton.textContent = 'Guardado ✓';
