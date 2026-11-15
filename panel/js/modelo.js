@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611150652';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611150652';
+} from './fechas.js?v=202611150728';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611150728';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611150652';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611150652';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611150652';
-import { modeloST } from './st.js?v=202611150652';
-import { modeloOperacion } from './nsops.js?v=202611150652';
-import { dinero } from './formato.js?v=202611150652';
+} from './sheets.js?v=202611150728';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611150728';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611150728';
+import { modeloST } from './st.js?v=202611150728';
+import { modeloOperacion } from './nsops.js?v=202611150728';
+import { dinero } from './formato.js?v=202611150728';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -229,6 +229,24 @@ export function entregarCon(r, pagoDj) {
   return I - J - L - socio;
 }
 
+/**
+ * Desglose que cuadra con «ENTREGAR A OSVALDO»:
+ *   Sonido de OSVALDO: cobrado (total − anticipo, + gas desde feb 2026) − DJ = enviar.
+ *   Otro sonido: cobrado (total − anticipo, sin gas) − DJ − ganancia del dueño
+ *   del sonido (50% si es JORGE o PAUL) = enviar.
+ */
+function desglose(r, pagoDj) {
+  const sonido = normalizar(r.sonido);
+  const enviar = `✅ Enviar: *$${miles.format(num(r.entregar))}*`;
+  if (!sonido || sonido === 'OSVALDO') {
+    const conGas = typeof r.fecha === 'number' && r.fecha >= idxDesdeYMD(2026, 2, 1) + 25569;
+    return `💵 $${miles.format(num(r.total) - num(r.anticipo) + (conGas ? num(r.gas) : 0))}\n➖ DJ: $${miles.format(pagoDj)}\n${enviar}`;
+  }
+  const mitad = sonido === 'JORGE' || sonido === 'PAUL';
+  const ganancia = (num(r.total) - pagoDj) / (mitad ? 2 : 1);
+  return `💵 $${miles.format(num(r.total) - num(r.anticipo))}\n➖ DJ: $${miles.format(pagoDj)}\n➖ Tu ganancia${mitad ? ' (50%)' : ''}: $${miles.format(ganancia)}\n${enviar}`;
+}
+
 export function mensajeDeuda(nombre, filas) {
   const bloques = filas.map((r) => {
     const idx = typeof r.fecha === 'number' ? Math.floor(r.fecha) - 25569 : null;
@@ -239,7 +257,7 @@ export function mensajeDeuda(nombre, filas) {
     const pagoDj = num(r.pagoDj);
     let bloque = `🎵 *${fecha} (${dia}${horas})*\n`;
     bloque += pagoDj <= 0 ? '⚠️ *NO HAY REGISTRO DE PAGO DEL DJ*'
-      : `💵 $${miles.format(num(r.total) - num(r.anticipo) + num(r.gas))}\n➖ DJ: $${miles.format(pagoDj)}\n✅ Enviar: *$${miles.format(num(r.entregar))}*`;
+      : desglose(r, pagoDj);
     const semana = f ? ((f.getUTCDay() + 6) % 7) + 1 : 7; // WEEKDAY(fecha, 2): lunes = 1
     return semana <= 4 ? bloque.toUpperCase() : bloque;
   });

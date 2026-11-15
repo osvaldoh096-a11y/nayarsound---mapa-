@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611150652';
-import { escribirCelda, leerRangos, agregarFila } from './api.js?v=202611150652';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611150652';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611150652';
-import { construirModelo, entregarCon } from './modelo.js?v=202611150652';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611150728';
+import { escribirCelda, leerRangos, agregarFila } from './api.js?v=202611150728';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611150728';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611150728';
+import { construirModelo, entregarCon } from './modelo.js?v=202611150728';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611150652';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611150652';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611150652';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611150652';
-import { fuentesDemo } from './demo.js?v=202611150652';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611150652';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611150652';
-import { leerCashflow } from './dashprestamos.js?v=202611150652';
-import { icono } from './iconos.js?v=202611150652';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611150652';
+} from './fechas.js?v=202611150728';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611150728';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611150728';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611150728';
+import { fuentesDemo } from './demo.js?v=202611150728';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611150728';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611150728';
+import { leerCashflow } from './dashprestamos.js?v=202611150728';
+import { icono } from './iconos.js?v=202611150728';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611150728';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1709,7 +1709,7 @@ function abrirPendiente(p) {
         <span class="det-mensaje-botones">${botonWhatsApp(p)}<button class="boton boton-primario boton-chico" data-accion="copiar-mensaje" data-pendiente-msg="${esc(p.id)}">Copiar</button></span></div>
       ${avisoTelefono(p)}
       <pre class="linea-hoja">${esc(ocultarImportes(p.mensaje))}</pre>
-      <p class="nota">Mismo texto que arma tu hoja en AGENDA Y VENTAS (celda I3).</p>
+      <p class="nota">Mismo total que tu hoja (AGENDA Y VENTAS, celda I3). En eventos con sonido de otro socio se desglosa su ganancia para que cuadre.</p>
     </section>` : '';
   const pagar = p.tipo === 'deuda' && p.pago && p.registros?.length
     ? `<button class="boton boton-exito boton-ancho" data-accion="marcar-pagado" data-pendiente-pago="${esc(p.id)}">${icono('pendientes')}${p.registros.length === 1 ? 'Marcar como pagado' : `Marcar los ${p.registros.length} eventos como pagados`}</button>` : '';
