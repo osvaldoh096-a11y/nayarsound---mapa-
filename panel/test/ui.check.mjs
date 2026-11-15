@@ -196,7 +196,7 @@ try {
       revisar(await pagina.locator('#detalle[open]').count() === 1 && /Guardado/.test(await pagina.locator('.pagodj-estado.ok').first().innerText()), 'Pago al DJ: guarda sin cerrar la ventana');
       const entradasDj = pagina.locator('#detalle input[data-fila-pagodj]');
       if (await entradasDj.count() > 1) revisar(await entradasDj.nth(1).evaluate((el) => el === document.activeElement), 'Pago al DJ: el cursor pasa al siguiente evento');
-      revisar(/\d+ horas?/.test(await pagina.locator('#detalle .det-lista').first().innerText()), 'Deuda: muestra la duración del evento en horas');
+      if (!rutaSnapshot) revisar(/\d+ horas?/.test(await pagina.locator('#detalle .det-lista').first().innerText()), 'Deuda: muestra la duración del evento en horas');
       await pagina.locator('#detalle [data-cerrar]').first().click();
       await pagina.waitForSelector('#detalle', { state: 'hidden' });
       await pagina.waitForTimeout(1600);
