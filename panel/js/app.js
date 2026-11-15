@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611150611';
-import { escribirCelda, leerRangos } from './api.js?v=202611150611';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611150611';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611150611';
-import { construirModelo, entregarCon } from './modelo.js?v=202611150611';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611150625';
+import { escribirCelda, leerRangos } from './api.js?v=202611150625';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611150625';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611150625';
+import { construirModelo, entregarCon } from './modelo.js?v=202611150625';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611150611';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611150611';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611150611';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611150611';
-import { fuentesDemo } from './demo.js?v=202611150611';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611150611';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611150611';
-import { leerCashflow } from './dashprestamos.js?v=202611150611';
-import { icono } from './iconos.js?v=202611150611';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611150611';
+} from './fechas.js?v=202611150625';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611150625';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611150625';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611150625';
+import { fuentesDemo } from './demo.js?v=202611150625';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611150625';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611150625';
+import { leerCashflow } from './dashprestamos.js?v=202611150625';
+import { icono } from './iconos.js?v=202611150625';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611150625';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -614,6 +614,11 @@ function bandaEstado(claves) {
 // ------------------------------------------------------------------ piezas
 
 /** Días desde el evento más antiguo que se debe. */
+/** Eventos de la deuda sin pago al DJ anotado (columna DJ de AGENDA Y VENTAS vacía). */
+function faltaPagoDj(p) {
+  return (p.registros ?? []).filter((r) => typeof r.pagoDj !== 'number').length;
+}
+
 function diasDeuda(p, hoyIdx) {
   const fechas = (p.fechas ?? []).map((f) => f.idx).filter((x) => typeof x === 'number');
   return fechas.length ? hoyIdx - Math.min(...fechas) : null;
@@ -676,7 +681,7 @@ function filaPendiente(p, hoyIdx, { sinCiudad = false } = {}) {
     ? `<span class="fp-monto ${p.accion === 'COBRAR' ? 'monto-cobrar' : p.accion === 'PAGAR' ? 'monto-pagar' : ''}">${esc(dinero(p.monto, p.decimales ?? 2))}${p.usdt ? `<small>${esc(monto(p.usdt, 'USDT'))}</small>` : ''}</span>` : '';
   return `<button class="fila-pend u-${p.urgencia}" data-pendiente="${esc(p.id)}">
     <span class="fp-icono tipo-${p.tipo}">${icono(ICONO_TIPO[p.tipo] ?? 'pendientes')}</span>
-    <span class="fp-texto"><span class="fp-titulo">${esc(p.titulo)}${sinCiudad ? '' : (p.ciudades ?? []).map(etiquetaCiudad).join('')}${p.tipo === 'deuda' ? '' : ` ${accionTag(p.accion)}`}</span><small>${esc(detalle)}</small></span>
+    <span class="fp-texto"><span class="fp-titulo">${esc(p.titulo)}${sinCiudad ? '' : (p.ciudades ?? []).map(etiquetaCiudad).join('')}${p.tipo === 'deuda' ? '' : ` ${accionTag(p.accion)}`}</span><small>${esc(detalle)}</small>${p.tipo === 'deuda' && faltaPagoDj(p) ? `<span class="fp-falta">⚠ Falta anotar pago al DJ${faltaPagoDj(p) > 1 ? ` (${faltaPagoDj(p)} eventos)` : ''}</span>` : ''}</span>
     <span class="fp-derecha">${importe}${chipUrgencia(p, hoyIdx)}</span>
   </button>`;
 }
@@ -831,7 +836,10 @@ function alertasPorNegocio(m) {
     for (const [ciudad, lista] of ordenados) {
       const total = lista.reduce((t, p) => t + (p.monto ?? 0), 0);
       filasNs.push({ urg: 'sin-fecha', fecha: null, html: `<div class="grupo-ciudad">${etiquetaCiudad(ciudad)}<span>${plural(lista.length, 'persona', 'personas')}</span><b class="monto-cobrar">${esc(dinero(total, 0))}</b></div>` });
-      for (const p of lista) filasNs.push({ urg: 'sin-fecha', fecha: null, html: filaPendiente(p, hoyIdx, { sinCiudad: true }) });
+      // Primero a quienes les falta anotar el pago al DJ; luego los que más días deben.
+      const orden = [...lista].sort((a, z) => (faltaPagoDj(z) > 0) - (faltaPagoDj(a) > 0)
+        || (diasDeuda(z, hoyIdx) ?? -1) - (diasDeuda(a, hoyIdx) ?? -1) || (z.monto ?? 0) - (a.monto ?? 0));
+      for (const p of orden) filasNs.push({ urg: 'sin-fecha', fecha: null, html: filaPendiente(p, hoyIdx, { sinCiudad: true }) });
     }
   }
   const deudas = m.pendientes.filter((p) => p.tipo === 'deuda');

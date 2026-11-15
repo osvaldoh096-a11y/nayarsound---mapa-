@@ -111,6 +111,14 @@ try {
     // NayarSound
     await pagina.goto(`${url}/panel/#/nayarsound`);
     if (!rutaSnapshot) {
+      // Cobros de eventos: primero a quien le falta anotar el pago al DJ, luego más días.
+      await pagina.goto(`${url}/panel/#/inicio`);
+      await pagina.locator('button.clase[data-filtro="sin-fecha"]').click();
+      await pagina.waitForSelector('.grupo-ciudad');
+      const deudores = await pagina.locator('.fila-pend .fp-titulo').allInnerTexts();
+      revisar(/DJ GAMA/.test(deudores[0]) && /DJ ALFA/.test(deudores[1]) && await pagina.locator('.fp-falta').count() === 1,
+        `Cobros: primero falta pago al DJ, después los que más días deben (${deudores.map((t) => t.split('\n')[0]).join(', ')})`);
+      await pagina.locator('button.clase[data-filtro="sin-fecha"]').click();
       // Detalle del día: por ciudad y por hora de inicio (sin DJ dentro de su ciudad).
       await pagina.goto(`${url}/panel/#/inicio`);
       await pagina.locator('[data-dia]').first().click();

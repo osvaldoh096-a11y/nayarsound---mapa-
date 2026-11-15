@@ -951,3 +951,4 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .pagodj-estado.mal { color: var(--rojo-tinta); display: block; margin: 4px 0 0; }
 .boton.guardado { background: var(--verde-fondo); border-color: var(--verde); color: var(--verde-tinta); }
 .det-duracion { font-weight: 600; color: var(--tinta-2); }
+.fp-falta { display: inline-block; margin-top: 4px; font-size: 12.5px; font-weight: 650; color: var(--ambar-tinta); background: #FFF7E6; padding: 2px 8px; border-radius: 6px; }

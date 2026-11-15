@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611150611';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611150625';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -71,7 +71,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       'GAS A COBRAR', 'DJ ', 'GANANCIA', 'GANANCIA 2', 'ENTREGAR A OSVALDO', 'REALIZADO', 'DIA', 'MES', 'PAGADO', 'PAGO'],
     // Sonido de OSVALDO: entregar = total − anticipo − DJ + gas (fórmula de la hoja).
     ...deudas.map(([dj, idx, entregar], i) => [i + 1, 'OSVALDO', 'GUADALAJARA', dj, serial(idx), 'XV AÑOS', 5, 'CLIENTE DEMO',
-      entregar + 1000, 500, 300, 800, entregar + 500, entregar + 500, entregar, 'SI', '', '', 'DEUDOR', 'NO']),
+      entregar + 1000, 500, 300, dj === 'DJ GAMA' ? '' : 800, entregar + 500, entregar + 500, entregar, 'SI', '', '', 'DEUDOR', 'NO']),
     [4, 'EJEMPLO', 'TEPIC', 'DJ DELTA', serial(h - 1), 'BODA', 5, 'CLIENTE DEMO', 2500, 500, 0, 700, 1300, 650, 650, 'SI', '', '', 'PAGADO', 'SI'],
   ];
   // Historial de eventos (14 meses) para la operación mensual: ya pagados o por realizar.
