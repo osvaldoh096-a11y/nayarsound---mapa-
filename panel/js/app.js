@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611130532';
-import { escribirCelda, leerRangos } from './api.js?v=202611130532';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611130532';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611130532';
-import { construirModelo, entregarCon } from './modelo.js?v=202611130532';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611150611';
+import { escribirCelda, leerRangos } from './api.js?v=202611150611';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611150611';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611150611';
+import { construirModelo, entregarCon } from './modelo.js?v=202611150611';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611130532';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611130532';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611130532';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611130532';
-import { fuentesDemo } from './demo.js?v=202611130532';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611130532';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611130532';
-import { leerCashflow } from './dashprestamos.js?v=202611130532';
-import { icono } from './iconos.js?v=202611130532';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611130532';
+} from './fechas.js?v=202611150611';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611150611';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611150611';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611150611';
+import { fuentesDemo } from './demo.js?v=202611150611';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611150611';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611150611';
+import { leerCashflow } from './dashprestamos.js?v=202611150611';
+import { icono } from './iconos.js?v=202611150611';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611150611';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -293,28 +293,34 @@ async function guardarPagoDj(boton) {
   const r = p?.registros?.find((x) => String(x.fila) === boton.dataset.fila);
   if (!p?.pago?.columnas?.pagoDj || !r) return;
   const entrada = document.querySelector(`input[data-fila-pagodj="${r.fila}"]`);
+  const estado = document.querySelector(`[data-estado-pagodj="${r.fila}"]`);
   const texto = String(entrada?.value ?? '').trim().replace(/[$,\s]/g, '');
   const valor = Number(texto);
   if (!texto || !Number.isFinite(valor) || valor < 0) { alert('Escribe un importe válido, por ejemplo 1500.'); entrada?.focus(); return; }
-  const antes = typeof r.pagoDj === 'number' ? dinero(r.pagoDj, 0) : 'sin registro';
-  if (!confirm(`¿Cambiar el pago al DJ ${p.titulo} del ${fechaLarga(r.idx)}?\n\nDe ${antes} a ${dinero(valor, 0)}.\nSe escribirá en la columna DJ de AGENDA Y VENTAS (fila ${r.fila}); tu hoja recalcula lo que debe enviar.`)) return;
   let token = tokenVigente();
   try {
     if (!token) token = await iniciarSesion();
   } catch (error) { alert(error.message); return; }
   boton.disabled = true;
   boton.textContent = 'Guardando…';
+  if (estado) { estado.textContent = ''; estado.className = 'pagodj-estado'; }
   try {
     await escribirVerificado(token, p, r, p.pago.columnas.pagoDj, valor, 'DJ');
-    $('#detalle').close();
-    E.avisoTemporal = `Listo: pago al DJ ${p.titulo} del ${fechaLarga(r.idx)} = ${dinero(valor, 0)}.`;
+    // Se queda en esta ventana: marca guardado y pasa al siguiente evento.
+    r.pagoDj = valor;
+    boton.textContent = 'Guardado ✓';
+    boton.classList.add('guardado');
+    if (estado) { estado.textContent = `Guardado: ${dinero(valor, 0)}`; estado.className = 'pagodj-estado ok'; }
+    const entradas = [...document.querySelectorAll('#detalle input[data-fila-pagodj]')];
+    const siguiente = entradas[entradas.indexOf(entrada) + 1];
+    if (siguiente) { siguiente.focus(); siguiente.select?.(); }
+    refrescarDetalleDeuda(p.id);
+    setTimeout(() => { boton.textContent = 'Guardar'; boton.classList.remove('guardado'); boton.disabled = false; }, 1800);
   } catch (error) {
-    alert(error.message);
-  } finally {
-    boton.disabled = false;
     boton.textContent = 'Guardar';
+    boton.disabled = false;
+    if (estado) { estado.textContent = error.message; estado.className = 'pagodj-estado mal'; } else alert(error.message);
   }
-  await actualizar({ interactivo: true });
 }
 
 /** Enlace de WhatsApp con el mensaje ya escrito (tú solo tocas «Enviar» en WhatsApp). */
@@ -431,6 +437,42 @@ function pintarTareas() {
   const nueva = caja.querySelector('input[name="tarea"]');
   if (nueva) { nueva.value = borrador; if (enfocada) nueva.focus(); }
 }
+
+/**
+ * Vuelve a leer tus hojas sin cerrar la ventana y actualiza solo el mensaje
+ * «PAGOS PENDIENTES», el botón de WhatsApp y los «Enviar» de cada evento.
+ */
+let esperaDetalle = null;
+function refrescarDetalleDeuda(id) {
+  clearTimeout(esperaDetalle);
+  esperaDetalle = setTimeout(async () => {
+    if (E.cargando) { refrescarDetalleDeuda(id); return; }
+    await actualizar({ interactivo: false });
+    const p = E.pendientes.get(id);
+    const d = $('#detalle');
+    if (!p || !d.open) return;
+    const pre = d.querySelector('.det-mensaje pre');
+    if (pre && p.mensaje) pre.textContent = ocultarImportes(p.mensaje);
+    const wa = d.querySelector('a.boton-whatsapp');
+    const tel = telefonoDe(p.titulo);
+    if (wa && tel?.numero) wa.href = enlaceWhatsApp(tel.numero, p.mensaje);
+    for (const r of p.registros ?? []) {
+      const b = d.querySelector(`[data-enviar-fila="${r.fila}"]`);
+      if (b && typeof r.importe?.valor === 'number' && document.activeElement?.dataset?.filaPagodj !== String(r.fila)) {
+        b.textContent = dinero(r.importe.valor);
+        b.classList.remove('cambio');
+      }
+    }
+  }, 1200);
+}
+
+/** Enter en el pago al DJ guarda ese evento. */
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.matches?.('input[data-fila-pagodj]')) return;
+  e.preventDefault();
+  const b = document.querySelector(`[data-accion="guardar-pagodj"][data-fila="${e.target.dataset.filaPagodj}"]`);
+  if (b && !b.disabled) guardarPagoDj(b);
+});
 
 function alEscribir(evento) {
   const el = evento.target;
@@ -1628,12 +1670,14 @@ function abrirPendiente(p) {
       const editar = p.pago?.columnas?.pagoDj && r
         ? (esPrivado() ? '<div class="pago-dj nota">Muestra los importes (ojo) para editar el pago al DJ.</div>'
           : `<div class="pago-dj"><label>Pago al DJ <span class="campo-dinero">$<input type="number" inputmode="decimal" min="0" step="1" value="${typeof r.pagoDj === 'number' ? r.pagoDj : ''}" placeholder="Sin registro" data-fila-pagodj="${r.fila}" data-pendiente-pago="${esc(p.id)}"></span></label>
-            <button class="boton boton-chico" data-accion="guardar-pagodj" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Guardar</button></div>`)
+            <button class="boton boton-chico" data-accion="guardar-pagodj" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Guardar</button><span class="pagodj-estado" data-estado-pagodj="${r.fila}" aria-live="polite"></span></div>`)
         : '';
       // La vista previa solo se activa si la fórmula replicada da lo mismo que la hoja.
       const previa = r && typeof r.importe?.valor === 'number' && entregarCon(r, r.pagoDj) !== null
         && Math.abs(entregarCon(r, r.pagoDj) - r.importe.valor) < 0.01;
-      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · Enviar <b class="enviar-valor" ${previa ? `data-enviar-fila="${r.fila}"` : ''}>${esc(dinero(r.importe.valor))}</b>` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}${editar}</li>`;
+      const horas = typeof r?.horas === 'number' ? r.horas : Number(String(r?.horas ?? '').replace(',', '.'));
+      const duracion = Number.isFinite(horas) && horas > 0 ? ` · <span class="det-duracion">${esc(String(horas))} ${horas === 1 ? 'hora' : 'horas'}</span>` : '';
+      return `<li>${esc(capitalizar(fechaLarga(f.idx)))}${duracion}${r?.importe?.valor !== undefined && r?.importe?.valor !== null ? ` · Enviar <b class="enviar-valor" ${previa ? `data-enviar-fila="${r.fila}"` : ''}>${esc(dinero(r.importe.valor))}</b>` : ''}${r?.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${unoSolo}${editar}</li>`;
     }).join('')}</ul></section>`;
   } else if (p.registros?.length) {
     registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.rango ?? r.hora ? `${esc(r.rango ?? r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;

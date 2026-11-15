@@ -185,14 +185,21 @@ try {
         revisar(Math.abs(num(antesVista) - num(despues) - 100) < 0.01, `Vista previa: subir 100 el pago al DJ baja «Enviar» de ${antesVista} a ${despues}`);
       }
       await campo.fill('1234');
-      pagina.once('dialog', (d) => d.accept());
       const previo = lecturas.length;
       await pagina.locator('[data-accion="guardar-pagodj"]').first().click();
       for (let i = 0; i < 30 && !lecturas.slice(previo).some((l) => l.metodo === 'PUT'); i++) await pagina.waitForTimeout(100);
       const pagoDj = lecturas.slice(previo).filter((l) => l.metodo === 'PUT');
       revisar(pagoDj.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(pagoDj[0].celda) && pagoDj[0].valor === 1234,
         `Pago al DJ: escribe 1234 en la columna DJ (${pagoDj.map((e) => `${e.celda}=${e.valor}`).join(', ')})`);
+      // Se queda en la ventana, avisa «Guardado» y pasa al siguiente evento.
+      await pagina.waitForSelector('.pagodj-estado.ok');
+      revisar(await pagina.locator('#detalle[open]').count() === 1 && /Guardado/.test(await pagina.locator('.pagodj-estado.ok').first().innerText()), 'Pago al DJ: guarda sin cerrar la ventana');
+      const entradasDj = pagina.locator('#detalle input[data-fila-pagodj]');
+      if (await entradasDj.count() > 1) revisar(await entradasDj.nth(1).evaluate((el) => el === document.activeElement), 'Pago al DJ: el cursor pasa al siguiente evento');
+      revisar(/\d+ horas?/.test(await pagina.locator('#detalle .det-lista').first().innerText()), 'Deuda: muestra la duración del evento en horas');
+      await pagina.locator('#detalle [data-cerrar]').first().click();
       await pagina.waitForSelector('#detalle', { state: 'hidden' });
+      await pagina.waitForTimeout(1600);
       await pagina.waitForSelector('.dia');
 
       // Marcar como pagado: confirma, verifica la fila y escribe SI en PAGO.
