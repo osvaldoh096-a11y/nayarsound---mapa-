@@ -328,6 +328,7 @@
     display:none;
     flex-direction:column;
     min-height:0;
+    overflow-y:auto;
     padding:20px;
     gap:12px;
   }
@@ -572,9 +573,26 @@
   }
 
   @media (max-width: 900px){
-    .demand-layout{ flex-direction:column; }
-    .demand-side-col{ max-width:none; }
-    #demandMap{ min-height:320px; }
+    /* En escritorio .demand-layout/.demand-side-col usan flex:1 + overflow-y:auto
+       para que el panel lateral scrollee por su cuenta junto al mapa de altura
+       fija. Apilados en columna (celular) eso mismo les impedía crecer con su
+       contenido real — quedaban encajonados en el espacio restante y el único
+       scroll (el interno del panel) no alcanzaba a mostrar todo, sin dejar
+       ninguna forma de deslizar la página completa. Aquí se sueltan para que
+       crezcan a su alto natural y sea #demandPage (ver overflow-y:auto arriba)
+       el que haga scroll de la página entera, como ya pasa en DJS/TIPOS. */
+    .demand-layout{ flex-direction:column; flex:none; min-height:auto; }
+    .demand-map-col{ flex:none; }
+    .demand-side-col{ max-width:none; flex:none; overflow-y:visible; }
+    #demandMap{ flex:none; min-height:320px; }
+    /* .demand-opportunities y su lista también tenían flex:1/overflow:auto para
+       repartirse el alto fijo del panel en escritorio. Sin aplanar esto también,
+       su alto queda ambiguo (depende de cuánto espacio "sobre" en el flex), y
+       recalcularse distinto durante el scroll es justo lo que hace que iOS
+       "corrija" de golpe la posición (el efecto de resortera que reportó el
+       usuario) — con alto fijo por contenido, el scroll deja de moverse solo. */
+    .demand-opportunities{ flex:none; min-height:auto; }
+    .demand-opportunities-list{ overflow-y:visible; }
   }
 
   @media (max-width: 640px){
@@ -1478,30 +1496,33 @@
   // ================= CONFIGURACIÓN =================
   var SHEET_ID    = '1FKaobilQ1HNHXntMxnFgoPld5In4dwSNsQgt-78yk4o';
   var SHEET_NAME  = 'AGENDA';
-  var DATA_RANGE  = 'C13:R5000'; // columna C (CIUDAD) ... columna R (BLOQUEADO)
+  // Se agregó la columna "TIPO SONIDO" en E, recorriendo una posición todo lo
+  // que sigue (antes: C=CIUDAD,D=DJ,E=FECHA,...,Q=COORDENADAS,R=BLOQUEADO).
+  var DATA_RANGE  = 'C13:S5000'; // columna C (CIUDAD) ... columna S (BLOQUEADO)
   var CITY_COL_IDX  = 0;  // C es la primera columna del rango
   var DJ_ASSIGNED_COL_IDX = 1; // D (DJ) — DJ asignado al evento, usado por OCUPADO/DISPONIBLE
-  var FECHA_COL_IDX = 2;  // E (FECHA) está 2 columnas después de C — solo se usa para filtrar, nunca se muestra
-  var COORD_COL_IDX = 14; // Q está 14 columnas después de C
-  var BLOQUEADO_COL_IDX = 15; // R — evento bloqueado (conserva su DJ actual, fuera de OPTIMIZAR ASIGNACIONES)
-  var HORA_INICIO_COL_IDX = 4; // G — hora de inicio del evento, usada para detectar choques de horario
-  var TOT_HORAS_COL_IDX = 5; // H — duración del evento en horas (puede venir decimal, ej. 3.5)
+  var FECHA_COL_IDX = 3;  // F (FECHA)
+  var COORD_COL_IDX = 15; // R
+  var BLOQUEADO_COL_IDX = 16; // S — evento bloqueado (conserva su DJ actual, fuera de OPTIMIZAR ASIGNACIONES)
+  var HORA_INICIO_COL_IDX = 5; // H — hora de inicio del evento, usada para detectar choques de horario
+  var TOT_HORAS_COL_IDX = 6; // I — duración del evento en horas (puede venir decimal, ej. 3.5)
   var REFRESH_MS  = 5 * 60 * 1000;
 
   // ---- Rango para la página DJS (estadísticas de eventos/horas extra por DJ) ----
   // Empieza en la fila 12 (encabezados) para poder leer las columnas por su nombre
   // real (REALIZADO, Horas Extra) con headers=1 en vez de asumir letras fijas, y se
   // extiende hasta S porque "Horas Extra" queda una columna después de BLOQUEADO,
-  // fuera del rango C13:R5000 que ya usa loadEvents() para el mapa.
+  // fuera del rango C13:S5000 que ya usa loadEvents() para el mapa.
   var AGENDA_STATS_RANGE = 'C12:S5000';
 
   // ---- Rango para la página DEMANDA (solicitudes rechazadas, misma pestaña AGENDA) ----
   // Tabla aparte dentro de la misma hoja AGENDA ("LUGARES A LOS QUE SE HA RECHAZADO
-  // EL SERVICIO"), columnas U-Y, mismo renglón de encabezados (12) que la tabla
-  // principal. Cada fila ya trae su propia coordenada capturada a mano (columna
-  // COORDENADAS) — no se geocodifica nada, se lee igual que cualquier coordenada
-  // de AGENDA con parseCoordinate().
-  var DEMAND_RANGE = 'U12:Y5000';
+  // EL SERVICIO"), mismo renglón de encabezados (12) que la tabla principal. Cada
+  // fila ya trae su propia coordenada capturada a mano (columna COORDENADAS) — no
+  // se geocodifica nada, se lee igual que cualquier coordenada de AGENDA con
+  // parseCoordinate(). Columnas V-Z (antes U-Y: se recorrieron por la columna
+  // "TIPO SONIDO" agregada en la tabla principal).
+  var DEMAND_RANGE = 'V12:Z5000';
 
   // ---- Hoja externa de ventas/pagos (otro spreadsheet), para GENERADO/PAGADO/GANANCIA ----
   // Misma técnica de conexión (gviz JSONP público, sin backend ni login) contra un
@@ -2562,7 +2583,7 @@
   // Misma hoja AGENDA y misma conexión (gviz JSONP) que loadEvents(), pero con su
   // propia consulta: incluye la fila de encabezados (headers=1) para poder ubicar
   // REALIZADO y Horas Extra por su nombre en vez de por letra fija, y llega hasta la
-  // columna S porque Horas Extra queda fuera del rango C13:R5000 que usa el mapa.
+  // columna S porque Horas Extra queda fuera del rango C13:S5000 que usa el mapa.
   function loadDjAgendaStats(){
     return new Promise(function(resolveLoad){
       var callbackName = '__gvizDjStatsCallback_' + Date.now();
