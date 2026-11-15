@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
@@ -300,4 +300,19 @@ test('vista previa de «Enviar» con la fórmula de AGENDA Y VENTAS', async () =
   assert.equal(entregarCon({ ...base, sonido: 'OSVALDO', fecha: idxDesdeYMD(2026, 1, 10) + 25569 }, 1500), 1900);
   assert.equal(entregarCon({ ...base, sonido: 'JORGE' }, 1000), 3500 - 100 - 1000 - 1250); // socio: (3500 − 1000) / 2
   assert.equal(entregarCon({ ...base, sonido: 'OSVALDO', realizado: 'NO' }, 1500), null);
+});
+
+test('Deuda: avisa si el DJ está en evento o tiene evento hoy (esperar para cobrar)', () => {
+  const ev = [
+    { dj: ' GAMMA ', idx: 100, inicioMin: 1200, finMin: 1500, rango: '8:00 pm a 1:00 am', realizado: '' },
+    { dj: 'EDGAR', idx: 99, inicioMin: 1260, finMin: 1560, rango: '9:00 pm a 2:00 am', realizado: '' },
+    { dj: 'LEE', idx: 100, inicioMin: 720, finMin: 1020, rango: '12:00 pm a 5:00 pm', realizado: 'SI' },
+  ];
+  assert.equal(eventoDelDj('GAMMA', ev, 100, 960).estado, 'hoy');
+  assert.equal(eventoDelDj('GAMMA', ev, 100, 1260).estado, 'en-curso');
+  assert.equal(eventoDelDj('EDGAR', ev, 100, 60).estado, 'en-curso'); // empezó ayer, pasa de medianoche
+  assert.equal(eventoDelDj('EDGAR', ev, 100, 180), null);
+  assert.equal(eventoDelDj('LEE', ev, 100, 1080), null); // ya terminó y está registrado
+  assert.equal(eventoDelDj('LEE', ev.map((e) => ({ ...e, realizado: '' })), 100, 1080).estado, 'termino');
+  assert.equal(eventoDelDj('AARON', ev, 100, 960), null);
 });

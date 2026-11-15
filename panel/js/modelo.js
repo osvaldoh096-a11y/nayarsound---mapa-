@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611150728';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611150728';
+} from './fechas.js?v=202611152252';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611152252';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611150728';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611150728';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611150728';
-import { modeloST } from './st.js?v=202611150728';
-import { modeloOperacion } from './nsops.js?v=202611150728';
-import { dinero } from './formato.js?v=202611150728';
+} from './sheets.js?v=202611152252';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611152252';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611152252';
+import { modeloST } from './st.js?v=202611152252';
+import { modeloOperacion } from './nsops.js?v=202611152252';
+import { dinero } from './formato.js?v=202611152252';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -276,6 +276,39 @@ export function eventoTerminado(e, hoyIdx, minuto) {
   return e.idx === hoyIdx && typeof minuto === 'number' && e.finMin !== null && e.finMin <= minuto;
 }
 
+/**
+ * ¿El DJ está en un evento ahora o tiene uno hoy? Para no cobrarle a medias:
+ * mejor esperar a que termine y cobrar todo junto.
+ *   en-curso: ya empezó y no ha terminado (incluye el que empezó ayer y pasa de medianoche).
+ *   hoy: tiene evento hoy que aún no empieza (o sin hora de inicio).
+ *   termino: su evento de hoy ya terminó pero aún no está registrado como REALIZADO.
+ */
+export function eventoDelDj(nombre, eventos, hoyIdx, minuto) {
+  if (!eventos) return null;
+  const n = normalizar(nombre);
+  const suyos = eventos.filter((e) => normalizar(e.dj) === n && (e.idx === hoyIdx || e.idx === hoyIdx - 1));
+  const ahora = typeof minuto === 'number' ? minuto : null;
+  const lista = [];
+  for (const e of suyos) {
+    const ini = e.inicioMin === null || e.inicioMin === undefined ? null : e.inicioMin + (e.idx - hoyIdx) * 1440;
+    const fin = e.finMin === null || e.finMin === undefined ? null : e.finMin + (e.idx - hoyIdx) * 1440;
+    if (e.idx === hoyIdx - 1) {
+      // Solo cuenta si pasa de medianoche y sigue en curso.
+      if (ahora !== null && fin !== null && fin > 0 && ahora < fin) lista.push({ estado: 'en-curso', e });
+      continue;
+    }
+    if (ahora !== null && ini !== null && ahora >= ini && (fin === null || ahora < fin)) lista.push({ estado: 'en-curso', e });
+    else if (ahora !== null && fin !== null && ahora >= fin) {
+      if (e.realizado !== 'SI') lista.push({ estado: 'termino', e });
+    } else lista.push({ estado: 'hoy', e });
+  }
+  if (!lista.length) return null;
+  const orden = { 'en-curso': 0, hoy: 1, termino: 2 };
+  lista.sort((a, b) => orden[a.estado] - orden[b.estado] || (a.e.inicioMin ?? 9999) - (b.e.inicioMin ?? 9999));
+  const x = lista[0];
+  return { estado: x.estado, rango: x.e.rango ?? null, ciudad: String(x.e.ciudad ?? '').trim(), cuantos: lista.length };
+}
+
 export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) {
   const avisos = [];
   const pendientes = [];
@@ -382,6 +415,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
         fechas: p.fechas, registros: p.registros, origen: origenDeuda, linea: p.lineas.join('\n'),
         mensaje: p.registros?.length ? mensajeDeuda(p.nombre, p.registros) : null,
         ciudades: [...new Set((p.registros ?? []).map((r) => String(r.ciudad ?? '').trim()).filter(Boolean))],
+        esperar: eventoDelDj(p.nombre, datosAgenda.eventos, hoyIdx, minuto),
         pago: ventas?.columnas?.pago && !nayarsound.demo
           ? { archivo: nayarsound.id, pestana: 'AGENDA Y VENTAS', columnas: ventas.columnas } : null,
       });
