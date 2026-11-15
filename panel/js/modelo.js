@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611152252';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611152252';
+} from './fechas.js?v=202611152255';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611152255';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611152252';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611152252';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611152252';
-import { modeloST } from './st.js?v=202611152252';
-import { modeloOperacion } from './nsops.js?v=202611152252';
-import { dinero } from './formato.js?v=202611152252';
+} from './sheets.js?v=202611152255';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611152255';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611152255';
+import { modeloST } from './st.js?v=202611152255';
+import { modeloOperacion } from './nsops.js?v=202611152255';
+import { dinero } from './formato.js?v=202611152255';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -255,7 +255,7 @@ export function mensajeDeuda(nombre, filas) {
     const dia = String(r.dia ?? '').trim() || (f ? DIAS_TEXTO[f.getUTCDay()] : '');
     const horas = vacio(r.horas) ? '' : `, ${r.horas}h`;
     const pagoDj = num(r.pagoDj);
-    let bloque = `🎵 *${fecha} (${dia}${horas})*\n`;
+    let bloque = `🎵 *${fecha} (${dia}${horas})${r.anticipado ? ' · HOY' : ''}*\n`;
     bloque += pagoDj <= 0 ? '⚠️ *NO HAY REGISTRO DE PAGO DEL DJ*'
       : desglose(r, pagoDj);
     const semana = f ? ((f.getUTCDay() + 6) % 7) + 1 : 7; // WEEKDAY(fecha, 2): lunes = 1
@@ -404,6 +404,16 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
         ? deudores.filter((r) => normalizar(r.dj) === normalizar(p.nombre))
           .map((r) => ({ ...r, url: urlFila(nayarsound, 'AGENDA Y VENTAS', r.fila), importe: numeroCelda(r.entregar) }))
         : null;
+      // Eventos de HOY de este DJ que aún no se liquidan (no son DEUDOR ni PAGADO):
+      // se puede anotar su pago al DJ desde ya y sacar el resumen anticipado.
+      p.hoy = (ventas?.registros ?? [])
+        .filter((r) => r.idx === hoyIdx && normalizar(r.dj) === normalizar(p.nombre) && !['DEUDOR', 'PAGADO'].includes(normalizar(r.pagado)))
+        .map((r) => {
+          const estimado = { ...r, realizado: 'SI', anticipado: true, url: urlFila(nayarsound, 'AGENDA Y VENTAS', r.fila) };
+          estimado.entregar = typeof r.pagoDj === 'number' ? entregarCon(estimado, r.pagoDj) : null;
+          estimado.importe = { valor: estimado.entregar };
+          return estimado;
+        });
       if (p.registros && p.registros.length !== p.eventos) {
         avisos.push({ texto: `No ubiqué en AGENDA Y VENTAS todos los eventos que debe ${p.nombre}.`, tipo: 'enlace' });
       }
@@ -414,6 +424,8 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
         fechaIdx: null, urgencia: 'sin-fecha', eventos: p.eventos, monto: p.monto, moneda: 'MXN', decimales: 0,
         fechas: p.fechas, registros: p.registros, origen: origenDeuda, linea: p.lineas.join('\n'),
         mensaje: p.registros?.length ? mensajeDeuda(p.nombre, p.registros) : null,
+        hoy: p.hoy,
+        mensajeAnticipado: p.registros && p.hoy.length ? mensajeDeuda(p.nombre, [...p.registros, ...p.hoy]) : null,
         ciudades: [...new Set((p.registros ?? []).map((r) => String(r.ciudad ?? '').trim()).filter(Boolean))],
         esperar: eventoDelDj(p.nombre, datosAgenda.eventos, hoyIdx, minuto),
         pago: ventas?.columnas?.pago && !nayarsound.demo

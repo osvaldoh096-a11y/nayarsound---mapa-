@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611152252';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611152255';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -78,7 +78,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   const ciudadesDemo = ['GUADALAJARA', 'TEPIC', 'LEON', 'MONTERREY'];
   const tiposDemo = ['CUMPLEAÑOS', 'XV', 'BODA', 'BAUTIZO'];
   const djsDemo = ['DJ ALFA', 'DJ BETA', 'DJ GAMA', 'DJ DELTA', 'DJ SOL'];
-  let opDemo = 100;
+  let opDemo = 5; // OP = fila − 12, como en la hoja
   for (let d = -330; d <= 50; d += 3) {
     const n = 1 + ((Math.abs(d) * 7) % 4);
     for (let i = 0; i < n; i++) {

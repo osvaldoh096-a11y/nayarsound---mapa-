@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611152252';
-import { escribirCelda, leerRangos, agregarFila } from './api.js?v=202611152252';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611152252';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611152252';
-import { construirModelo, entregarCon } from './modelo.js?v=202611152252';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611152255';
+import { escribirCelda, leerRangos, agregarFila } from './api.js?v=202611152255';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611152255';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611152255';
+import { construirModelo, entregarCon } from './modelo.js?v=202611152255';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611152252';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611152252';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611152252';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611152252';
-import { fuentesDemo } from './demo.js?v=202611152252';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611152252';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611152252';
-import { leerCashflow } from './dashprestamos.js?v=202611152252';
-import { icono } from './iconos.js?v=202611152252';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611152252';
+} from './fechas.js?v=202611152255';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611152255';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611152255';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611152255';
+import { fuentesDemo } from './demo.js?v=202611152255';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611152255';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611152255';
+import { leerCashflow } from './dashprestamos.js?v=202611152255';
+import { icono } from './iconos.js?v=202611152255';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611152255';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -225,6 +225,11 @@ function alHacerClic(evento) {
   if (accion === 'copiar-mensaje') copiarMensaje(el);
   if (accion === 'marcar-pagado') marcarPagado(el);
   if (accion === 'guardar-pagodj') guardarPagoDj(el);
+  if (accion === 'incluir-hoy') {
+    E.incluirHoy = el.checked;
+    const p = E.pendientes.get(el.dataset.pendienteMsg);
+    if (p) pintarMensaje(p);
+  }
   if (accion === 'tabla') { const t = $(`#${el.dataset.objetivo}`); if (t) t.hidden = !t.hidden; }
 }
 
@@ -304,7 +309,7 @@ async function escribirVerificado(token, p, r, campo, valor) {
 /** Cambia el pago al DJ (columna «DJ» de AGENDA Y VENTAS) de un evento. */
 async function guardarPagoDj(boton) {
   const p = E.pendientes.get(boton.dataset.pendientePago);
-  const r = p?.registros?.find((x) => String(x.fila) === boton.dataset.fila);
+  const r = registroDe(p, boton.dataset.fila);
   if (!p?.pago?.columnas?.pagoDj || !r) return;
   const entrada = document.querySelector(`input[data-fila-pagodj="${r.fila}"]`);
   const estado = document.querySelector(`[data-estado-pagodj="${r.fila}"]`);
@@ -356,10 +361,19 @@ function enlaceWhatsApp(numero, texto) {
   return `https://wa.me/${numero}?text=${t}`;
 }
 
+/** Registro (deuda o evento de hoy) por número de fila. */
+function registroDe(p, fila) {
+  return [...(p?.registros ?? []), ...(p?.hoy ?? [])].find((x) => String(x.fila) === String(fila)) ?? null;
+}
+/** Mensaje a enviar: con el evento de hoy (anticipado) si lo elegiste. */
+function mensajeDe(p) {
+  return E.incluirHoy !== false && p?.mensajeAnticipado ? p.mensajeAnticipado : p?.mensaje;
+}
+
 function botonWhatsApp(p) {
   const tel = telefonoDe(p.titulo);
   if (!tel?.numero) return '';
-  const url = enlaceWhatsApp(tel.numero, p.mensaje);
+  const url = enlaceWhatsApp(tel.numero, mensajeDe(p));
   const externo = url.startsWith('https:') ? ' target="_blank" rel="noopener noreferrer"' : '';
   return `<a class="boton boton-whatsapp boton-chico" href="${esc(url)}"${externo}>${icono('whatsapp')}WhatsApp</a>`;
 }
@@ -377,7 +391,7 @@ function avisoTelefono(p) {
 }
 
 async function copiarMensaje(boton) {
-  const texto = E.pendientes.get(boton.dataset.pendienteMsg)?.mensaje;
+  const texto = mensajeDe(E.pendientes.get(boton.dataset.pendienteMsg));
   if (!texto) return;
   let ok = false;
   try {
@@ -457,6 +471,16 @@ function pintarTareas() {
  * «PAGOS PENDIENTES», el botón de WhatsApp y los «Enviar» de cada evento.
  */
 let esperaDetalle = null;
+/** Vuelve a pintar el mensaje y el enlace de WhatsApp del detalle abierto. */
+function pintarMensaje(p) {
+  const d = $('#detalle');
+  const pre = d.querySelector('.det-mensaje pre');
+  if (pre && mensajeDe(p)) pre.textContent = ocultarImportes(mensajeDe(p));
+  const wa = d.querySelector('a.boton-whatsapp');
+  const tel = telefonoDe(p.titulo);
+  if (wa && tel?.numero) wa.href = enlaceWhatsApp(tel.numero, mensajeDe(p));
+}
+
 function refrescarDetalleDeuda(id) {
   clearTimeout(esperaDetalle);
   esperaDetalle = setTimeout(async () => {
@@ -466,11 +490,8 @@ function refrescarDetalleDeuda(id) {
     const d = $('#detalle');
     if (!p || !d.open) return;
     const pre = d.querySelector('.det-mensaje pre');
-    if (pre && p.mensaje) pre.textContent = ocultarImportes(p.mensaje);
-    const wa = d.querySelector('a.boton-whatsapp');
-    const tel = telefonoDe(p.titulo);
-    if (wa && tel?.numero) wa.href = enlaceWhatsApp(tel.numero, p.mensaje);
-    for (const r of p.registros ?? []) {
+    pintarMensaje(p);
+    for (const r of [...(p.registros ?? []), ...(p.hoy ?? [])]) {
       const b = d.querySelector(`[data-enviar-fila="${r.fila}"]`);
       if (b && typeof r.importe?.valor === 'number' && document.activeElement?.dataset?.filaPagodj !== String(r.fila)) {
         b.textContent = dinero(r.importe.valor);
@@ -492,7 +513,7 @@ function alEscribir(evento) {
   const el = evento.target;
   if (!el.matches?.('input[data-fila-pagodj]')) return;
   const p = E.pendientes.get(el.dataset.pendientePago);
-  const r = p?.registros?.find((x) => String(x.fila) === el.dataset.filaPagodj);
+  const r = registroDe(p, el.dataset.filaPagodj);
   const salida = document.querySelector(`[data-enviar-fila="${el.dataset.filaPagodj}"]`);
   if (!r || !salida) return;
   const texto = String(el.value).trim();
@@ -1717,12 +1738,28 @@ function abrirPendiente(p) {
   } else if (p.registros?.length) {
     registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.rango ?? r.hora ? `${esc(r.rango ?? r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;
   }
+  if (p.tipo === 'deuda' && p.hoy?.length) {
+    registros += `<section class="det-hoy"><h3>Evento de hoy · cobro anticipado</h3>
+      <p class="nota">Anota desde ya el pago al DJ para sacar el resumen completo. Se guarda en PAGOS DJ; el evento entra a la deuda cuando se registre como realizado.</p>
+      <ul class="det-lista">${p.hoy.map((r) => {
+        const horas = typeof r.horas === 'number' ? r.horas : Number(String(r.horas ?? '').replace(',', '.'));
+        const duracion = Number.isFinite(horas) && horas > 0 ? ` · <span class="det-duracion">${esc(String(horas))} ${horas === 1 ? 'hora' : 'horas'}</span>` : '';
+        const enviar = ` · Enviar (estimado) <b class="enviar-valor" data-enviar-fila="${r.fila}">${typeof r.entregar === 'number' ? esc(dinero(r.entregar)) : '—'}</b>`;
+        const editar = p.pago?.columnas?.pagoDj
+          ? (esPrivado() ? '<div class="pago-dj nota">Muestra los importes (ojo) para editar el pago al DJ.</div>'
+            : `<div class="pago-dj"><label>Pago al DJ <span class="campo-dinero">$<input type="number" inputmode="decimal" min="0" step="1" value="${typeof r.pagoDj === 'number' ? r.pagoDj : ''}" placeholder="Sin registro" data-fila-pagodj="${r.fila}" data-pendiente-pago="${esc(p.id)}"></span></label>
+              <button class="boton boton-chico" data-accion="guardar-pagodj" data-pendiente-pago="${esc(p.id)}" data-fila="${r.fila}">Guardar</button><span class="pagodj-estado" data-estado-pagodj="${r.fila}" aria-live="polite"></span></div>`)
+          : '';
+        return `<li><b>Hoy</b>, ${esc(fechaLarga(r.idx))}${duracion}${enviar}${r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : ''}${editar}</li>`;
+      }).join('')}</ul></section>`;
+  }
   const mensaje = p.mensaje ? `<section class="det-mensaje">
       <div class="det-mensaje-cab"><h3>Mensaje para enviar</h3>
         <span class="det-mensaje-botones">${botonWhatsApp(p)}<button class="boton boton-primario boton-chico" data-accion="copiar-mensaje" data-pendiente-msg="${esc(p.id)}">Copiar</button></span></div>
       ${avisoTelefono(p)}
       ${p.esperar ? `<p class="det-esperar ${p.esperar.estado}">${esc(textoEsperar(p))}. Si mandas el resumen ahora, al terminar tendrías que mandar otro.</p>` : ''}
-      <pre class="linea-hoja">${esc(ocultarImportes(p.mensaje))}</pre>
+      ${p.mensajeAnticipado ? `<label class="det-incluir-hoy"><input type="checkbox" data-accion="incluir-hoy" data-pendiente-msg="${esc(p.id)}" ${E.incluirHoy !== false ? 'checked' : ''}> Incluir el evento de hoy (resumen anticipado)</label>` : ''}
+      <pre class="linea-hoja">${esc(ocultarImportes(mensajeDe(p)))}</pre>
       <p class="nota">Mismo total que tu hoja (AGENDA Y VENTAS, celda I3). En eventos con sonido de otro socio se desglosa su ganancia para que cuadre.</p>
     </section>` : '';
   const pagar = p.tipo === 'deuda' && p.pago && p.registros?.length

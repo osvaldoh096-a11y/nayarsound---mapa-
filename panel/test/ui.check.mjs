@@ -484,6 +484,21 @@ try {
       const u = new URL(href);
       revisar(u.origin + u.pathname === 'https://wa.me/523312345678' && /PAGOS PENDIENTES/.test(u.searchParams.get('text')),
         'WhatsApp: enlace al número del DJ con el mensaje listo');
+      // Evento de hoy: anotar el pago al DJ desde ya y sacar el resumen anticipado.
+      revisar(await pagina.locator('#detalle .det-hoy').count() === 1, 'Evento de hoy: aparece la sección de cobro anticipado');
+      const campoHoy = pagina.locator('#detalle .det-hoy input[data-fila-pagodj]').first();
+      await campoHoy.fill('900');
+      const antesHoy = lecturas.length;
+      await pagina.locator('#detalle .det-hoy [data-accion="guardar-pagodj"]').first().click();
+      await pagina.waitForSelector('#detalle .det-hoy .pagodj-estado.ok, #detalle .det-hoy .pagodj-estado.mal');
+      const escHoy = lecturas.slice(antesHoy).filter((l) => l.metodo !== 'GET' && /PAGOS DJ/.test(l.celda ?? ''));
+      revisar(escHoy.length >= 1, `Evento de hoy: guarda el pago al DJ en PAGOS DJ (${escHoy.map((e) => e.celda).join(', ')})`);
+      for (let i = 0; i < 60 && !/DJ: \$900/.test(await pagina.locator('.det-mensaje pre').innerText()); i++) await pagina.waitForTimeout(100);
+      const msgHoy = await pagina.locator('.det-mensaje pre').innerText();
+      revisar(/· HOY\*/.test(msgHoy) && /DJ: \$900/.test(msgHoy), 'Evento de hoy: el resumen anticipado incluye el evento de hoy con su pago al DJ');
+      await pagina.locator('[data-accion="incluir-hoy"]').uncheck();
+      revisar(!/· HOY/.test(await pagina.locator('.det-mensaje pre').innerText()), 'Evento de hoy: al quitar la casilla, el resumen queda solo con lo realizado');
+      await pagina.locator('[data-accion="incluir-hoy"]').check();
       {
         const tel = await navegador.newContext({ ...devices['iPhone 13'] });
         await simularGoogle(tel, datos);

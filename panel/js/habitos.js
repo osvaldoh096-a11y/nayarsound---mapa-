@@ -3,10 +3,10 @@
 // (encabezado = nombre del hábito) y «SI» el día que lo cumpliste. Para
 // agregar otro hábito basta con escribir su nombre en la fila 1.
 
-import { TAREAS } from './fuentes.js?v=202611152252';
-import { leerRangos, agregarFila, escribirRango } from './api.js?v=202611152252';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611152252';
-import { esc } from './formato.js?v=202611152252';
+import { TAREAS } from './fuentes.js?v=202611152255';
+import { leerRangos, agregarFila, escribirRango } from './api.js?v=202611152255';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611152255';
+import { esc } from './formato.js?v=202611152255';
 
 const H = "'HABITOS'";
 export const URL_HABITOS = `https://docs.google.com/spreadsheets/d/${TAREAS.id}/edit#gid=779`;
