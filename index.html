@@ -585,6 +585,14 @@
     .demand-map-col{ flex:none; }
     .demand-side-col{ max-width:none; flex:none; overflow-y:visible; }
     #demandMap{ flex:none; min-height:320px; }
+    /* .demand-opportunities y su lista también tenían flex:1/overflow:auto para
+       repartirse el alto fijo del panel en escritorio. Sin aplanar esto también,
+       su alto queda ambiguo (depende de cuánto espacio "sobre" en el flex), y
+       recalcularse distinto durante el scroll es justo lo que hace que iOS
+       "corrija" de golpe la posición (el efecto de resortera que reportó el
+       usuario) — con alto fijo por contenido, el scroll deja de moverse solo. */
+    .demand-opportunities{ flex:none; min-height:auto; }
+    .demand-opportunities-list{ overflow-y:visible; }
   }
 
   @media (max-width: 640px){
