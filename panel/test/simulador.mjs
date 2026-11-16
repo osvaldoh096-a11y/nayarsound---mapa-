@@ -82,31 +82,6 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     }
     return salida;
   };
-  // PAGOS DJ: A CLAVE … E PAGO DJ, F PAGADO. Arranca con los valores que hoy tiene AGENDA Y VENTAS.
-  const pagosDj = [['CLAVE', 'FECHA', 'DJ', 'CLIENTE', 'PAGO DJ', 'PAGADO', 'ACTUALIZADO']];
-  const ventasNs = () => {
-    const g = datos.nayarsound?.valores?.[Object.keys(ARCHIVOS.nayarsound.rangos).indexOf('ventas')] ?? [];
-    const enc = g.findIndex((f) => (f ?? []).includes('CLAVE'));
-    if (enc < 0) return null;
-    const h = g[enc];
-    const iDj = h.map((x, i) => [x, i]).filter(([x]) => String(x).trim() === 'DJ')[1]?.[1];
-    return { g, enc, cClave: h.indexOf('CLAVE'), cPago: h.indexOf('PAGO'), cDj: iDj };
-  };
-  {
-    const v = ventasNs();
-    if (v) for (const f of v.g.slice(v.enc + 1)) if (f?.[v.cClave]) pagosDj.push([f[v.cClave], '', '', '', f[v.cDj] ?? '', f[v.cPago] ?? '', '']);
-  }
-  function recalcularVentas() {
-    const v = ventasNs();
-    if (!v) return;
-    const mapa = new Map(pagosDj.slice(1).map((f) => [f[0], f]));
-    for (const f of v.g.slice(v.enc + 1)) {
-      const p = mapa.get(f?.[v.cClave]);
-      if (!p) continue;
-      // ESTADO y el DASHBOARD de la copia no se recalculan (siguen como deudores).
-      f[v.cDj] = p[4] ?? ''; f[v.cPago] = p[5] ?? '';
-    }
-  }
   await contexto.route('https://sheets.googleapis.com/**', async (ruta) => {
     const url = new URL(ruta.request().url());
     const metodo = ruta.request().method();
@@ -118,21 +93,6 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     const clave = m && porId[decodeURIComponent(m[1])];
     if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });
     if (!clave) return ruta.fulfill({ status: 404, headers: cors, contentType: 'application/json', body: '{"error":{"message":"no existe"}}' });
-    // Pestaña PAGOS DJ (pagos por CLAVE): en memoria; L y T de AGENDA Y VENTAS se recalculan como en la hoja.
-    const sub = m && m[2] ? decodeURIComponent(m[2]) : '';
-    if (clave === 'nayarsound' && /^'?PAGOS DJ'?!/.test(sub)) {
-      const cuerpo = JSON.parse(ruta.request().postData() ?? '{}');
-      const rango = sub.replace(/:append$/, '');
-      const c = partir(rango);
-      let f = c.f1;
-      if (sub.endsWith(':append')) { f = 2; while (pagosDj[f - 1]?.[0]) f++; }
-      const valores = cuerpo.values?.[0] ?? [];
-      lecturas.push({ metodo, clave, celda: sub, valor: sub.endsWith(':append') ? valores : valores[0] });
-      const fila = pagosDj[f - 1] ?? (pagosDj[f - 1] = []);
-      valores.forEach((v, k) => { fila[c.c1 - 1 + k] = v; });
-      recalcularVentas();
-      return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ updates: { updatedRange: `'PAGOS DJ'!A${f}:G${f}` } }) });
-    }
     if (metodo === 'PUT' && m[2]) {
       const celda = decodeURIComponent(m[2]);
       const valor = JSON.parse(ruta.request().postData() ?? '{}').values?.[0]?.[0];
@@ -147,15 +107,7 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     if (metodo !== 'GET') return ruta.fulfill({ status: 405, headers: cors, body: 'no permitido' });
     const falla = typeof fallas[clave] === 'function' ? fallas[clave]() : fallas[clave];
     if (falla) return ruta.fulfill({ status: falla, headers: cors, contentType: 'application/json', body: '{"error":{"message":"simulado"}}' });
-    const valueRanges = url.searchParams.getAll('ranges').map((r) => {
-      if (clave === 'nayarsound' && /^'?PAGOS DJ'?!/.test(r)) {
-        const c = partir(r);
-        const salida = [];
-        for (let f = c.f1; f <= Math.min(c.f2 ?? pagosDj.length, pagosDj.length); f++) salida.push(Array.from({ length: c.c2 - c.c1 + 1 }, (_, k) => pagosDj[f - 1]?.[c.c1 - 1 + k] ?? ''));
-        return { range: r, values: salida };
-      }
-      return { range: r, values: recorte(clave, r) };
-    });
+    const valueRanges = url.searchParams.getAll('ranges').map((r) => ({ range: r, values: recorte(clave, r) }));
     return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ valueRanges }) });
   });
   // Hoja de tareas en memoria (A1 = encabezados).
@@ -209,7 +161,6 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     return ok({});
   }
   lecturas.sindicato = sindicato;
-  lecturas.pagosDj = pagosDj;
   lecturas.habitos = habitos;
   lecturas.tareas = tareas;
   return lecturas;

@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611152255';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611160343';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -68,11 +68,11 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   const ventas = [
     ['', '', '', '', '', '', '', '', '', '', '', '❌ HAY 1 ERRORES', '', '', '', '', '', '', '❌ FALTAN 3 DE PAGAR'],
     ['OP', 'SONIDO DE', 'CIUDAD', 'DJ', 'FECHA', 'TIPO EVENTO', 'TOT.HORAS', 'CLIENTE', 'TOTAL EVENTO', 'ANTICIPO',
-      'GAS A COBRAR', 'DJ ', 'GANANCIA', 'GANANCIA 2', 'ENTREGAR A OSVALDO', 'REALIZADO', 'DIA', 'MES', 'PAGADO', 'PAGO', 'Horas Extra', 'CLAVE BASE', 'CLAVE'],
+      'GAS A COBRAR', 'DJ ', 'GANANCIA', 'GANANCIA 2', 'ENTREGAR A OSVALDO', 'REALIZADO', 'DIA', 'MES', 'PAGADO', 'PAGO'],
     // Sonido de OSVALDO: entregar = total − anticipo − DJ + gas (fórmula de la hoja).
     ...deudas.map(([dj, idx, entregar], i) => [i + 1, 'OSVALDO', 'GUADALAJARA', dj, serial(idx), 'XV AÑOS', 5, 'CLIENTE DEMO',
-      entregar + 1000, 500, 300, dj === 'DJ GAMA' ? '' : 800, entregar + 500, entregar + 500, entregar, 'SI', '', '', 'DEUDOR', 'NO', '', `D${i + 1}|${dj}`, `D${i + 1}|${dj}#1`]),
-    [4, 'EJEMPLO', 'TEPIC', 'DJ DELTA', serial(h - 1), 'BODA', 5, 'CLIENTE DEMO', 2500, 500, 0, 700, 1300, 650, 650, 'SI', '', '', 'PAGADO', 'SI', '', 'D4|DJ DELTA', 'D4|DJ DELTA#1'],
+      entregar + 1000, 500, 300, dj === 'DJ GAMA' ? '' : 800, entregar + 500, entregar + 500, entregar, 'SI', '', '', 'DEUDOR', 'NO']),
+    [4, 'EJEMPLO', 'TEPIC', 'DJ DELTA', serial(h - 1), 'BODA', 5, 'CLIENTE DEMO', 2500, 500, 0, 700, 1300, 650, 650, 'SI', '', '', 'PAGADO', 'SI'],
   ];
   // Historial de eventos (14 meses) para la operación mensual: ya pagados o por realizar.
   const ciudadesDemo = ['GUADALAJARA', 'TEPIC', 'LEON', 'MONTERREY'];
@@ -87,7 +87,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
       const hecho = idx < h - 1;
       const pagoDj = 1200;
       ventas.push([opDemo++, 'OSVALDO', ciudadesDemo[(i + Math.abs(d)) % 4], djsDemo[(i + Math.abs(d)) % 5], serial(idx), tiposDemo[(i + d + 400) % 4], 5, 'CLIENTE DEMO',
-        total, 100, 0, hecho ? pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj - 100 : '', hecho ? 'SI' : 'NO', '', '', hecho ? 'PAGADO' : '', hecho ? 'SI' : '', '', `H${opDemo}`, `H${opDemo}#1`]);
+        total, 100, 0, hecho ? pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj - 100 : '', hecho ? 'SI' : 'NO', '', '', hecho ? 'PAGADO' : '', hecho ? 'SI' : '']);
     }
   }
   const fmt = (n) => n.toLocaleString('en-US');

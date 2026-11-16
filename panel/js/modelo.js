@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611152255';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611152255';
+} from './fechas.js?v=202611160343';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611160343';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611152255';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611152255';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611152255';
-import { modeloST } from './st.js?v=202611152255';
-import { modeloOperacion } from './nsops.js?v=202611152255';
-import { dinero } from './formato.js?v=202611152255';
+} from './sheets.js?v=202611160343';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611160343';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611160343';
+import { modeloST } from './st.js?v=202611160343';
+import { modeloOperacion } from './nsops.js?v=202611160343';
+import { dinero } from './formato.js?v=202611160343';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -184,10 +184,10 @@ function tablaVentas(fuente) {
     dj: ['DJ', 1], fecha: 'FECHA', ciudad: 'CIUDAD', entregar: 'ENTREGAR A OSVALDO',
     total: 'TOTAL EVENTO', anticipo: 'ANTICIPO', gas: 'GAS A COBRAR', horas: 'TOT.HORAS', dia: 'DIA',
     pagado: colPagado, pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP', sonido: 'SONIDO DE',
-    tipo: 'TIPO EVENTO', ganancia: 'GANANCIA', ganancia2: 'GANANCIA 2', clave: 'CLAVE', cliente: 'CLIENTE',
+    tipo: 'TIPO EVENTO', ganancia: 'GANANCIA', ganancia2: 'GANANCIA 2', cliente: 'CLIENTE',
   }, inicio);
   const letra = (clave) => (indices[clave] >= 0 ? letraColumna(inicio.col + indices[clave]) : null);
-  const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago'), pagoDj: letra('pagoDj'), clave: letra('clave') };
+  const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago'), pagoDj: letra('pagoDj') };
   const controles = [];
   const nombres = filas[encabezado] ?? [];
   for (let f = 0; f < encabezado; f++) {

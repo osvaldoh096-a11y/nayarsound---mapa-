@@ -193,21 +193,12 @@ try {
         revisar(Math.abs(num(antesVista) - num(despues) - 100) < 0.01, `Vista previa: subir 100 el pago al DJ baja «Enviar» de ${antesVista} a ${despues}`);
       }
       await campo.fill('1234');
-      // Evento nuevo: su clave aún no está en PAGOS DJ → se agrega una fila.
-      const quitada = lecturas.pagosDj.findIndex((f, i) => i > 0 && String(f[0]).startsWith('D1|'));
-      if (quitada > 0) lecturas.pagosDj.splice(quitada, 1);
       const previo = lecturas.length;
       await pagina.locator('[data-accion="guardar-pagodj"]').first().click();
       await pagina.waitForSelector('.pagodj-estado.ok, .pagodj-estado.mal');
-      const pagoDj = lecturas.slice(previo).filter((l) => l.metodo !== 'GET' && /PAGOS DJ/.test(l.celda ?? ''));
-      const valorDj = pagoDj.find((e) => /!E\d+$/.test(e.celda))?.valor ?? pagoDj.find((e) => e.celda.endsWith(':append'))?.valor?.[4];
-      if (quitada > 0) {
-        const nueva = lecturas.pagosDj.find((f) => String(f[0]).startsWith('D1|'));
-        revisar(pagoDj.some((e) => e.celda.endsWith(':append')) && nueva?.[4] === 1234 && nueva?.[2] === 'DJ ALFA' && nueva?.[3] === 'CLIENTE DEMO' && nueva?.[6],
-          `PAGOS DJ: un evento nuevo se agrega con clave, fecha, DJ, cliente y pago (${JSON.stringify(nueva)})`);
-      }
-      revisar(pagoDj.length >= 1 && valorDj === 1234,
-        `Pago al DJ: guarda 1234 en PAGOS DJ por clave (${pagoDj.map((e) => `${e.celda}=${JSON.stringify(e.valor)}`).join(', ')})`);
+      const pagoDj = lecturas.slice(previo).filter((l) => l.metodo === 'PUT');
+      revisar(pagoDj.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(pagoDj[0].celda) && pagoDj[0].valor === 1234,
+        `Pago al DJ: escribe 1234 en la columna DJ (${pagoDj.map((e) => `${e.celda}=${e.valor}`).join(', ')})`);
       // Se queda en la ventana, avisa «Guardado» y pasa al siguiente evento.
       await pagina.waitForSelector('.pagodj-estado.ok');
       revisar(await pagina.locator('#detalle[open]').count() === 1 && /Guardado/.test(await pagina.locator('.pagodj-estado.ok').first().innerText()), 'Pago al DJ: guarda sin cerrar la ventana');
@@ -228,16 +219,12 @@ try {
       await pagina.waitForSelector('#detalle:not([open])', { state: 'hidden' });
       await pagina.waitForSelector('.fila-1, .inicio-rejilla, .dia');
       const primera = deuda.personas[0];
-      const escritasF = () => lecturas.slice(antes).filter((l) => l.metodo !== 'GET' && /!F\d+$/.test(l.celda ?? ''));
-      for (let i = 0; i < 50 && escritasF().length < primera.eventos; i++) await pagina.waitForTimeout(100);
+      for (let i = 0; i < 50 && lecturas.slice(antes).filter((l) => l.metodo === 'PUT').length < primera.eventos; i++) await pagina.waitForTimeout(100);
       await pagina.waitForTimeout(200);
-      const escrituras = escritasF();
-      revisar(escrituras.length === primera.eventos && escrituras.every((e) => e.valor === 'SI' && /^'PAGOS DJ'!F\d+$/.test(e.celda)),
-        `Marcar pagado: guarda «SI» en PAGOS DJ de ${primera.eventos} evento(s) (${escrituras.map((e) => e.celda).join(', ')})`);
-      const escribe = lecturas.filter((l) => l.clave !== 'tareas' && l.metodo !== 'GET');
-      revisar(escribe.every((l) => /^'PAGOS DJ'!/.test(l.celda ?? '')), 'Solo se escribe en la pestaña PAGOS DJ (nunca en las fórmulas de AGENDA Y VENTAS)');
-      const fPagado = lecturas.pagosDj.filter((f) => f[5] === 'SI' && f[6]).length;
-      revisar(fPagado >= primera.eventos, `PAGOS DJ: ${fPagado} eventos con PAGADO = SI y fecha de actualización`);
+      const escrituras = lecturas.slice(antes).filter((l) => l.metodo === 'PUT');
+      revisar(escrituras.length === primera.eventos && escrituras.every((e) => e.valor === 'SI' && /^'AGENDA Y VENTAS'!T\d+$/.test(e.celda)),
+        `Marcar pagado: escribe «SI» en PAGO de ${primera.eventos} evento(s) (${escrituras.map((e) => e.celda).join(', ')})`);
+      revisar(lecturas.filter((l) => l.clave !== 'tareas').every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT' && l.clave !== 'tareas').every((l) => /^'AGENDA Y VENTAS'!(T|L)\d+$/.test(l.celda)), 'Solo se escribe en PAGO (T) y pago al DJ (L) de AGENDA Y VENTAS');
     }
     const djs = await pagina.locator('.dia').first().locator('.dj').count();
     const primerDia = esperado.nayarsound.agenda.dias[0];
@@ -491,8 +478,8 @@ try {
       const antesHoy = lecturas.length;
       await pagina.locator('#detalle .det-hoy [data-accion="guardar-pagodj"]').first().click();
       await pagina.waitForSelector('#detalle .det-hoy .pagodj-estado.ok, #detalle .det-hoy .pagodj-estado.mal');
-      const escHoy = lecturas.slice(antesHoy).filter((l) => l.metodo !== 'GET' && /PAGOS DJ/.test(l.celda ?? ''));
-      revisar(escHoy.length >= 1, `Evento de hoy: guarda el pago al DJ en PAGOS DJ (${escHoy.map((e) => e.celda).join(', ')})`);
+      const escHoy = lecturas.slice(antesHoy).filter((l) => l.metodo === 'PUT');
+      revisar(escHoy.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(escHoy[0].celda) && escHoy[0].valor === 900, `Evento de hoy: escribe el pago al DJ en la columna DJ (${escHoy.map((e) => `${e.celda}=${e.valor}`).join(', ')})`);
       for (let i = 0; i < 60 && !/DJ: \$900/.test(await pagina.locator('.det-mensaje pre').innerText()); i++) await pagina.waitForTimeout(100);
       const msgHoy = await pagina.locator('.det-mensaje pre').innerText();
       revisar(/· HOY\*/.test(msgHoy) && /DJ: \$900/.test(msgHoy), 'Evento de hoy: el resumen anticipado incluye el evento de hoy con su pago al DJ');

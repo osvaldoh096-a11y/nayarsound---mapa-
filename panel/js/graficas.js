@@ -1,7 +1,7 @@
 // Gráficas sencillas sin librerías: barras en HTML y líneas en SVG, con
 // información al pasar el dedo o el cursor.
 
-import { dinero, esc, esPrivado } from './formato.js?v=202611152255';
+import { dinero, esc, esPrivado } from './formato.js?v=202611160343';
 
 function compacto(v) {
   if (esPrivado()) return '$***';
