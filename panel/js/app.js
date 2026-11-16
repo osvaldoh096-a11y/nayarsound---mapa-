@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611160343';
-import { escribirCelda, leerRangos } from './api.js?v=202611160343';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611160343';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611160343';
-import { construirModelo, entregarCon } from './modelo.js?v=202611160343';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611160420';
+import { escribirCelda, leerRangos } from './api.js?v=202611160420';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611160420';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611160420';
+import { construirModelo, entregarCon } from './modelo.js?v=202611160420';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611160343';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611160343';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611160343';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611160343';
-import { fuentesDemo } from './demo.js?v=202611160343';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611160343';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611160343';
-import { leerCashflow } from './dashprestamos.js?v=202611160343';
-import { icono } from './iconos.js?v=202611160343';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611160343';
+} from './fechas.js?v=202611160420';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611160420';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611160420';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611160420';
+import { fuentesDemo } from './demo.js?v=202611160420';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611160420';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611160420';
+import { leerCashflow } from './dashprestamos.js?v=202611160420';
+import { icono } from './iconos.js?v=202611160420';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611160420';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -874,6 +874,13 @@ function alertasPorNegocio(m) {
       grupos.get(ciudad).push(p);
     }
     const ordenados = [...grupos.entries()].sort((a, z) => z[1].reduce((t, p) => t + (p.monto ?? 0), 0) - a[1].reduce((t, p) => t + (p.monto ?? 0), 0));
+    // Suma de todas las ciudades.
+    const todas = [...grupos.values()].flat();
+    if (todas.length) {
+      const totalTodas = todas.reduce((t, p) => t + (p.monto ?? 0), 0);
+      const eventosTodas = todas.reduce((t, p) => t + (p.eventos ?? 0), 0);
+      filasNs.push({ urg: 'sin-fecha', fecha: null, html: `<div class="grupo-ciudad grupo-total"><span class="gt-titulo">Total de todas las ciudades</span><span>${plural(todas.length, 'persona', 'personas')} · ${plural(eventosTodas, 'evento', 'eventos')}</span><b class="monto-cobrar">${esc(dinero(totalTodas, 0))}</b></div>` });
+    }
     for (const [ciudad, lista] of ordenados) {
       const total = lista.reduce((t, p) => t + (p.monto ?? 0), 0);
       filasNs.push({ urg: 'sin-fecha', fecha: null, html: `<div class="grupo-ciudad">${etiquetaCiudad(ciudad)}<span>${plural(lista.length, 'persona', 'personas')}</span><b class="monto-cobrar">${esc(dinero(total, 0))}</b></div>` });

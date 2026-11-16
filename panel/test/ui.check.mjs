@@ -466,6 +466,12 @@ try {
     // WhatsApp: enlace con el número (52 + 10 dígitos) y el mensaje de pagos pendientes.
     if (!rutaSnapshot && !movil) {
       await pagina.locator('[data-filtro="sin-fecha"]').first().click();
+      {
+        const totalTxt = await pagina.locator('.grupo-total').innerText();
+        const sumaCiudades = (await pagina.locator('.grupo-ciudad:not(.grupo-total) b').allInnerTexts()).reduce((t, x) => t + Number(x.replace(/[$,]/g, '')), 0);
+        revisar(/Total de todas las ciudades/i.test(totalTxt) && totalTxt.includes(dinero(sumaCiudades, 0)), `Cobros: suma de todas las ciudades ${dinero(sumaCiudades, 0)} (${totalTxt.replace(/\s+/g, ' ')})`);
+        if (capturas) await pagina.locator('.grupo-total').locator('xpath=..').screenshot({ path: `${capturas}/cobros-total.png` });
+      }
       await pagina.locator('[data-pendiente*="DJ ALFA"]').first().click();
       const href = await pagina.locator('#detalle a.boton-whatsapp').getAttribute('href');
       const u = new URL(href);
