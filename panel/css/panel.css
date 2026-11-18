@@ -974,3 +974,12 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .grupo-ciudad.grupo-total { background: var(--fondo); border-radius: 10px; padding: 10px 12px; border-top: 0; margin-top: 0; }
 .grupo-total .gt-titulo { font-size: 14px; font-weight: 750; color: var(--tinta); }
 .grupo-ciudad.grupo-total b { font-size: 17px; }
+
+/* SINDICATO simple */
+.sd-actual.mal { background: #FEECEB; }
+.sd-actual.mal span { color: #B42318; font-weight: 650; }
+.sd-actual { margin-bottom: 10px; }
+.sd-form.sd-simple { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; margin-bottom: 14px; }
+.sd-form.sd-simple button { grid-column: auto; }
+.sd-form.sd-simple .campo-dinero input { padding: 9px 10px 9px 0; }
+@media (max-width: 640px) { .sd-form.sd-simple { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .sd-form.sd-simple button { grid-column: 1 / -1; } }
