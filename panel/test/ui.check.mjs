@@ -233,13 +233,8 @@ try {
 
     // Préstamos
     await pagina.goto(`${url}/panel/#/prestamos`);
-    await pagina.waitForSelector('[data-pf="movimientos"]');
-    const t = esperado.prestamos.totales;
-    const resumenMov = await pagina.locator('[data-pf="movimientos"] > summary').innerText();
-    const cobrar = resumenMov.match(/cobrar\s*(\S+)/)?.[1];
-    const pagar = resumenMov.match(/pagar\s*(\S+)/)?.[1];
-    revisar(cobrar === dinero(t.cobrarMXN, 0) && pagar === dinero(t.pagarMXN, 0), `Préstamos: cobrar ${cobrar}, pagar ${pagar} (esperado ${dinero(t.cobrarMXN, 0)}, ${dinero(t.pagarMXN, 0)})`);
-    if (extra?.prestamos) revisar(cobrar === extra.prestamos[0] && pagar === extra.prestamos[1], `  coincide con la hoja: ${extra.prestamos.join(', ')}`);
+    await pagina.waitForSelector('[data-pf="flujo"]');
+    revisar(await pagina.locator('[data-pf="movimientos"]').count() === 0, 'Préstamos: sin la sección «Próximos movimientos»');
     revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Préstamos,Inversores,Historial', 'Panel financiero: pestañas Resumen, Préstamos, Inversores, Historial');
     revisar(await pagina.locator('.pf details.pf-sec').count() > 0 && await pagina.locator('.pf details.pf-sec[open]').count() === 0, 'Panel financiero: todas las secciones empiezan contraídas');
     if (!rutaSnapshot) {
@@ -251,9 +246,6 @@ try {
       const flujo = await pagina.locator('.pf-tabla-flujo').innerText();
       revisar(/-\$3,500/.test(flujo) && /\$9,000/.test(flujo) && /\$12,000/.test(flujo), 'Panel financiero: flujo de efectivo este mes y próximo');
       revisar(/Resultado 2026/.test(await pagina.locator('[data-pf="resultado"]').innerText()) && /\$2,500\.00/.test(await pagina.locator('[data-pf="resultado"] > summary').innerText()), 'Panel financiero: resultado del año');
-      await pagina.locator('[data-pf="movimientos"] > summary').click();
-      const filasMov = await pagina.locator('[data-pf="movimientos"] tbody tr').count();
-      revisar(filasMov === esperado.prestamos.cobrar.length + esperado.prestamos.pagar.length, `Panel financiero: ${filasMov} próximos movimientos`);
       await pagina.reload();
       await pagina.waitForSelector('[data-pf="flujo"]');
       revisar(await pagina.locator('[data-pf="flujo"][open]').count() === 1 && await pagina.locator('[data-pf="capital"]').count() === 0, 'Panel financiero: recuerda las secciones abiertas');

@@ -2,8 +2,8 @@
 // VENTAS (todos los eventos, realizados y agendados) y los números del
 // DASHBOARD de la hoja (operación mensual, resultado histórico).
 
-import { normalizar, ymdDesdeIdx, idxDesdeYMD } from './fechas.js?v=202611180629';
-import { importeCelda } from './dashprestamos.js?v=202611180629';
+import { normalizar, ymdDesdeIdx, idxDesdeYMD } from './fechas.js?v=202611180645';
+import { importeCelda } from './dashprestamos.js?v=202611180645';
 
 const texto = (v) => String(v ?? '').trim();
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : importeCelda(v));

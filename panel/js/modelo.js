@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611180629';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611180629';
+} from './fechas.js?v=202611180645';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611180645';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611180629';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611180629';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611180629';
-import { modeloST } from './st.js?v=202611180629';
-import { modeloOperacion } from './nsops.js?v=202611180629';
-import { dinero } from './formato.js?v=202611180629';
+} from './sheets.js?v=202611180645';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611180645';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611180645';
+import { modeloST } from './st.js?v=202611180645';
+import { modeloOperacion } from './nsops.js?v=202611180645';
+import { dinero } from './formato.js?v=202611180645';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));

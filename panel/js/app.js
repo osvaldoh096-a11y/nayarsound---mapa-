@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180629';
-import { escribirCelda, leerRangos } from './api.js?v=202611180629';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180629';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611180629';
-import { construirModelo, entregarCon } from './modelo.js?v=202611180629';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180645';
+import { escribirCelda, leerRangos } from './api.js?v=202611180645';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180645';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611180645';
+import { construirModelo, entregarCon } from './modelo.js?v=202611180645';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611180629';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180629';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180629';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180629';
-import { fuentesDemo } from './demo.js?v=202611180629';
-import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180629';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180629';
-import { leerCashflow } from './dashprestamos.js?v=202611180629';
-import { icono } from './iconos.js?v=202611180629';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180629';
+} from './fechas.js?v=202611180645';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180645';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180645';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180645';
+import { fuentesDemo } from './demo.js?v=202611180645';
+import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180645';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180645';
+import { leerCashflow } from './dashprestamos.js?v=202611180645';
+import { icono } from './iconos.js?v=202611180645';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180645';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1293,28 +1293,6 @@ function prResumen(m, pr, d) {
       `<div class="pf-datos">${fila('PAGO MENSUAL A INVERSORES')}${fila('PENDIENTE INTERES A COBRAR')}${fila('PENDIENTE INTERES A INVERSORES', { resaltar: true })}${fila('RESTANTE PROPIO')}</div>`),
   ];
 
-  // Próximos movimientos (recordatorio de 5 días de tu hoja)
-  const idDe = (accion, item) => [...E.pendientes.values()].find((p) => p.accion === accion && p.tipo !== 'liquidar'
-    && p.titulo === item.nombre && p.fechaIdx === item.fechaIdx && p.linea === item.linea)?.id;
-  const movs = [...pr.cobrar.map((x) => ({ ...x, accion: 'COBRAR' })), ...pr.pagar.map((x) => ({ ...x, accion: 'PAGAR' }))]
-    .sort((a, b) => a.fechaIdx - b.fechaIdx || (a.accion === 'COBRAR' ? -1 : 1));
-  const t = pr.totales ?? { cobrarMXN: 0, pagarMXN: 0 };
-  const filaMov = (x) => {
-    const id = idDe(x.accion, x);
-    return `<tr ${id ? `data-pendiente="${esc(id)}" tabindex="0"` : ''}><td>${esc(diaMes(x.fechaIdx))} · ${esc(cuandoTxt(x.diferencia))}</td><td>${tagMov(x.accion)}</td><td>${esc(x.nombre)}</td><td class="num"><b>${montoMov(x.accion, x.montoMXN)}</b></td></tr>`;
-  };
-  const tarjetaMov = (x) => {
-    const id = idDe(x.accion, x);
-    return `<button class="pf-mov" ${id ? `data-pendiente="${esc(id)}"` : ''}><span class="pf-mov-cab">${tagMov(x.accion)}<small>${esc(cuandoTxt(x.diferencia))} · ${esc(diaMes(x.fechaIdx))}</small></span>
-      <span class="pf-mov-fila"><b>${esc(x.nombre)}</b><b>${montoMov(x.accion, x.montoMXN)}</b></span></button>`;
-  };
-  const totalesMov = `<div class="pf-totales"><span>Por cobrar <b class="texto-verde">${din(t.cobrarMXN, 0)}</b></span><span>Por pagar <b class="texto-rojo">${din(t.pagarMXN, 0)}</b></span></div>`;
-  const movimientos = seccionPF('movimientos', 'azul', 'Próximos movimientos',
-    movs.length ? `${plural(movs.length, 'movimiento', 'movimientos')} en 5 días · cobrar <b class="texto-verde">${din(t.cobrarMXN, 0)}</b> · pagar <b class="texto-rojo">${din(t.pagarMXN, 0)}</b>` : 'Nada en los próximos 5 días',
-    movs.length ? `<div class="solo-escritorio">${tablaPF([['Fecha'], ['Movimiento'], ['Nombre'], ['Importe', 1]], movs.map(filaMov))}</div>
-      <div class="solo-movil pf-movs-lista">${movs.map(tarjetaMov).join('')}</div>${totalesMov}`
-    : `<p class="vacio">${pr.estado === 'sin-recordatorios' ? 'Tu hoja no muestra movimientos en los próximos 5 días.' : 'Nada en los próximos 5 días.'}</p>`);
-
   // Flujo de efectivo
   const tx = d.textos ?? {};
   const ca = tx.cashflowActual ? leerCashflow(tx.cashflowActual.texto) : null;
@@ -1353,7 +1331,7 @@ function prResumen(m, pr, d) {
 
   return `${kpis}
     <section class="pf-fila">${grupos.join('')}</section>
-    <section class="pf-fila">${movimientos}${flujo}</section>
+    <section class="pf-fila">${flujo}</section>
     <section class="pf-fila">${prestamos}${inversores}</section>
     ${resultado}
     <p class="nota">Fuente: DASHBOARD de 💵REGISTRO DE PRESTAMOS ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">↗</a>` : ''} y su recordatorio de 5 días ${enlaceOrigen(pr.origen)}. USDT convertido a ${TIPO_CAMBIO_USDT} MXN, la tasa de tus fórmulas.</p>
