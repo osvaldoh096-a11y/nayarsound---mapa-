@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180433';
-import { escribirCelda, leerRangos } from './api.js?v=202611180433';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180433';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611180433';
-import { construirModelo, entregarCon } from './modelo.js?v=202611180433';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180445';
+import { escribirCelda, leerRangos } from './api.js?v=202611180445';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180445';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611180445';
+import { construirModelo, entregarCon } from './modelo.js?v=202611180445';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611180433';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180433';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180433';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180433';
-import { fuentesDemo } from './demo.js?v=202611180433';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611180433';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180433';
-import { leerCashflow } from './dashprestamos.js?v=202611180433';
-import { icono } from './iconos.js?v=202611180433';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180433';
+} from './fechas.js?v=202611180445';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180445';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180445';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180445';
+import { fuentesDemo } from './demo.js?v=202611180445';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611180445';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180445';
+import { leerCashflow, sinPagarInteres } from './dashprestamos.js?v=202611180445';
+import { icono } from './iconos.js?v=202611180445';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180445';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -782,7 +782,7 @@ function resumenFinanzas(mes) {
     ${dato('fin-ganancia', mes.ganancia, mes.esAnio ? `ganancia ${mes.y}` : 'ganancia del mes')}
     ${dato('fin-gasto', mes.gastos, 'gastos personales', mes.registrosGastos === 0 ? 'Sin gastos registrados' : '')}
     ${dato(`fin-sobrante ${negativo ? 'negativo' : ''}`, mes.sobrante, mes.esAnio ? `sobrante ${mes.y}` : 'sobrante del mes')}
-  </div><p class="nota">Sobrante = ganancia − gastos. Resultado calculado, no saldo bancario.</p>`;
+  </div>`;
 }
 
 /** Periodo elegido: un mes de la tabla mensual o un año completo («a2026»). */
@@ -841,7 +841,7 @@ function vistaInicio(m) {
       ${m.eventos.agendaDisponible ? `<div class="par">
         <div><div class="cifra cifra-l">${m.eventos.hoy}</div><div class="sub">eventos hoy</div></div>
         <div><div class="cifra cifra-l">${m.eventos.manana}</div><div class="sub">eventos mañana</div></div>
-      </div><p class="nota">Los eventos se cuentan aparte de los pendientes.</p>` : '<p class="sin-dato">Sin datos de agenda.</p>'}
+      </div>` : '<p class="sin-dato">Sin datos de agenda.</p>'}
     </article>
     <article class="tarjeta bloque-finanzas">
       <div class="tarjeta-cab"><h2 class="etq-cab">${icono('finanzas')}Finanzas</h2>${sel}</div>
@@ -912,8 +912,15 @@ function alertasPorNegocio(m) {
   bloques.push({ nombre: 'NayarSound', ruta: 'nayarsound', filas: filasNs, disponible: m.nayarsound.disponible });
 
   const pr = filtrar(m.pendientes.filter((p) => p.negocio === 'Préstamos'));
-  bloques.push({ nombre: 'Préstamos e inversores', ruta: 'prestamos', disponible: m.prestamos.disponible,
-    filas: pr.map((p) => ({ urg: p.urgencia, fecha: p.fechaIdx, html: filaPendiente(p, hoyIdx) })) });
+  const sinInteres = sinPagarInteres(m.prestamos.dashboard);
+  const filasPr = pr.map((p) => ({ urg: p.urgencia, fecha: p.fechaIdx, html: filaPendiente(p, hoyIdx) }));
+  if ((!E.filtro || E.filtro === 'aviso') && sinInteres.length) {
+    filasPr.push({ urg: 'aviso', fecha: null, html: `<a class="fila-pend u-aviso" href="#/prestamos">
+      <span class="fp-icono tipo-aviso">${icono('aviso')}</span>
+      <span class="fp-texto"><span class="fp-titulo">No ha pagado interés</span><small>${sinInteres.map((x) => `${esc(x.nombre)}: debe ${esc(dinero(x.interes, 0))} de interés (pago mensual ${esc(dinero(x.pago, 0))})`).join(' · ')}</small></span>
+      <span class="fp-derecha"><span class="fp-monto monto-cobrar">${esc(dinero(sinInteres.reduce((t, x) => t + x.interes, 0), 0))}</span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${plural(sinInteres.length, 'persona', 'personas')}</span></span></a>` });
+  }
+  bloques.push({ nombre: 'Préstamos e inversores', ruta: 'prestamos', disponible: m.prestamos.disponible, filas: filasPr });
 
   const rango = { vencido: 0, hoy: 1, proximo: 2, 'sin-fecha': 3, aviso: 4 };
   for (const b of bloques) b.filas.sort((a, z) => (rango[a.urg] - rango[z.urg]) || ((a.fecha ?? Infinity) - (z.fecha ?? Infinity)));

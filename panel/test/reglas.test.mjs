@@ -8,6 +8,7 @@ import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
 import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
+import { sinPagarInteres } from '../js/dashprestamos.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
 
@@ -315,4 +316,15 @@ test('Deuda: avisa si el DJ está en evento o tiene evento hoy (esperar para cob
   assert.equal(eventoDelDj('LEE', ev, 100, 1080), null); // ya terminó y está registrado
   assert.equal(eventoDelDj('LEE', ev.map((e) => ({ ...e, realizado: '' })), 100, 1080).estado, 'termino');
   assert.equal(eventoDelDj('AARON', ev, 100, 960), null);
+});
+
+test('Préstamos: «no ha pagado interés» = interés restante mayor que el pago mensual, sin J J H F', () => {
+  const d = { prestamosActivos: [
+    { nombre: ' J J H F ', capital: 766965, interes: 250027.57, pago: 61357.2 },
+    { nombre: ' MIGUEL ZARATE ', capital: 20693, interes: 2091.08, pago: 2069.3 },
+    { nombre: ' CESAR ROMERO ', capital: 11285, interes: 1128.5, pago: 1128.5 },
+    { nombre: ' JOSE RAMOS ', capital: 4000, interes: 706.67, pago: 400 },
+    { nombre: ' ALEX AGRAZ ', capital: 9300, interes: 217, pago: 930 },
+  ] };
+  assert.deepEqual(sinPagarInteres(d).map((x) => x.nombre), ['JOSE RAMOS', 'MIGUEL ZARATE']);
 });
