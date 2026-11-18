@@ -5,11 +5,13 @@
 //   H:I  (opcional) calendario: N, VENCE. Sin calendario se usan quincenas
 //        desde INICIO PRIMERA QUINCENA (como el SINDICATO).
 
-import { TAREAS } from './fuentes.js?v=202611180502';
-import { leerRangos, agregarFila, borrarRango } from './api.js?v=202611180502';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611180502';
+import { TAREAS } from './fuentes.js?v=202611180509';
+import { leerRangos, agregarFila, borrarRango } from './api.js?v=202611180509';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611180509';
 
 const numero = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(/[$,\s%]/g, '')));
+/** Número o null (celda vacía o texto). */
+const dato = (v) => (v === '' || v === undefined || v === null ? null : (Number.isFinite(numero(v)) ? numero(v) : null));
 const fechaDe = (v) => {
   if (typeof v === 'number' && Number.isFinite(v)) return idxDesdeSerial(v);
   const m = String(v ?? '').trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -29,7 +31,7 @@ export function leerSindicato(valores) {
       abonos.push({ fila: i + 1, idx: fechaDe(f[3]), fechaTexto: String(f[3]), monto, nota: String(f?.[5] ?? '').trim() });
     }
     const n = numero(f?.[7]);
-    if (i > 0 && Number.isInteger(n) && n > 0) vencimientos.push({ n, vence: fechaDe(f?.[8]) });
+    if (i > 0 && Number.isInteger(n) && n > 0) vencimientos.push({ n, vence: fechaDe(f?.[8]), monto: dato(f?.[9]) });
   });
   return { datos, abonos: abonos.sort((a, b) => (a.idx ?? 0) - (b.idx ?? 0)), vencimientos: vencimientos.sort((a, b) => a.n - b.n) };
 }
@@ -70,7 +72,7 @@ export function crearPrestamo({ clave, pestana, gid, titulo, demo }) {
   P.cargar = async (token) => {
     if (S.demo) return;
     try {
-      const [v] = await leerRangos(token, TAREAS.id, [`${H}!A1:I200`]);
+      const [v] = await leerRangos(token, TAREAS.id, [`${H}!A1:J200`]);
       Object.assign(S, leerSindicato(v), { estado: 'ok', error: null });
     } catch (error) {
       S.estado = S.abonos.length ? 'ok' : 'error';
@@ -83,51 +85,55 @@ export function crearPrestamo({ clave, pestana, gid, titulo, demo }) {
   /** Avance: lo abonado contra lo que ya debería ir pagado. */
   P.resumen = (hoyIdx) => {
     const d = S.datos;
-    const total = numero(d['TOTAL A PAGAR']);
-    const mensual = numero(d['PAGO MENSUAL']);
+    const total = dato(d['TOTAL A PAGAR']);
+    const mensual = dato(d['PAGO MENSUAL']) ?? dato(d['PAGO QUINCENAL']);
     const abonado = S.abonos.reduce((t, a) => t + a.monto, 0);
-    const nMensual = numero(d['NUMERO DE PAGOS MENSUALES']) || numero(d['NUMERO DE PAGOS']);
-    const nq = numero(d.QUINCENAS);
+    const nMensual = dato(d['NUMERO DE PAGOS MENSUALES']) ?? dato(d['NUMERO DE PAGOS']);
+    const nq = dato(d.QUINCENAS);
+    const saldo = dato(d['SALDO PENDIENTE']);
     const r = {
-      monto: numero(d.MONTO), total, mensual, interes: numero(d['INTERES TOTAL']), tasa: numero(d['TASA ANUAL']), cat: numero(d.CAT),
-      quincenas: Number.isFinite(nq) && nq > 0 ? nq : null, meses: Number.isFinite(nMensual) && nMensual > 0 ? nMensual : null,
-      abonado, restante: Number.isFinite(total) ? total - abonado : null, avance: total ? abonado / total : null, abonos: S.abonos,
+      monto: dato(d.MONTO), total, mensual, interes: dato(d['INTERES TOTAL']), tasa: dato(d['TASA ANUAL']), cat: dato(d.CAT), saldo,
+      quincenas: nq, meses: nMensual, etiquetaPago: dato(d['PAGO QUINCENAL']) !== null || (nq && dato(d['PAGO MENSUAL']) === null) ? 'Pago quincenal' : 'Pago mensual',
+      abonado, restante: total !== null ? total - abonado : null, avance: total ? abonado / total : null, abonos: S.abonos,
+      finIdx: fechaDe(d['FECHA VENCIMIENTO']), inicioIdx: fechaDe(d['FECHA CONTRATACION']) ?? fechaDe(d['FECHA SOLICITUD']),
     };
-    if (!Number.isFinite(total)) return r;
 
-    // Calendario: de la hoja (H:I) o por quincenas (SINDICATO).
+    // Calendario: de la hoja (H:J) o por quincenas (SINDICATO).
     let filas = null;
     if (S.vencimientos.length) {
-      filas = S.vencimientos.map((v, i) => ({ n: v.n, vence: v.vence, ini: i > 0 && S.vencimientos[i - 1].vence !== null && v.vence !== null ? S.vencimientos[i - 1].vence + 1 : null }));
+      filas = S.vencimientos.map((v, i) => ({ n: v.n, vence: v.vence, monto: v.monto, ini: i > 0 && S.vencimientos[i - 1].vence !== null && v.vence !== null ? S.vencimientos[i - 1].vence + 1 : null }));
     } else {
+      if (total === null) return r;
       const inicioV = d['INICIO PRIMERA QUINCENA'];
       const inicioIdx = typeof inicioV === 'number' ? idxDesdeSerial(inicioV) : fechaDe(inicioV);
       if (inicioIdx === null) return r;
       const q = r.quincenas || 48;
       const qs = quincenas(inicioIdx, q);
       filas = [];
-      for (let k = 0; k < q; k += 2) filas.push({ n: k / 2 + 1, ini: qs[k].ini, vence: qs[Math.min(k + 1, q - 1)].fin });
+      for (let k = 0; k < q; k += 2) filas.push({ n: k / 2 + 1, ini: qs[k].ini, vence: qs[Math.min(k + 1, q - 1)].fin, monto: null });
     }
+    // Total de pagos del préstamo (aunque el calendario de la hoja tenga solo algunos).
+    r.nPagos = Math.max(filas.length, S.vencimientos.length ? (nq ?? nMensual ?? 0) : 0);
     const nPagos = filas.length;
     r.pagos = [];
     let acumulado = 0;
     for (const f of filas) {
-      // Pago mensual de tu hoja; el último ajusta la diferencia para llegar al total.
-      const monto = Number.isFinite(mensual) && mensual > 0
-        ? (f.n < nPagos ? mensual : Math.round((total - mensual * (nPagos - 1)) * 100) / 100)
-        : total / nPagos;
-      const desdeA = acumulado; acumulado += monto;
-      const cubierto = Math.max(0, Math.min(monto, abonado - desdeA));
-      const pagado = cubierto >= monto - 0.5;
+      // Monto del calendario; si no, el pago de tu hoja (el último ajusta la diferencia para llegar al total).
+      let monto = f.monto;
+      if (monto === null && mensual !== null && mensual > 0) monto = f.n < nPagos || total === null ? mensual : Math.round((total - mensual * (nPagos - 1)) * 100) / 100;
+      if (monto === null && total !== null) monto = total / nPagos;
+      const desdeA = acumulado; acumulado += monto ?? 0;
+      const cubierto = monto === null ? 0 : Math.max(0, Math.min(monto, abonado - desdeA));
+      const pagado = monto !== null && cubierto >= monto - 0.5;
       // Sin fecha de vencimiento (pagos viejos del calendario) cuenta como ya vencido.
       const vencido = f.vence === null ? true : f.vence < hoyIdx;
       const enCurso = f.ini !== null ? f.ini <= hoyIdx : f.vence !== null && f.vence - 31 <= hoyIdx;
       r.pagos.push({ ...f, monto, cubierto, vencido,
         estado: pagado ? 'pagado' : vencido ? 'atrasado' : enCurso ? 'en-curso' : cubierto > 0 ? 'parcial' : 'pendiente' });
     }
-    r.inicioIdx = r.pagos[0].ini ?? fechaDe(d['FECHA SOLICITUD']);
-    r.finIdx = r.pagos.at(-1).vence;
-    r.esperado = r.pagos.filter((p) => p.vencido).reduce((t, p) => t + p.monto, 0);
+    r.inicioIdx ??= r.pagos[0]?.ini ?? null;
+    r.finIdx ??= r.pagos.at(-1)?.vence ?? null;
+    r.esperado = r.pagos.filter((p) => p.vencido).reduce((t, p) => t + (p.monto ?? 0), 0);
     r.diferencia = abonado - r.esperado;
     r.actual = r.pagos.find((p) => p.estado !== 'pagado') ?? null;
     r.pagados = r.pagos.filter((p) => p.estado === 'pagado').length;
@@ -188,7 +194,16 @@ export const MERCADOLIBRE = crearPrestamo({
   }),
 });
 
-export const PRESTAMOS_PROPIOS = [SINDICATO, MERCADOLIBRE];
+export const BBVA = crearPrestamo({
+  clave: 'bbva', pestana: 'BBVA', gid: 781, titulo: 'Préstamo BBVA',
+  demo: (hoyIdx) => ({
+    datos: { MONTO: 110600, 'SALDO PENDIENTE': 112308.21, 'TASA ANUAL': 0.3516, QUINCENAS: 48, 'FECHA CONTRATACION': hoyIdx - 15 + 25569, 'FECHA VENCIMIENTO': hoyIdx + 715 + 25569 },
+    abonos: [],
+    vencimientos: [{ n: 1, vence: hoyIdx, monto: 1582.92 }],
+  }),
+});
+
+export const PRESTAMOS_PROPIOS = [SINDICATO, MERCADOLIBRE, BBVA];
 
 // Compatibilidad: el SINDICATO con los nombres de antes.
 export const S = SINDICATO.S;

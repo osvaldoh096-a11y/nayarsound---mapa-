@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180502';
-import { escribirCelda, leerRangos } from './api.js?v=202611180502';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180502';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611180502';
-import { construirModelo, entregarCon } from './modelo.js?v=202611180502';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180509';
+import { escribirCelda, leerRangos } from './api.js?v=202611180509';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180509';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611180509';
+import { construirModelo, entregarCon } from './modelo.js?v=202611180509';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611180502';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180502';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180502';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180502';
-import { fuentesDemo } from './demo.js?v=202611180502';
-import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180502';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180502';
-import { leerCashflow, sinPagarInteres } from './dashprestamos.js?v=202611180502';
-import { icono } from './iconos.js?v=202611180502';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180502';
+} from './fechas.js?v=202611180509';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180509';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180509';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180509';
+import { fuentesDemo } from './demo.js?v=202611180509';
+import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180509';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180509';
+import { leerCashflow, sinPagarInteres } from './dashprestamos.js?v=202611180509';
+import { icono } from './iconos.js?v=202611180509';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180509';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1364,18 +1364,20 @@ function seccionPrestamoPropio(m, P) {
     pagado: '<span class="pf-estado ok">Pagado</span>', atrasado: '<span class="pf-estado mal">Atrasado</span>',
     'en-curso': '<span class="pf-estado pend">En curso</span>', parcial: '<span class="pf-estado pend">Parcial</span>', pendiente: '<span class="pf-estado neutro">Pendiente</span>',
   }[p.estado]);
-  const resumen = `Abonado <b>${din(r.abonado, 0)}</b> de ${din(r.total, 0)} · resta <b>${din(r.restante, 0)}</b>${est ? ` · ${est}` : ''}`;
-  const actual = r.actual ? `<div class="sd-actual"><span>Pago ${r.actual.n} de ${r.pagos.length} · ${r.actual.ini !== null ? `${esc(diaMes(r.actual.ini))} al ${esc(diaMes(r.actual.vence))}` : r.actual.vence !== null ? `vence ${esc(diaMes(r.actual.vence))} ${ymdDesdeIdx(r.actual.vence).y}` : ''}</span>
-    <b>${din(r.actual.monto - r.actual.cubierto, 0)}</b><small>${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : (r.actual.vence !== null && r.actual.ini !== null ? `vence el ${esc(diaMes(r.actual.vence))}` : '')}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
+  const resumen = r.total !== null
+    ? `Abonado <b>${din(r.abonado, 0)}</b> de ${din(r.total, 0)} · resta <b>${din(r.restante, 0)}</b>${est ? ` · ${est}` : ''}`
+    : `Saldo pendiente <b>${din(r.saldo, 0)}</b> · abonado <b>${din(r.abonado, 0)}</b>${est ? ` · ${est}` : ''}`;
+  const actual = r.actual ? `<div class="sd-actual"><span>Pago ${r.actual.n} de ${r.nPagos} · ${r.actual.ini !== null ? `${esc(diaMes(r.actual.ini))} al ${esc(diaMes(r.actual.vence))}` : r.actual.vence !== null ? `vence ${esc(diaMes(r.actual.vence))} ${ymdDesdeIdx(r.actual.vence).y}` : ''}</span>
+    <b>${r.actual.monto !== null ? din(r.actual.monto - r.actual.cubierto, 2) : din(null)}</b><small>${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : (r.actual.vence !== null && r.actual.ini !== null ? `vence el ${esc(diaMes(r.actual.vence))}` : '')}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
   const cuerpo = `
     <div class="sd-barra"><i style="width:${Math.min(100, (r.avance ?? 0) * 100)}%"></i></div>
-    <div class="sd-barra-etq"><span>${esc(pctTxt(r.avance ?? 0, 1))} pagado${r.pagados !== undefined ? ` · ${r.pagados} de ${r.pagos.length} pagos` : ''}</span><span>${r.finIdx ? `termina ${esc(diaMes(r.finIdx))} ${ymdDesdeIdx(r.finIdx).y}` : ''}</span></div>
+    <div class="sd-barra-etq"><span>${r.total !== null ? `${esc(pctTxt(r.avance ?? 0, 1))} pagado` : `Contratado ${r.inicioIdx !== null ? `${esc(diaMes(r.inicioIdx))} ${ymdDesdeIdx(r.inicioIdx).y}` : ''}`}${r.pagados !== undefined ? ` · ${r.pagados} de ${r.nPagos} pagos` : ''}</span><span>${r.finIdx ? `termina ${esc(diaMes(r.finIdx))} ${ymdDesdeIdx(r.finIdx).y}` : ''}</span></div>
     <div class="sd-rejilla">
       <div>
         <h3 class="df-sub">Pago actual</h3>${actual}
         <h3 class="df-sub">Registrar abono</h3>
         <form class="sd-form" data-form="abono" data-prestamo="${P.clave}" autocomplete="off">
-          <label><span>Monto</span><span class="campo-dinero"><span>$</span><input name="monto" inputmode="decimal" value="${esc(String(r.actual ? Math.round(r.actual.monto - r.actual.cubierto) : r.mensual || ''))}" required></span></label>
+          <label><span>Monto</span><span class="campo-dinero"><span>$</span><input name="monto" inputmode="decimal" value="${esc(String(r.actual && r.actual.monto !== null ? Math.round((r.actual.monto - r.actual.cubierto) * 100) / 100 : r.mensual || ''))}" required></span></label>
           <label><span>Fecha</span><input name="fecha" type="date" value="${hoyTxt}"></label>
           <label class="sd-nota"><span>Nota (opcional)</span><input name="nota" maxlength="120" placeholder="Transferencia, efectivo…"></label>
           <button class="boton boton-primario" type="submit" ${SIND.guardando ? 'disabled' : ''}>Guardar abono</button>
@@ -1383,17 +1385,18 @@ function seccionPrestamoPropio(m, P) {
         <h3 class="df-sub">Datos del préstamo</h3>
         <div class="pf-datos">
           <div class="pf-dato"><span>Monto</span><b>${din(r.monto)}</b></div>
+          ${r.saldo !== null ? `<div class="pf-dato"><span>Saldo pendiente</span><b>${din(r.saldo)}</b></div>` : ''}
           <div class="pf-dato"><span>Total a pagar</span><b>${din(r.total)}</b></div>
           <div class="pf-dato"><span>Interés / costo total</span><b>${din(r.interes)}</b></div>
-          <div class="pf-dato"><span>Pago mensual</span><b>${din(r.mensual)}</b></div>
-          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, 0))} anual${Number.isFinite(r.cat) ? ` · CAT ${esc(pctTxt(r.cat, 2))}` : ''} · ${r.quincenas ? `${r.quincenas} quincenas` : `${r.meses ?? r.pagos?.length ?? '—'} meses`}</b></div>
+          <div class="pf-dato"><span>${r.etiquetaPago}</span><b>${din(r.mensual)}</b></div>
+          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, Number.isInteger(Math.round((r.tasa ?? 0) * 10000) / 100) ? 0 : 2))} anual${Number.isFinite(r.cat) ? ` · CAT ${esc(pctTxt(r.cat, 2))}` : ''} · ${r.quincenas ? `${r.quincenas} quincenas` : `${r.meses ?? r.pagos?.length ?? '—'} meses`}</b></div>
         </div>
       </div>
       <div>
         <h3 class="df-sub">Tus abonos</h3>
         ${r.abonos.length ? `<div class="sd-abonos">${[...r.abonos].reverse().map((a) => `<div class="sd-abono"><span>${a.idx !== null ? esc(diaMes(a.idx)) + ` ${ymdDesdeIdx(a.idx).y}` : esc(a.fechaTexto)}${a.nota ? `<small>${esc(a.nota)}</small>` : ''}</span><b>${din(a.monto)}</b>
           <button class="tarea-borrar" data-accion="borrar-abono" data-prestamo="${P.clave}" data-fila="${a.fila}" title="Borrar abono" aria-label="Borrar abono">×</button></div>`).join('')}</div>` : '<p class="vacio">Aún no registras abonos.</p>'}
-        ${r.pagos ? `<h3 class="df-sub">Calendario de pagos</h3><div class="sd-cal">${r.pagos.map((p) => `<div class="sd-cal-fila ${p.estado}"><span>${p.n}. ${p.vence === null ? 'pago anterior' : p.ini !== null ? `${esc(diaMes(p.ini))} – ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}` : `vence ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}`}</span><span>${din(p.monto, 0)}</span>${chipPago(p)}</div>`).join('')}</div>` : ''}
+        ${r.pagos ? `<h3 class="df-sub">Calendario de pagos</h3><div class="sd-cal">${r.pagos.map((p) => `<div class="sd-cal-fila ${p.estado}"><span>${p.n}. ${p.vence === null ? 'pago anterior' : p.ini !== null ? `${esc(diaMes(p.ini))} – ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}` : `vence ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}`}</span><span>${din(p.monto, p.monto !== null && !Number.isInteger(p.monto) ? 2 : 0)}</span>${chipPago(p)}</div>`).join('')}</div>` : ''}
         <p class="nota">Se guarda en tu hoja «TO DO · Dashboard personal», pestaña ${esc(P.pestana)}. <a href="${P.url}" target="_blank" rel="noopener noreferrer">Abrir ↗</a></p>
       </div>
     </div>`;

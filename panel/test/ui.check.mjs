@@ -270,6 +270,13 @@ try {
           'MERCADOLIBRE: sección con 3 de 12 pagos, siguiente pago 4 ene 2027 y CAT');
         if (capturas) await ml.screenshot({ path: `${capturas}/mercadolibre.png` });
       }
+      {
+        const bb = pagina.locator('[data-pf="bbva"]');
+        const txt = await bb.innerText();
+        revisar(/Saldo pendiente \$112,308/.test(await bb.locator('summary').innerText()) && /Pago 1 de 48/.test(txt) && /\$1,582\.92/.test(txt) && /35\.16%|35%/.test(txt) && /1 nov 2028/.test(txt) && !/NaN/.test(txt),
+          'BBVA: saldo pendiente, recibo 1 de 48 por $1,582.92, tasa y vencimiento');
+        if (capturas) await bb.screenshot({ path: `${capturas}/bbva.png` });
+      }
       await sec.locator('input[name="monto"]').fill('10310');
       await sec.locator('input[name="nota"]').fill('=PRUEBA transferencia');
       pagina.once('dialog', (dlg) => dlg.accept());
