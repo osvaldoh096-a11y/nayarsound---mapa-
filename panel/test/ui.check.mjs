@@ -261,20 +261,20 @@ try {
       await pagina.locator('[data-pf="activos"] .pf-ver').click();
       // Préstamo SINDICATO: abierto por defecto, con su avance y el registro de abonos.
       const sec = pagina.locator('[data-pf="sindicato"]');
-      revisar(await sec.getAttribute('open') !== null && /Debes \$247,476/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección en la pestaña Préstamos con lo que debes');
-      revisar(/de 24 pagos/.test(await sec.innerText()), 'SINDICATO: avance de 24 pagos mensuales (48 quincenas)');
-      if (capturas) await sec.screenshot({ path: `${capturas}/sindicato.png` });
+      revisar(await sec.getAttribute('open') !== null && /Abonado \$0 de \$247,476/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección en la pestaña Préstamos con total a pagar');
+      revisar(await pagina.locator('.sd-cal-fila').count() === 24, 'SINDICATO: calendario de 24 pagos mensuales (48 quincenas)');
       await sec.locator('input[name="monto"]').fill('10310');
+      await sec.locator('input[name="nota"]').fill('=PRUEBA transferencia');
       pagina.once('dialog', (dlg) => dlg.accept());
       await sec.locator('form[data-form="abono"] button[type="submit"]').click();
       for (let i = 0; i < 40 && !lecturas.sindicato.some((f) => f[4] === 10310); i++) await pagina.waitForTimeout(100);
       const filaAbono = lecturas.sindicato.find((f) => f[4] === 10310);
-      revisar(!!filaAbono && typeof filaAbono[3] === 'number', 'SINDICATO: el abono se guarda en la hoja (fecha y monto)');
-      await pagina.waitForFunction(() => /Debes \$237,166/.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
-      revisar(/Debes \$237,166/.test(await pagina.locator('[data-pf="sindicato"] summary').innerText()), 'SINDICATO: se descuenta del restante');
+      revisar(!!filaAbono && typeof filaAbono[3] === 'number' && filaAbono[5] === '=PRUEBA transferencia', 'SINDICATO: el abono se guarda en la hoja (fecha, monto y nota como texto)');
+      await pagina.waitForFunction(() => /Abonado \$10,310/.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
+      revisar(/resta \$237,166/.test(await pagina.locator('[data-pf="sindicato"] summary').innerText()), 'SINDICATO: se descuenta del restante');
       pagina.once('dialog', (dlg) => dlg.accept());
       await pagina.locator('[data-accion="borrar-abono"]').first().click();
-      await pagina.waitForFunction(() => /Debes \$247,476/.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
+      await pagina.waitForFunction(() => /Abonado \$0 /.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
       revisar(!lecturas.sindicato.some((f) => f[4] === 10310), 'SINDICATO: borrar abono lo quita de la hoja');
       await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
       await pagina.locator('[data-pf="activos"] .pf-ver').click();

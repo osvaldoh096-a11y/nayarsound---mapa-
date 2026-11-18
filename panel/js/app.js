@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180449';
-import { escribirCelda, leerRangos } from './api.js?v=202611180449';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180449';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611180449';
-import { construirModelo, entregarCon } from './modelo.js?v=202611180449';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180445';
+import { escribirCelda, leerRangos } from './api.js?v=202611180445';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180445';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611180445';
+import { construirModelo, entregarCon } from './modelo.js?v=202611180445';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611180449';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180449';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180449';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180449';
-import { fuentesDemo } from './demo.js?v=202611180449';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611180449';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180449';
-import { leerCashflow, sinPagarInteres } from './dashprestamos.js?v=202611180449';
-import { icono } from './iconos.js?v=202611180449';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180449';
+} from './fechas.js?v=202611180445';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180445';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180445';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180445';
+import { fuentesDemo } from './demo.js?v=202611180445';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611180445';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180445';
+import { leerCashflow, sinPagarInteres } from './dashprestamos.js?v=202611180445';
+import { icono } from './iconos.js?v=202611180445';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180445';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -419,10 +419,10 @@ async function tokenParaEscribir() {
 
 async function guardarAbono(form) {
   const boton = form.querySelector('button[type="submit"]');
-  const datos = { monto: form.elements.monto.value, fecha: form.elements.fecha.value, nota: form.elements.nota?.value ?? '' };
+  const datos = { monto: form.elements.monto.value, fecha: form.elements.fecha.value, nota: form.elements.nota.value };
   const valor = Number(String(datos.monto).replace(/[$,\s]/g, ''));
   if (!Number.isFinite(valor) || valor <= 0) { alert('Escribe un monto válido, por ejemplo 10310.'); form.elements.monto.focus(); return; }
-  if (!confirm(`¿Abonar ${dinero(valor)} al SINDICATO?`)) return;
+  if (!confirm(`¿Registrar abono de ${dinero(valor)} al préstamo SINDICATO?\n\nSe anotará en tu hoja «TO DO · Dashboard personal», pestaña SINDICATO.`)) return;
   boton.disabled = true; boton.textContent = 'Guardando…';
   SIND.guardando = true;
   try {
@@ -1349,27 +1349,50 @@ function prResumen(m, pr, d) {
 /** Préstamo SINDICATO: avance de pagos y registro de abonos. */
 function seccionSindicato(m) {
   if (SIND.estado === 'sin-leer') return '';
-  if (SIND.estado === 'error') return seccionPF('sindicato', 'rojo', 'SINDICATO', `<span class="texto-rojo">${esc(SIND.error ?? 'No pude leer la pestaña SINDICATO.')}</span>`, '', { abiertaPorDefecto: true });
+  if (SIND.estado === 'error') return seccionPF('sindicato', 'rojo', 'Préstamo SINDICATO', `<span class="texto-rojo">${esc(SIND.error ?? 'No pude leer la pestaña SINDICATO.')}</span>`, '', { abiertaPorDefecto: true });
   const r = resumenSindicato(m.hoy.idx);
   const hoyTxt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
-  const atraso = r.diferencia !== undefined && r.diferencia < -0.5 ? -r.diferencia : 0;
-  const resumen = `Debes <b>${din(r.restante, 0)}</b>${atraso ? ` · <b class="texto-rojo">atrasado ${din(atraso, 0)}</b>` : ''}`;
-  const falta = r.actual ? r.actual.monto - r.actual.cubierto : 0;
-  const actual = r.actual
-    ? `<div class="sd-actual ${r.actual.estado === 'atrasado' ? 'mal' : ''}"><span>${r.actual.estado === 'atrasado' ? 'Atrasado' : `Pagar antes del ${esc(diaMes(r.actual.vence))}`}</span><b>${din(falta, 0)}</b></div>`
-    : '<p class="texto-verde"><b>Liquidado ✓</b></p>';
+  const est = r.diferencia === undefined ? '' : r.diferencia >= -0.5
+    ? `<b class="texto-verde">al corriente${r.diferencia > 0.5 ? ` · adelantado ${din(r.diferencia, 0)}` : ''}</b>`
+    : `<b class="texto-rojo">atrasado ${din(-r.diferencia, 0)}</b>`;
+  const chipPago = (p) => ({
+    pagado: '<span class="pf-estado ok">Pagado</span>', atrasado: '<span class="pf-estado mal">Atrasado</span>',
+    'en-curso': '<span class="pf-estado pend">En curso</span>', parcial: '<span class="pf-estado pend">Parcial</span>', pendiente: '<span class="pf-estado neutro">Pendiente</span>',
+  }[p.estado]);
+  const resumen = `Abonado <b>${din(r.abonado, 0)}</b> de ${din(r.total, 0)} · resta <b>${din(r.restante, 0)}</b>${est ? ` · ${est}` : ''}`;
+  const actual = r.actual ? `<div class="sd-actual"><span>Pago ${r.actual.n} de ${r.pagos.length} · ${esc(diaMes(r.actual.ini))} al ${esc(diaMes(r.actual.vence))}</span>
+    <b>${din(r.actual.monto - r.actual.cubierto, 0)}</b><small>${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : `vence el ${esc(diaMes(r.actual.vence))}`}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
   const cuerpo = `
-    ${actual}
-    ${r.actual ? `<form class="sd-form sd-simple" data-form="abono" autocomplete="off">
-      <span class="campo-dinero"><span>$</span><input name="monto" inputmode="decimal" aria-label="Monto" value="${esc(String(Math.round(falta) || r.mensual || ''))}" required></span>
-      <input name="fecha" type="date" aria-label="Fecha" value="${hoyTxt}">
-      <button class="boton boton-primario" type="submit" ${SIND.guardando ? 'disabled' : ''}>Abonar</button>
-    </form>` : ''}
     <div class="sd-barra"><i style="width:${Math.min(100, (r.avance ?? 0) * 100)}%"></i></div>
-    <div class="sd-barra-etq"><span>${r.pagados ?? 0} de ${r.pagos?.length ?? '—'} pagos</span><span>${din(r.abonado, 0)} de ${din(r.total, 0)}</span></div>
-    ${r.abonos.length ? `<div class="sd-abonos">${[...r.abonos].reverse().map((a) => `<div class="sd-abono"><span>${a.idx !== null ? esc(diaMes(a.idx)) : esc(a.fechaTexto)}</span><b>${din(a.monto, 0)}</b>
-      <button class="tarea-borrar" data-accion="borrar-abono" data-fila="${a.fila}" title="Borrar" aria-label="Borrar abono">×</button></div>`).join('')}</div>` : ''}`;
-  return seccionPF('sindicato', 'rojo', 'SINDICATO', resumen, cuerpo, { abiertaPorDefecto: true });
+    <div class="sd-barra-etq"><span>${esc(pctTxt(r.avance ?? 0, 1))} pagado${r.pagados !== undefined ? ` · ${r.pagados} de ${r.pagos.length} pagos` : ''}</span><span>${r.finIdx ? `termina ${esc(diaMes(r.finIdx))} ${ymdDesdeIdx(r.finIdx).y}` : ''}</span></div>
+    <div class="sd-rejilla">
+      <div>
+        <h3 class="df-sub">Pago actual</h3>${actual}
+        <h3 class="df-sub">Registrar abono</h3>
+        <form class="sd-form" data-form="abono" autocomplete="off">
+          <label><span>Monto</span><span class="campo-dinero"><span>$</span><input name="monto" inputmode="decimal" value="${esc(String(r.actual ? Math.round(r.actual.monto - r.actual.cubierto) : r.mensual || ''))}" required></span></label>
+          <label><span>Fecha</span><input name="fecha" type="date" value="${hoyTxt}"></label>
+          <label class="sd-nota"><span>Nota (opcional)</span><input name="nota" maxlength="120" placeholder="Transferencia, efectivo…"></label>
+          <button class="boton boton-primario" type="submit" ${SIND.guardando ? 'disabled' : ''}>Guardar abono</button>
+        </form>
+        <h3 class="df-sub">Datos del préstamo</h3>
+        <div class="pf-datos">
+          <div class="pf-dato"><span>Monto</span><b>${din(r.monto)}</b></div>
+          <div class="pf-dato"><span>Total a pagar</span><b>${din(r.total)}</b></div>
+          <div class="pf-dato"><span>Interés / costo total</span><b>${din(r.interes)}</b></div>
+          <div class="pf-dato"><span>Pago mensual</span><b>${din(r.mensual)}</b></div>
+          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, 0))} anual · ${r.quincenas} quincenas</b></div>
+        </div>
+      </div>
+      <div>
+        <h3 class="df-sub">Tus abonos</h3>
+        ${r.abonos.length ? `<div class="sd-abonos">${[...r.abonos].reverse().map((a) => `<div class="sd-abono"><span>${a.idx !== null ? esc(diaMes(a.idx)) + ` ${ymdDesdeIdx(a.idx).y}` : esc(a.fechaTexto)}${a.nota ? `<small>${esc(a.nota)}</small>` : ''}</span><b>${din(a.monto)}</b>
+          <button class="tarea-borrar" data-accion="borrar-abono" data-fila="${a.fila}" title="Borrar abono" aria-label="Borrar abono">×</button></div>`).join('')}</div>` : '<p class="vacio">Aún no registras abonos.</p>'}
+        ${r.pagos ? `<h3 class="df-sub">Calendario de pagos</h3><div class="sd-cal">${r.pagos.map((p) => `<div class="sd-cal-fila ${p.estado}"><span>${p.n}. ${esc(diaMes(p.ini))} – ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}</span><span>${din(p.monto, 0)}</span>${chipPago(p)}</div>`).join('')}</div>` : ''}
+        <p class="nota">Se guarda en tu hoja «TO DO · Dashboard personal», pestaña SINDICATO. <a href="${URL_SINDICATO}" target="_blank" rel="noopener noreferrer">Abrir ↗</a></p>
+      </div>
+    </div>`;
+  return seccionPF('sindicato', 'rojo', 'Préstamo SINDICATO', resumen, cuerpo, { abiertaPorDefecto: true });
 }
 
 function prPrestamos(m, pr, d) {
