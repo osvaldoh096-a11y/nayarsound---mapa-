@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180455';
-import { escribirCelda, leerRangos } from './api.js?v=202611180455';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180455';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611180455';
-import { construirModelo, entregarCon } from './modelo.js?v=202611180455';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180502';
+import { escribirCelda, leerRangos } from './api.js?v=202611180502';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180502';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611180502';
+import { construirModelo, entregarCon } from './modelo.js?v=202611180502';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611180455';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180455';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180455';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180455';
-import { fuentesDemo } from './demo.js?v=202611180455';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611180455';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180455';
-import { leerCashflow, sinPagarInteres } from './dashprestamos.js?v=202611180455';
-import { icono } from './iconos.js?v=202611180455';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180455';
+} from './fechas.js?v=202611180502';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180502';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180502';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180502';
+import { fuentesDemo } from './demo.js?v=202611180502';
+import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180502';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180502';
+import { leerCashflow, sinPagarInteres } from './dashprestamos.js?v=202611180502';
+import { icono } from './iconos.js?v=202611180502';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180502';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -128,7 +128,7 @@ function cargarDemo() {
   E.ultimaCompleta = ahora;
   E.modelo = construirModelo(datosDisponibles(E.fuentes), hoyCDMX());
   if (!T.demo) usarDemo();
-  if (!SIND.demo) usarDemoSindicato(hoyCDMX().idx);
+  for (const P of PRESTAMOS_PROPIOS) if (!P.S.demo) P.usarDemo(hoyCDMX().idx);
   if (!HB.demo) usarDemoHabitos(hoyCDMX().idx);
   pintar();
 }
@@ -156,7 +156,7 @@ async function actualizar({ interactivo = false } = {}) {
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token), cargarSindicato(token), cargarHabitos(token)]);
+    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token), ...PRESTAMOS_PROPIOS.map((P) => P.cargar(token)), cargarHabitos(token)]);
     E.fuentes = fuentes;
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
     if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }
@@ -215,9 +215,10 @@ function alHacerClic(evento) {
     return;
   }
   if (accion === 'borrar-abono') {
-    const a = SIND.abonos.find((x) => String(x.fila) === el.dataset.fila);
+    const P = prestamoPropio(el.dataset.prestamo);
+    const a = P?.S.abonos.find((x) => String(x.fila) === el.dataset.fila);
     if (a && confirm(`¿Borrar el abono de ${dinero(a.monto)}${a.idx !== null ? ` del ${fechaLarga(a.idx)}` : ''}?`)) {
-      borrarAbono(a.fila, tokenParaEscribir).then(() => pintar()).catch((error) => alert(error.message));
+      P.borrarAbono(a.fila, tokenParaEscribir).then(() => pintar()).catch((error) => alert(error.message));
     }
     return;
   }
@@ -417,19 +418,22 @@ async function tokenParaEscribir() {
   return iniciarSesion();
 }
 
+const prestamoPropio = (clave) => PRESTAMOS_PROPIOS.find((P) => P.clave === clave) ?? PRESTAMOS_PROPIOS[0];
+
 async function guardarAbono(form) {
+  const P = prestamoPropio(form.dataset.prestamo);
   const boton = form.querySelector('button[type="submit"]');
-  const datos = { monto: form.elements.monto.value, fecha: form.elements.fecha.value, nota: form.elements.nota.value };
+  const datos = { monto: form.elements.monto.value, fecha: form.elements.fecha.value, nota: form.elements.nota?.value ?? '' };
   const valor = Number(String(datos.monto).replace(/[$,\s]/g, ''));
   if (!Number.isFinite(valor) || valor <= 0) { alert('Escribe un monto válido, por ejemplo 10310.'); form.elements.monto.focus(); return; }
-  if (!confirm(`¿Registrar abono de ${dinero(valor)} al préstamo SINDICATO?\n\nSe anotará en tu hoja «TO DO · Dashboard personal», pestaña SINDICATO.`)) return;
+  if (!confirm(`¿Registrar abono de ${dinero(valor)} al ${P.titulo}?\n\nSe anotará en tu hoja «TO DO · Dashboard personal», pestaña ${P.pestana}.`)) return;
   boton.disabled = true; boton.textContent = 'Guardando…';
-  SIND.guardando = true;
+  P.S.guardando = true;
   try {
-    await agregarAbono(datos, tokenParaEscribir);
+    await P.agregarAbono(datos, tokenParaEscribir);
     E.avisoTemporal = `Abono de ${dinero(valor)} registrado.`;
   } catch (error) { alert(error.message); }
-  finally { SIND.guardando = false; pintar(); }
+  finally { P.S.guardando = false; pintar(); }
 }
 
 function alEnviar(evento) {
@@ -1346,11 +1350,12 @@ function prResumen(m, pr, d) {
     ${listaAvisos(pr.avisos, 'Revisión de la lectura')}`;
 }
 
-/** Préstamo SINDICATO: avance de pagos y registro de abonos. */
-function seccionSindicato(m) {
+/** Préstamo propio (SINDICATO, MERCADOLIBRE…): avance de pagos y registro de abonos. */
+function seccionPrestamoPropio(m, P) {
+  const SIND = P.S;
   if (SIND.estado === 'sin-leer') return '';
-  if (SIND.estado === 'error') return seccionPF('sindicato', 'rojo', 'Préstamo SINDICATO', `<span class="texto-rojo">${esc(SIND.error ?? 'No pude leer la pestaña SINDICATO.')}</span>`, '', { abiertaPorDefecto: true });
-  const r = resumenSindicato(m.hoy.idx);
+  if (SIND.estado === 'error') return seccionPF(P.clave, 'rojo', P.titulo, `<span class="texto-rojo">${esc(SIND.error ?? `No pude leer la pestaña ${P.pestana}.`)}</span>`, '', { abiertaPorDefecto: true });
+  const r = P.resumen(m.hoy.idx);
   const hoyTxt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
   const est = r.diferencia === undefined ? '' : r.diferencia >= -0.5
     ? `<b class="texto-verde">al corriente${r.diferencia > 0.5 ? ` · adelantado ${din(r.diferencia, 0)}` : ''}</b>`
@@ -1360,8 +1365,8 @@ function seccionSindicato(m) {
     'en-curso': '<span class="pf-estado pend">En curso</span>', parcial: '<span class="pf-estado pend">Parcial</span>', pendiente: '<span class="pf-estado neutro">Pendiente</span>',
   }[p.estado]);
   const resumen = `Abonado <b>${din(r.abonado, 0)}</b> de ${din(r.total, 0)} · resta <b>${din(r.restante, 0)}</b>${est ? ` · ${est}` : ''}`;
-  const actual = r.actual ? `<div class="sd-actual"><span>Pago ${r.actual.n} de ${r.pagos.length} · ${esc(diaMes(r.actual.ini))} al ${esc(diaMes(r.actual.vence))}</span>
-    <b>${din(r.actual.monto - r.actual.cubierto, 0)}</b><small>${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : `vence el ${esc(diaMes(r.actual.vence))}`}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
+  const actual = r.actual ? `<div class="sd-actual"><span>Pago ${r.actual.n} de ${r.pagos.length} · ${r.actual.ini !== null ? `${esc(diaMes(r.actual.ini))} al ${esc(diaMes(r.actual.vence))}` : r.actual.vence !== null ? `vence ${esc(diaMes(r.actual.vence))} ${ymdDesdeIdx(r.actual.vence).y}` : ''}</span>
+    <b>${din(r.actual.monto - r.actual.cubierto, 0)}</b><small>${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : (r.actual.vence !== null && r.actual.ini !== null ? `vence el ${esc(diaMes(r.actual.vence))}` : '')}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
   const cuerpo = `
     <div class="sd-barra"><i style="width:${Math.min(100, (r.avance ?? 0) * 100)}%"></i></div>
     <div class="sd-barra-etq"><span>${esc(pctTxt(r.avance ?? 0, 1))} pagado${r.pagados !== undefined ? ` · ${r.pagados} de ${r.pagos.length} pagos` : ''}</span><span>${r.finIdx ? `termina ${esc(diaMes(r.finIdx))} ${ymdDesdeIdx(r.finIdx).y}` : ''}</span></div>
@@ -1369,7 +1374,7 @@ function seccionSindicato(m) {
       <div>
         <h3 class="df-sub">Pago actual</h3>${actual}
         <h3 class="df-sub">Registrar abono</h3>
-        <form class="sd-form" data-form="abono" autocomplete="off">
+        <form class="sd-form" data-form="abono" data-prestamo="${P.clave}" autocomplete="off">
           <label><span>Monto</span><span class="campo-dinero"><span>$</span><input name="monto" inputmode="decimal" value="${esc(String(r.actual ? Math.round(r.actual.monto - r.actual.cubierto) : r.mensual || ''))}" required></span></label>
           <label><span>Fecha</span><input name="fecha" type="date" value="${hoyTxt}"></label>
           <label class="sd-nota"><span>Nota (opcional)</span><input name="nota" maxlength="120" placeholder="Transferencia, efectivo…"></label>
@@ -1381,23 +1386,23 @@ function seccionSindicato(m) {
           <div class="pf-dato"><span>Total a pagar</span><b>${din(r.total)}</b></div>
           <div class="pf-dato"><span>Interés / costo total</span><b>${din(r.interes)}</b></div>
           <div class="pf-dato"><span>Pago mensual</span><b>${din(r.mensual)}</b></div>
-          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, 0))} anual · ${r.quincenas} quincenas</b></div>
+          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, 0))} anual${Number.isFinite(r.cat) ? ` · CAT ${esc(pctTxt(r.cat, 2))}` : ''} · ${r.quincenas ? `${r.quincenas} quincenas` : `${r.meses ?? r.pagos?.length ?? '—'} meses`}</b></div>
         </div>
       </div>
       <div>
         <h3 class="df-sub">Tus abonos</h3>
         ${r.abonos.length ? `<div class="sd-abonos">${[...r.abonos].reverse().map((a) => `<div class="sd-abono"><span>${a.idx !== null ? esc(diaMes(a.idx)) + ` ${ymdDesdeIdx(a.idx).y}` : esc(a.fechaTexto)}${a.nota ? `<small>${esc(a.nota)}</small>` : ''}</span><b>${din(a.monto)}</b>
-          <button class="tarea-borrar" data-accion="borrar-abono" data-fila="${a.fila}" title="Borrar abono" aria-label="Borrar abono">×</button></div>`).join('')}</div>` : '<p class="vacio">Aún no registras abonos.</p>'}
-        ${r.pagos ? `<h3 class="df-sub">Calendario de pagos</h3><div class="sd-cal">${r.pagos.map((p) => `<div class="sd-cal-fila ${p.estado}"><span>${p.n}. ${esc(diaMes(p.ini))} – ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}</span><span>${din(p.monto, 0)}</span>${chipPago(p)}</div>`).join('')}</div>` : ''}
-        <p class="nota">Se guarda en tu hoja «TO DO · Dashboard personal», pestaña SINDICATO. <a href="${URL_SINDICATO}" target="_blank" rel="noopener noreferrer">Abrir ↗</a></p>
+          <button class="tarea-borrar" data-accion="borrar-abono" data-prestamo="${P.clave}" data-fila="${a.fila}" title="Borrar abono" aria-label="Borrar abono">×</button></div>`).join('')}</div>` : '<p class="vacio">Aún no registras abonos.</p>'}
+        ${r.pagos ? `<h3 class="df-sub">Calendario de pagos</h3><div class="sd-cal">${r.pagos.map((p) => `<div class="sd-cal-fila ${p.estado}"><span>${p.n}. ${p.vence === null ? 'pago anterior' : p.ini !== null ? `${esc(diaMes(p.ini))} – ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}` : `vence ${esc(diaMes(p.vence))} ${ymdDesdeIdx(p.vence).y}`}</span><span>${din(p.monto, 0)}</span>${chipPago(p)}</div>`).join('')}</div>` : ''}
+        <p class="nota">Se guarda en tu hoja «TO DO · Dashboard personal», pestaña ${esc(P.pestana)}. <a href="${P.url}" target="_blank" rel="noopener noreferrer">Abrir ↗</a></p>
       </div>
     </div>`;
-  return seccionPF('sindicato', 'rojo', 'Préstamo SINDICATO', resumen, cuerpo, { abiertaPorDefecto: true });
+  return seccionPF(P.clave, 'rojo', P.titulo, resumen, cuerpo, { abiertaPorDefecto: true });
 }
 
 function prPrestamos(m, pr, d) {
   const pa = [...(d.prestamosActivos ?? [])].sort((a, b) => (b.capital ?? 0) - (a.capital ?? 0));
-  const sind = seccionSindicato(m);
+  const sind = PRESTAMOS_PROPIOS.map((P) => seccionPrestamoPropio(m, P)).join('');
   if (!pa.length) return `${sind}<p class="vacio">No encontré la tabla PRESTAMOS ACTIVOS en tu DASHBOARD.</p>`;
   const total = pa.reduce((s, x) => s + (x.capital ?? 0), 0) || 1;
   const suma = (k) => pa.reduce((s, x) => s + (x[k] ?? 0), 0);

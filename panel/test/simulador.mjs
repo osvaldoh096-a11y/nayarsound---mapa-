@@ -115,7 +115,13 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
   const sindicato = [['DATO', 'VALOR', '', 'FECHA', 'ABONO', 'NOTA'], ['MONTO', 208738.08], ['TOTAL A PAGAR', 247476], ['PAGO MENSUAL', 10310],
     ['NUMERO DE PAGOS MENSUALES', 24], ['INICIO PRIMERA QUINCENA', 46311], ['FIN ULTIMA QUINCENA', 47041], ['TASA ANUAL', 0.13], ['QUINCENAS', 48], ['INTERES TOTAL', 38737.92]];
   const habitos = [['FECHA', 'IR AL GYM', 'CAMINAR 30 MINUTOS']];
-  const hojas = { TAREAS: tareas, SINDICATO: sindicato, HABITOS: habitos };
+  const venc = [46391, 46420, 46447, 46478, 46510, 46539, 46569, 46601, 46631]; // 4-ene-2027 … 1-sep-2027
+  const mercadolibre = [['DATO', 'VALOR', '', 'FECHA', 'ABONO', 'NOTA', '', 'N', 'VENCE'],
+    ['MONTO', 18000, '', 46344, 5613.57, 'Mensualidades 1 a 3', '', 1, ''], ['TOTAL A PAGAR', 22454.28, '', '', '', '', '', 2, ''], ['PAGO MENSUAL', 1871.19, '', '', '', '', '', 3, ''],
+    ['NUMERO DE PAGOS MENSUALES', 12, '', '', '', '', '', 4, venc[0]], ['TASA ANUAL', 0.39, '', '', '', '', '', 5, venc[1]], ['CAT', 0.4678, '', '', '', '', '', 6, venc[2]],
+    ['INTERES TOTAL', 4454.28, '', '', '', '', '', 7, venc[3]], ['', '', '', '', '', '', '', 8, venc[4]], ['', '', '', '', '', '', '', 9, venc[5]],
+    ['', '', '', '', '', '', '', 10, venc[6]], ['', '', '', '', '', '', '', 11, venc[7]], ['', '', '', '', '', '', '', 12, venc[8]]];
+  const hojas = { TAREAS: tareas, SINDICATO: sindicato, HABITOS: habitos, MERCADOLIBRE: mercadolibre };
   function tareasSim(ruta, url, metodo, cors) {
     const ok = (cuerpo) => ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
     const sub = decodeURIComponent(url.pathname.split('/values')[1] ?? '');
@@ -161,6 +167,7 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     return ok({});
   }
   lecturas.sindicato = sindicato;
+  lecturas.mercadolibre = mercadolibre;
   lecturas.habitos = habitos;
   lecturas.tareas = tareas;
   return lecturas;

@@ -262,7 +262,14 @@ try {
       // Préstamo SINDICATO: abierto por defecto, con su avance y el registro de abonos.
       const sec = pagina.locator('[data-pf="sindicato"]');
       revisar(await sec.getAttribute('open') !== null && /Abonado \$0 de \$247,476/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección en la pestaña Préstamos con total a pagar');
-      revisar(await pagina.locator('.sd-cal-fila').count() === 24, 'SINDICATO: calendario de 24 pagos mensuales (48 quincenas)');
+      revisar(await sec.locator('.sd-cal-fila').count() === 24, 'SINDICATO: calendario de 24 pagos mensuales (48 quincenas)');
+      {
+        const ml = pagina.locator('[data-pf="mercadolibre"]');
+        const txt = await ml.innerText();
+        revisar(/Abonado \$5,614 de \$22,454/.test(await ml.locator('summary').innerText()) && /3 de 12 pagos/.test(txt) && /Pago 4 de 12/.test(txt) && /4 ene 2027/.test(txt) && /CAT 46\.78%/.test(txt),
+          'MERCADOLIBRE: sección con 3 de 12 pagos, siguiente pago 4 ene 2027 y CAT');
+        if (capturas) await ml.screenshot({ path: `${capturas}/mercadolibre.png` });
+      }
       await sec.locator('input[name="monto"]').fill('10310');
       await sec.locator('input[name="nota"]').fill('=PRUEBA transferencia');
       pagina.once('dialog', (dlg) => dlg.accept());
