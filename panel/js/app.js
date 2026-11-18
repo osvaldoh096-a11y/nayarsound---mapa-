@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180623';
-import { escribirCelda, leerRangos } from './api.js?v=202611180623';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180623';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611180623';
-import { construirModelo, entregarCon } from './modelo.js?v=202611180623';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180629';
+import { escribirCelda, leerRangos } from './api.js?v=202611180629';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180629';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611180629';
+import { construirModelo, entregarCon } from './modelo.js?v=202611180629';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611180623';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180623';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180623';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180623';
-import { fuentesDemo } from './demo.js?v=202611180623';
-import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180623';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180623';
-import { leerCashflow } from './dashprestamos.js?v=202611180623';
-import { icono } from './iconos.js?v=202611180623';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180623';
+} from './fechas.js?v=202611180629';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180629';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180629';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180629';
+import { fuentesDemo } from './demo.js?v=202611180629';
+import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180629';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180629';
+import { leerCashflow } from './dashprestamos.js?v=202611180629';
+import { icono } from './iconos.js?v=202611180629';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180629';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -919,10 +919,20 @@ function alertasPorNegocio(m) {
   const sinInteres = m.prestamos.sinInteres ?? [];
   const filasPr = pr.map((p) => ({ urg: p.urgencia, fecha: p.fechaIdx, html: filaPendiente(p, hoyIdx) }));
   if ((!E.filtro || E.filtro === 'aviso') && sinInteres.length) {
-    filasPr.push({ urg: 'aviso', fecha: null, html: `${sinInteres.length === 1 && sinInteres[0].url ? `<a class="fila-pend u-aviso" href="${esc(sinInteres[0].url)}" target="_blank" rel="noopener noreferrer" title="Abrir el crédito en REGISTRO PRESTAMOS">` : '<div class="fila-pend u-aviso fila-sin-clic">'}
+    // Resumen de quién debe interés (una línea por persona, sumando sus créditos).
+    const porPersona = new Map();
+    for (const x of sinInteres) {
+      const k = normalizar(x.nombre);
+      const p = porPersona.get(k) ?? { nombre: x.nombre, interes: 0, creditos: 0 };
+      p.interes += x.interes; p.creditos += 1;
+      porPersona.set(k, p);
+    }
+    const personas = [...porPersona.values()].sort((a, b) => b.interes - a.interes);
+    filasPr.push({ urg: 'aviso', fecha: null, html: `<div class="fila-pend u-aviso fila-sin-clic">
       <span class="fp-icono tipo-aviso">${icono('aviso')}</span>
-      <span class="fp-texto"><span class="fp-titulo">No ha pagado interés</span><small>${sinInteres.map((x) => `${sinInteres.length > 1 && x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.nombre)}${x.op ? ` (op. ${esc(x.op)})` : ''} ↗</a>` : `${esc(x.nombre)}${x.op ? ` (op. ${esc(x.op)})` : ''}${x.url ? ' ↗' : ''}`}: debe ${esc(dinero(x.interes, 0))} de interés, pago del mes ${esc(dinero(x.pago, 0))}`).join(' · ')}</small></span>
-      <span class="fp-derecha"><span class="fp-monto monto-cobrar">${esc(dinero(sinInteres.reduce((t, x) => t + x.interes, 0), 0))}</span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${plural(sinInteres.length, 'crédito', 'créditos')}</span></span>${sinInteres.length === 1 && sinInteres[0].url ? '</a>' : '</div>'}` });
+      <span class="fp-texto"><span class="fp-titulo">No ha pagado interés</span>
+        <ul class="lista-interes">${personas.map((p) => `<li><span>${esc(p.nombre)}${p.creditos > 1 ? ` <small>(${p.creditos} créditos)</small>` : ''}</span><b>${esc(dinero(p.interes, 0))}</b></li>`).join('')}</ul></span>
+      <span class="fp-derecha"><span class="fp-monto monto-cobrar">${esc(dinero(sinInteres.reduce((t, x) => t + x.interes, 0), 0))}</span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${plural(personas.length, 'persona', 'personas')}</span></span></div>` });
   }
   bloques.push({ nombre: 'Préstamos e inversores', ruta: 'prestamos', disponible: m.prestamos.disponible, filas: filasPr });
 
