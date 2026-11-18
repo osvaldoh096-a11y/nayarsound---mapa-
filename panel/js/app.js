@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611160420';
-import { escribirCelda, leerRangos } from './api.js?v=202611160420';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611160420';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611160420';
-import { construirModelo, entregarCon } from './modelo.js?v=202611160420';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180433';
+import { escribirCelda, leerRangos } from './api.js?v=202611180433';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180433';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611180433';
+import { construirModelo, entregarCon } from './modelo.js?v=202611180433';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611160420';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611160420';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611160420';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611160420';
-import { fuentesDemo } from './demo.js?v=202611160420';
-import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611160420';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos } from './habitos.js?v=202611160420';
-import { leerCashflow } from './dashprestamos.js?v=202611160420';
-import { icono } from './iconos.js?v=202611160420';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611160420';
+} from './fechas.js?v=202611180433';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180433';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180433';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180433';
+import { fuentesDemo } from './demo.js?v=202611180433';
+import { S as SIND, cargarSindicato, usarDemoSindicato, resumenSindicato, agregarAbono, borrarAbono, URL_SINDICATO } from './sindicato.js?v=202611180433';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180433';
+import { leerCashflow } from './dashprestamos.js?v=202611180433';
+import { icono } from './iconos.js?v=202611180433';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180433';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -206,8 +206,12 @@ function alHacerClic(evento) {
     location.hash = '#/inicio';
     pintar();
   }
+  if (accion === 'habitos-semana') { moverSemana(Number(el.dataset.mover)); pintarHabitos(); return; }
   if (accion === 'habito') {
-    alternarHabito(Number(el.dataset.col), hoyCDMX().idx, tokenParaEscribir, pintarHabitos);
+    const hoyH = hoyCDMX().idx;
+    const diaH = el.dataset.hbDia ? Number(el.dataset.hbDia) : hoyH;
+    if (diaH > hoyH) return;
+    alternarHabito(Number(el.dataset.col), diaH, tokenParaEscribir, pintarHabitos);
     return;
   }
   if (accion === 'borrar-abono') {

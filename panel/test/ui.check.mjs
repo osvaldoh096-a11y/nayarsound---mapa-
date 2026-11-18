@@ -438,6 +438,22 @@ try {
     await pagina.locator('.hb-check').first().click();
     for (let i = 0; i < 30 && lecturas.habitos[1]?.[1] !== ''; i++) await pagina.waitForTimeout(100);
     revisar(lecturas.habitos[1]?.[1] === '', 'Hábitos: desmarcar quita el SI');
+    // Día olvidado: tocar un día anterior de la semana lo marca en su propia fila.
+    await pagina.waitForFunction(() => !/Guardando/.test(document.querySelector('#habitos-caja .tareas-estado')?.textContent ?? ''));
+    const diaAtras = pagina.locator('.hb-fila').first().locator('.hb-dia').nth(3);
+    const idxAtras = Number(await diaAtras.getAttribute('data-hb-dia'));
+    const filasAntes = lecturas.habitos.length;
+    await diaAtras.click();
+    for (let i = 0; i < 30 && lecturas.habitos.length === filasAntes; i++) await pagina.waitForTimeout(100);
+    const nuevaHb = lecturas.habitos.at(-1) ?? [];
+    revisar(lecturas.habitos.length === filasAntes + 1 && Math.round(nuevaHb[0]) - 25569 === idxAtras && nuevaHb[1] === 'SI',
+      `Hábitos: tocar un día anterior lo marca con su fecha (${JSON.stringify(nuevaHb)})`);
+    revisar(await diaAtras.evaluate((el) => el.classList.contains('si')), 'Hábitos: el día marcado se ve en verde');
+    await pagina.waitForFunction(() => !/Guardando/.test(document.querySelector('#habitos-caja .tareas-estado')?.textContent ?? ''));
+    const textoAntes = await pagina.locator('.hb-nav span').innerText();
+    await pagina.locator('[data-accion="habitos-semana"][data-mover="1"]').click();
+    revisar(await pagina.locator('.hb-nav span').innerText() !== textoAntes && await pagina.locator('.hb-dia:disabled').count() === 0, 'Hábitos: «Anterior» muestra la semana pasada');
+    await pagina.locator('[data-accion="habitos-semana"][data-mover="-1"]').click();
     revisar(/Llamar al banco/.test(await caja.innerText()), 'Lee las tareas de la hoja TAREAS');
     await caja.locator('input[name="tarea"]').fill('=HYPERLINK("x")  Comprar   cables');
     await caja.locator('input[name="tarea"]').press('Enter');

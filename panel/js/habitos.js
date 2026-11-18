@@ -3,16 +3,16 @@
 // (encabezado = nombre del hábito) y «SI» el día que lo cumpliste. Para
 // agregar otro hábito basta con escribir su nombre en la fila 1.
 
-import { TAREAS } from './fuentes.js?v=202611160420';
-import { leerRangos, agregarFila, escribirRango } from './api.js?v=202611160420';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611160420';
-import { esc } from './formato.js?v=202611160420';
+import { TAREAS } from './fuentes.js?v=202611180433';
+import { leerRangos, agregarFila, escribirRango } from './api.js?v=202611180433';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611180433';
+import { esc } from './formato.js?v=202611180433';
 
 const H = "'HABITOS'";
 export const URL_HABITOS = `https://docs.google.com/spreadsheets/d/${TAREAS.id}/edit#gid=779`;
 
 /** Estado: habitos (nombres, en orden de columnas), dias: Map idx → { fila, hechos: Set(columna) } */
-export const HB = { estado: 'sin-leer', habitos: [], dias: new Map(), error: null, guardando: 0, demo: false };
+export const HB = { estado: 'sin-leer', habitos: [], dias: new Map(), error: null, guardando: 0, demo: false, semanasAtras: 0 };
 
 const hecho = (v) => v === true || ['SI', 'SÍ', 'X', '✓', '✅', 'TRUE', '1'].includes(String(v ?? '').trim().toUpperCase());
 
@@ -55,7 +55,7 @@ export function usarDemoHabitos(hoyIdx) {
 }
 
 /** Racha, días del mes, total y los últimos 7 días de un hábito. */
-export function estadisticas(col, hoyIdx) {
+export function estadisticas(col, hoyIdx, finSemana = hoyIdx) {
   const hizo = (idx) => HB.dias.get(idx)?.hechos.has(col) ?? false;
   // Racha: días seguidos hasta hoy (si hoy aún no lo marcas, cuenta hasta ayer).
   let racha = 0;
@@ -74,18 +74,20 @@ export function estadisticas(col, hoyIdx) {
   let mes = 0;
   for (let i = inicioMes; i <= hoyIdx; i++) if (hizo(i)) mes += 1;
   const total = fechas.filter(hizo).length;
-  const semana = Array.from({ length: 7 }, (_, i) => ({ idx: hoyIdx - 6 + i, hecho: hizo(hoyIdx - 6 + i) }));
+  const semana = Array.from({ length: 7 }, (_, i) => ({ idx: finSemana - 6 + i, hecho: hizo(finSemana - 6 + i) }));
   return { hoy: hizo(hoyIdx), racha, mejor, mes, diasMes: diaHoy, total, semana };
 }
 
-function hoyTexto() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
+/** Fecha de un día (índice) como texto para la hoja (AAAA-MM-DD). */
+function fechaTexto(idx) {
+  const { y, m, d } = ymdDesdeIdx(idx);
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-/** Marca o desmarca un hábito de hoy (primero en pantalla; si falla, se deshace). */
-export async function alternarHabito(col, hoyIdx, obtenerToken, repintar) {
-  const dia = HB.dias.get(hoyIdx) ?? { fila: null, hechos: new Set() };
-  HB.dias.set(hoyIdx, dia);
+/** Marca o desmarca un hábito de un día (hoy o uno anterior que olvidaste). Primero en pantalla; si falla, se deshace. */
+export async function alternarHabito(col, diaIdx, obtenerToken, repintar) {
+  const dia = HB.dias.get(diaIdx) ?? { fila: null, hechos: new Set() };
+  HB.dias.set(diaIdx, dia);
   const antes = dia.hechos.has(col);
   if (antes) dia.hechos.delete(col); else dia.hechos.add(col);
   HB.error = null;
@@ -96,13 +98,13 @@ export async function alternarHabito(col, hoyIdx, obtenerToken, repintar) {
     const token = await obtenerToken();
     const ancho = Math.max(...HB.habitos.map((h) => h.col));
     if (dia.fila) {
-      // Comprueba que la fila sigue siendo la de hoy antes de escribir.
+      // Comprueba que la fila sigue siendo la de ese día antes de escribir.
       const [v] = await leerRangos(token, TAREAS.id, [`${H}!A${dia.fila}`]);
-      if (fechaDe(v?.[0]?.[0]) !== hoyIdx) throw new Error('La fila de hoy cambió en tu hoja. Toca «Actualizar» y vuelve a marcar.');
+      if (fechaDe(v?.[0]?.[0]) !== diaIdx) throw new Error('La fila de ese día cambió en tu hoja. Toca «Actualizar» y vuelve a marcar.');
       const letra = String.fromCharCode(65 + col);
       await escribirRango(token, TAREAS.id, `${H}!${letra}${dia.fila}`, [[antes ? '' : 'SI']]);
     } else {
-      const fila = [hoyTexto(), ...Array.from({ length: ancho }, (_, i) => (dia.hechos.has(i + 1) ? 'SI' : ''))];
+      const fila = [fechaTexto(diaIdx), ...Array.from({ length: ancho }, (_, i) => (dia.hechos.has(i + 1) ? 'SI' : ''))];
       dia.fila = await agregarFila(token, TAREAS.id, `${H}!A1:${String.fromCharCode(65 + ancho)}1`, fila, { entrada: 'USER_ENTERED' });
     }
   } catch (error) {
@@ -114,24 +116,36 @@ export async function alternarHabito(col, hoyIdx, obtenerToken, repintar) {
   }
 }
 
+/** Mueve la semana que se ve (para marcar días que olvidaste). */
+export function moverSemana(paso) {
+  HB.semanasAtras = Math.max(0, (HB.semanasAtras ?? 0) + paso);
+}
+
 const nombreBonito = (t) => {
   const s = String(t ?? '').toLowerCase();
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 const DIA_CORTO = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const DIA_LARGO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 /** Tarjeta de hábitos (se repinta sola). */
 export function htmlHabitos(hoyIdx) {
   if (HB.estado === 'sin-leer') return '<div class="hb-cab"><h2 class="etq-cab">Hábitos de hoy</h2></div><p class="sin-dato">Leyendo tus hábitos…</p>';
   if (HB.estado === 'error') return `<div class="hb-cab"><h2 class="etq-cab">Hábitos de hoy</h2></div><p class="tareas-error">${esc(HB.error ?? 'No pude leer la pestaña HABITOS.')}</p>`;
+  const atras = HB.semanasAtras ?? 0;
+  const fin = hoyIdx - atras * 7;
+  const nombreDia = (idx) => { const f = ymdDesdeIdx(idx); return `${DIA_LARGO[new Date(idx * 86400000).getUTCDay()]} ${f.d} ${MES_CORTO[f.m - 1]}`; };
+  const corto = (idx) => { const f = ymdDesdeIdx(idx); return `${f.d} ${MES_CORTO[f.m - 1]}`; };
+  const rango = `${corto(fin - 6)} – ${corto(fin)}`;
   const filas = HB.habitos.map((h) => {
-    const e = estadisticas(h.col, hoyIdx);
+    const e = estadisticas(h.col, hoyIdx, fin);
     return `<div class="hb-fila ${e.hoy ? 'hecho' : ''}">
-      <button class="hb-check" data-accion="habito" data-col="${h.col}" aria-pressed="${e.hoy}" aria-label="${esc(nombreBonito(h.nombre))}: ${e.hoy ? 'hecho hoy' : 'pendiente hoy'}">
+      <button class="hb-check" data-accion="habito" data-col="${h.col}" data-hb-dia="${hoyIdx}" aria-pressed="${e.hoy}" aria-label="${esc(nombreBonito(h.nombre))}: ${e.hoy ? 'hecho hoy' : 'pendiente hoy'}">
         <span class="hb-caja" aria-hidden="true">${e.hoy ? '✓' : ''}</span>
         <span class="hb-nombre">${esc(nombreBonito(h.nombre))}</span>
       </button>
-      <div class="hb-semana" aria-label="Últimos 7 días">${e.semana.map((s) => `<i class="${s.hecho ? 'si' : ''} ${s.idx === hoyIdx ? 'hoy' : ''}" title="${s.hecho ? 'Hecho' : 'No'}"><b>${DIA_CORTO[new Date(s.idx * 86400000).getUTCDay()]}</b></i>`).join('')}</div>
+      <div class="hb-semana" aria-label="Toca un día para marcarlo o desmarcarlo">${e.semana.map((s) => `<button type="button" class="hb-dia ${s.hecho ? 'si' : ''} ${s.idx === hoyIdx ? 'hoy' : ''}" data-accion="habito" data-col="${h.col}" data-hb-dia="${s.idx}" aria-pressed="${s.hecho}" ${s.idx > hoyIdx ? 'disabled' : ''} title="${esc(nombreBonito(h.nombre))} · ${esc(nombreDia(s.idx))}: ${s.hecho ? 'hecho (toca para quitar)' : 'no (toca para marcar)'}"><b>${DIA_CORTO[new Date(s.idx * 86400000).getUTCDay()]}</b><small>${ymdDesdeIdx(s.idx).d}</small></button>`).join('')}</div>
       <div class="hb-datos">
         <span class="hb-racha ${e.racha ? 'activa' : ''}"><b>${e.racha}</b> ${e.racha === 1 ? 'día seguido' : 'días seguidos'}</span>
         <span><b>${e.mes}</b> de ${e.diasMes} este mes</span>
@@ -139,8 +153,14 @@ export function htmlHabitos(hoyIdx) {
       </div>
     </div>`;
   }).join('');
+  const navegar = HB.habitos.length ? `<div class="hb-nav">
+      <button type="button" class="boton-texto" data-accion="habitos-semana" data-mover="1" aria-label="Semana anterior" title="Semana anterior">‹</button>
+      <span>${esc(atras ? rango : `Esta semana · ${rango}`)}</span>
+      <button type="button" class="boton-texto" data-accion="habitos-semana" data-mover="-1" ${atras ? '' : 'disabled'} aria-label="Semana siguiente" title="Semana siguiente">›</button>
+    </div><p class="hb-ayuda">Toca un día para marcar o quitar lo que olvidaste registrar.</p>` : '';
   return `<div class="hb-cab"><h2 class="etq-cab">Hábitos de hoy</h2><span class="tareas-estado">${HB.guardando ? 'Guardando…' : ''}</span>
       <a class="enlace-vista" href="${URL_HABITOS}" target="_blank" rel="noopener">Abrir hoja</a></div>
     ${HB.error ? `<p class="tareas-error">${esc(HB.error)}</p>` : ''}
+    ${navegar}
     ${filas || '<p class="vacio">Escribe tus hábitos en la fila 1 de la pestaña HABITOS.</p>'}`;
 }
