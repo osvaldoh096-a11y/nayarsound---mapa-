@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611180509';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611180509';
+} from './fechas.js?v=202611180515';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611180515';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611180509';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611180509';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611180509';
-import { modeloST } from './st.js?v=202611180509';
-import { modeloOperacion } from './nsops.js?v=202611180509';
-import { dinero } from './formato.js?v=202611180509';
+} from './sheets.js?v=202611180515';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611180515';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611180515';
+import { modeloST } from './st.js?v=202611180515';
+import { modeloOperacion } from './nsops.js?v=202611180515';
+import { dinero } from './formato.js?v=202611180515';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -485,7 +485,7 @@ function tablaPrestamos(fuente, clave, encabezadosClave) {
   if (encabezado < 0) return null;
   const { registros } = tablaPorEncabezados(filas, encabezado, {
     op: 'OP.', nombre: 'NOMBRE', divisa: 'DIVISA', capital: 'CANTIDAD', compromiso: 'FECHA COMPROMISO',
-    estado: 'ESTADO', pagoMes: 'PAGO MES', dinamica: 'FECHA DINAMICA',
+    estado: 'ESTADO', pagoMes: 'PAGO MES', dinamica: 'FECHA DINAMICA', fechaInicio: 'FECHA INICIO', intRestante: 'INT RESTANTE',
   }, inicio);
   // En REGISTRO PRESTAMOS, OP = fila − 8. En inversores OP es un conteo, no una fila.
   return clave === 'registro' ? registros.map((r) => ({ ...r, fila: filaPorOp(r, 8) })) : registros;
@@ -590,6 +590,25 @@ export function inversionesActivas(fuente, hoyIdx) {
   }).sort((a, b) => (a.compromisoIdx ?? Infinity) - (b.compromisoIdx ?? Infinity));
 }
 
+/**
+ * Créditos que no han pagado su interés del mes (REGISTRO PRESTAMOS): ACTIVO,
+ * INT RESTANTE mayor que PAGO MES y el día de hoy ya pasó el día de su FECHA
+ * INICIO (si se registró el 7, cuenta desde el 8 de cada mes). J J H F no
+ * cuenta: su préstamo se maneja distinto.
+ */
+export function creditosSinInteres(registro, hoyIdx) {
+  const dia = ymdDesdeIdx(hoyIdx).d;
+  return (registro ?? [])
+    .filter((r) => normalizar(r.estado) === 'ACTIVO' && normalizar(r.nombre).replace(/\s+/g, '') !== 'JJHF')
+    // Solo importa el día del mes: fecha de Sheets o texto «27 jul» / «27-jul».
+    .map((r) => ({ ...r, diaInicio: typeof r.fechaInicio === 'number' ? ymdDesdeIdx(idxDesdeSerial(r.fechaInicio)).d
+      : Number(String(r.fechaInicio ?? '').trim().match(/^(\d{1,2})\b/)?.[1]) || null }))
+    .filter((r) => typeof r.intRestante === 'number' && typeof r.pagoMes === 'number' && r.pagoMes > 0 && r.intRestante > r.pagoMes + 0.005
+      && r.diaInicio !== null && dia > r.diaInicio)
+    .map((r) => ({ nombre: String(r.nombre).trim(), op: r.op, fila: r.fila, interes: r.intRestante, pago: r.pagoMes, diaInicio: r.diaInicio }))
+    .sort((a, b) => (b.interes - b.pago) - (a.interes - a.pago));
+}
+
 export function modeloPrestamos({ prestamos }, hoyIdx) {
   const avisos = [];
   const pendientes = [];
@@ -612,6 +631,7 @@ export function modeloPrestamos({ prestamos }, hoyIdx) {
   salida.estado = leido.estado;
   const registro = tablaPrestamos(prestamos, 'registro', ['NOMBRE', 'ESTADO', 'PAGO MES', 'FECHA COMPROMISO']);
   const inversores = tablaPrestamos(prestamos, 'inversores', ['NOMBRE', 'ESTADO', 'PAGO MES', 'FECHA DINAMICA']);
+  salida.sinInteres = creditosSinInteres(registro, hoyIdx).map((r) => ({ ...r, url: !prestamos.demo ? urlFila(prestamos, 'REGISTRO PRESTAMOS', r.fila) : null }));
   const usadas = { registro: new Set(), inversores: new Set() };
 
   for (const dia of leido.dias) {

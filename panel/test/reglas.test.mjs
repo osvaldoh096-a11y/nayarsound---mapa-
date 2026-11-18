@@ -6,9 +6,8 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj, creditosSinInteres } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
-import { sinPagarInteres } from '../js/dashprestamos.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
 
@@ -318,13 +317,17 @@ test('Deuda: avisa si el DJ está en evento o tiene evento hoy (esperar para cob
   assert.equal(eventoDelDj('AARON', ev, 100, 960), null);
 });
 
-test('Préstamos: «no ha pagado interés» = interés restante mayor que el pago mensual, sin J J H F', () => {
-  const d = { prestamosActivos: [
-    { nombre: ' J J H F ', capital: 766965, interes: 250027.57, pago: 61357.2 },
-    { nombre: ' MIGUEL ZARATE ', capital: 20693, interes: 2091.08, pago: 2069.3 },
-    { nombre: ' CESAR ROMERO ', capital: 11285, interes: 1128.5, pago: 1128.5 },
-    { nombre: ' JOSE RAMOS ', capital: 4000, interes: 706.67, pago: 400 },
-    { nombre: ' ALEX AGRAZ ', capital: 9300, interes: 217, pago: 930 },
-  ] };
-  assert.deepEqual(sinPagarInteres(d).map((x) => x.nombre), ['JOSE RAMOS', 'MIGUEL ZARATE']);
+test('Préstamos: «no ha pagado interés» por crédito: INT RESTANTE > PAGO MES y ya pasó su día de inicio, sin J J H F', () => {
+  const hoy = idxDesdeYMD(2026, 11, 18);
+  const s = (y, m, d) => idxDesdeYMD(y, m, d) + 25569;
+  const reg = [
+    { op: 193, fila: 201, nombre: 'MIGUEL ZARATE', estado: 'ACTIVO', fechaInicio: s(2026, 10, 13), intRestante: 1200, pagoMes: 1000 },
+    { op: 197, fila: 205, nombre: 'MIGUEL ZARATE', estado: 'ACTIVO', fechaInicio: s(2026, 10, 24), intRestante: 891, pagoMes: 1069.3 },
+    { op: 150, fila: 158, nombre: 'ANA', estado: 'ACTIVO', fechaInicio: s(2026, 9, 25), intRestante: 900, pagoMes: 500 }, // su día (25) no ha llegado
+    { op: 151, fila: 159, nombre: 'PEPE', estado: 'ACTIVO', fechaInicio: s(2026, 9, 18), intRestante: 900, pagoMes: 500 }, // hoy es su día: aún no
+    { op: 152, fila: 160, nombre: 'LUIS', estado: 'LIQUIDADO', fechaInicio: s(2026, 9, 1), intRestante: 900, pagoMes: 500 },
+    { op: 153, fila: 161, nombre: 'SEBAS', estado: 'ACTIVO', fechaInicio: '7 jul', intRestante: 900, pagoMes: 500 }, // fecha como texto
+    { op: 10, fila: 18, nombre: ' J J H F ', estado: 'ACTIVO', fechaInicio: s(2025, 1, 2), intRestante: 250000, pagoMes: 61000 },
+  ];
+  assert.deepEqual(creditosSinInteres(reg, hoy).map((x) => x.op), [153, 193]);
 });

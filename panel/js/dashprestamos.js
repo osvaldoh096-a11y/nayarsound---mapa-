@@ -3,8 +3,8 @@
 // inversores activos, cashflow y pagos) buscando cada uno por su título.
 // No recalcula nada: muestra lo que tu hoja ya calcula.
 
-import { normalizar, idxDesdeSerial } from './fechas.js?v=202611180509';
-import { letraColumna } from './sheets.js?v=202611180509';
+import { normalizar, idxDesdeSerial } from './fechas.js?v=202611180515';
+import { letraColumna } from './sheets.js?v=202611180515';
 
 /** Importe de una celda: número, o texto como «$ 18,696.68» o « $ -   » (cero). */
 export function importeCelda(v) {
@@ -180,18 +180,4 @@ export function leerCashflow(t) {
     pagos: num(/Pagos:\s*\$?\s*(-?[\d.,]+)/i),
     balance: num(/Balance:\s*\$?\s*(-?[\d.,]+)/i),
   };
-}
-
-/**
- * Préstamos activos cuyo INTERES RESTANTE TOTAL es mayor que su PAGO MENSUAL
- * (DASHBOARD › PRESTAMOS ACTIVOS): ya se atrasaron con el interés.
- * J J H F se excluye porque su préstamo se maneja distinto.
- */
-const EXCLUIR_INTERES = new Set(['JJHF']);
-export function sinPagarInteres(d) {
-  return (d?.prestamosActivos ?? [])
-    .filter((x) => !EXCLUIR_INTERES.has(String(x.nombre ?? '').toUpperCase().replace(/\s+/g, '')))
-    .filter((x) => typeof x.interes === 'number' && typeof x.pago === 'number' && x.pago > 0 && x.interes > x.pago + 0.005)
-    .map((x) => ({ ...x, nombre: String(x.nombre).trim() }))
-    .sort((a, b) => (b.interes - b.pago) - (a.interes - a.pago));
 }
