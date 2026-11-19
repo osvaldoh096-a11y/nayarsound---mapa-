@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611180645';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611180645';
+} from './fechas.js?v=202611191956';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611191956';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611180645';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611180645';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611180645';
-import { modeloST } from './st.js?v=202611180645';
-import { modeloOperacion } from './nsops.js?v=202611180645';
-import { dinero } from './formato.js?v=202611180645';
+} from './sheets.js?v=202611191956';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611191956';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611191956';
+import { modeloST } from './st.js?v=202611191956';
+import { modeloOperacion } from './nsops.js?v=202611191956';
+import { dinero } from './formato.js?v=202611191956';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -485,7 +485,7 @@ function tablaPrestamos(fuente, clave, encabezadosClave) {
   if (encabezado < 0) return null;
   const { registros } = tablaPorEncabezados(filas, encabezado, {
     op: 'OP.', nombre: 'NOMBRE', divisa: 'DIVISA', capital: 'CANTIDAD', compromiso: 'FECHA COMPROMISO',
-    estado: 'ESTADO', pagoMes: 'PAGO MES', dinamica: 'FECHA DINAMICA', fechaInicio: 'FECHA INICIO', intRestante: 'INT RESTANTE',
+    estado: 'ESTADO', pagoMes: 'PAGO MES', dinamica: 'FECHA DINAMICA', fechaInicio: 'FECHA INICIO', intRestante: 'INT RESTANTE', intMes: 'INT/MES',
   }, inicio);
   // En REGISTRO PRESTAMOS, OP = fila − 8. En inversores OP es un conteo, no una fila.
   return clave === 'registro' ? registros.map((r) => ({ ...r, fila: filaPorOp(r, 8) })) : registros;
@@ -591,6 +591,30 @@ export function inversionesActivas(fuente, hoyIdx) {
 }
 
 /**
+ * Mensaje para el cliente: cuánto y cuándo paga, con los datos de su
+ * crédito (REGISTRO PRESTAMOS) si se ubicó la fila.
+ */
+export function mensajeCobro(nombre, idx, hoyIdx, item) {
+  const fmt = (n) => miles.format(Math.round(n));
+  const dif = idx - hoyIdx;
+  const cuando = dif === 0 ? ' (hoy)' : dif === 1 ? ' (mañana)' : dif < 0 ? ' (vencido)' : '';
+  const fecha = fechaLarga(idx);
+  const c = item.credito;
+  const usdt = item.moneda === 'USDT';
+  const monto = usdt ? `${fmt(item.usdt)} USDT` : `$${fmt(item.montoMXN)}`;
+  const lineas = [
+    `*RECORDATORIO DE PAGO - ${String(nombre).trim()}*`, '',
+    `📅 ${fecha.charAt(0).toUpperCase()}${fecha.slice(1)}${cuando}`,
+    `💰 Monto a pagar: *${monto}*`,
+  ];
+  if (c && typeof c.capital === 'number') {
+    lineas.push('', `🧾 Préstamo: ${usdt ? `${fmt(c.capital)} USDT` : `$${fmt(c.capital)}`}`);
+    if (typeof c.intMes === 'number') lineas.push(`📈 Interés mensual: ${Math.round(c.intMes * 10000) / 100}%`);
+  }
+  return lineas.join('\n');
+}
+
+/**
  * Créditos que no han pagado su interés del mes (REGISTRO PRESTAMOS): ACTIVO,
  * INT RESTANTE mayor que PAGO MES y el día de hoy ya pasó el día de su FECHA
  * INICIO (si se registró el 7, cuenta desde el 8 de cada mes). J J H F no
@@ -648,7 +672,8 @@ export function modeloPrestamos({ prestamos }, hoyIdx) {
           && normalizar(r.nombre) === normalizar(mov.nombre)
           && typeof r.pagoMes === 'number' && Math.round(r.pagoMes) === mov.monto), usadas.registro);
         if (fila) {
-          Object.assign(item, { fila: fila.fila, op: fila.op, url: urlFila(prestamos, 'REGISTRO PRESTAMOS', fila.fila) });
+          Object.assign(item, { fila: fila.fila, op: fila.op, url: urlFila(prestamos, 'REGISTRO PRESTAMOS', fila.fila),
+            credito: { capital: fila.capital, intMes: fila.intMes, divisa: String(fila.divisa ?? '').trim().toUpperCase() } });
           if (normalizar(fila.divisa) === 'USDT') {
             // La hoja escribe el pago en USDT con signo $; se convierte con la tasa del archivo.
             Object.assign(item, { moneda: 'USDT', usdt: mov.monto, montoMXN: mov.monto * TIPO_CAMBIO_USDT });
@@ -678,6 +703,7 @@ export function modeloPrestamos({ prestamos }, hoyIdx) {
         fechaIdx: dia.idx, urgencia: urgenciaPorFecha(dia.idx, hoyIdx), monto: item.montoMXN, moneda: 'MXN',
         usdt: item.usdt, decimales: 0, op: item.op,
         registros: item.url ? [{ fila: item.fila, url: item.url }] : null, origen, linea: mov.linea,
+        mensaje: mov.accion === 'COBRAR' ? mensajeCobro(mov.nombre, dia.idx, hoyIdx, item) : null,
       });
     }
   }

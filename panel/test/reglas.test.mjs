@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj, creditosSinInteres } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj, creditosSinInteres, mensajeCobro } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
@@ -330,4 +330,11 @@ test('Préstamos: «no ha pagado interés» por crédito: INT RESTANTE > PAGO ME
     { op: 10, fila: 18, nombre: ' J J H F ', estado: 'ACTIVO', fechaInicio: s(2025, 1, 2), intRestante: 250000, pagoMes: 61000 },
   ];
   assert.deepEqual(creditosSinInteres(reg, hoy).map((x) => x.op), [153, 193]);
+});
+
+test('Préstamos: mensaje de cobro para el cliente con monto, fecha y datos del crédito', () => {
+  const h = idxDesdeYMD(2026, 11, 19);
+  const msg = mensajeCobro('CESAR ROMERO', h, h, { montoMXN: 1129, credito: { capital: 11285, intMes: 0.1, divisa: 'MXN' } });
+  assert.equal(msg, '*RECORDATORIO DE PAGO - CESAR ROMERO*\n\n📅 Jueves, 19 de noviembre (hoy)\n💰 Monto a pagar: *$1,129*\n\n🧾 Préstamo: $11,285\n📈 Interés mensual: 10%');
+  assert.match(mensajeCobro('PQ', h + 1, h, { montoMXN: 267 }), /\(mañana\)\n💰 Monto a pagar: \*\$267\*$/);
 });

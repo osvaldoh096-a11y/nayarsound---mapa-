@@ -233,6 +233,18 @@ try {
 
     // Préstamos
     await pagina.goto(`${url}/panel/#/prestamos`);
+    {
+      // Cobro de préstamo: el detalle trae el mensaje para el cliente.
+      await pagina.goto(`${url}/panel/#/inicio`);
+      await pagina.locator('[data-pendiente^="COBRAR|"]').first().click();
+      await pagina.waitForSelector('#detalle[open]');
+      const msgCobro = await pagina.locator('#detalle .det-mensaje pre').innerText().catch(() => '');
+      revisar(/^\*RECORDATORIO DE PAGO - /.test(msgCobro) && /Monto a pagar: \*\$/.test(msgCobro) && await pagina.locator('#detalle [data-accion="copiar-mensaje"]').count() === 1,
+        'Préstamos: el cobro trae un mensaje para copiar al cliente');
+      revisar(!/lista de DJs/.test(await pagina.locator('#detalle').innerText()), 'Préstamos: sin aviso de teléfono de DJs en un cobro');
+      await pagina.locator('#detalle [data-cerrar]').first().click();
+      await pagina.goto(`${url}/panel/#/prestamos`);
+    }
     await pagina.waitForSelector('[data-pf="flujo"]');
     revisar(await pagina.locator('[data-pf="movimientos"]').count() === 0, 'Préstamos: sin la sección «Próximos movimientos»');
     revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Préstamos,Inversores,Historial', 'Panel financiero: pestañas Resumen, Préstamos, Inversores, Historial');

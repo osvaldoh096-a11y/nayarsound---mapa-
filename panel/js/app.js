@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611180645';
-import { escribirCelda, leerRangos } from './api.js?v=202611180645';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611180645';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611180645';
-import { construirModelo, entregarCon } from './modelo.js?v=202611180645';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611191956';
+import { escribirCelda, leerRangos } from './api.js?v=202611191956';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611191956';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611191956';
+import { construirModelo, entregarCon } from './modelo.js?v=202611191956';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611180645';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611180645';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611180645';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611180645';
-import { fuentesDemo } from './demo.js?v=202611180645';
-import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611180645';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611180645';
-import { leerCashflow } from './dashprestamos.js?v=202611180645';
-import { icono } from './iconos.js?v=202611180645';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611180645';
+} from './fechas.js?v=202611191956';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611191956';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611191956';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611191956';
+import { fuentesDemo } from './demo.js?v=202611191956';
+import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611191956';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611191956';
+import { leerCashflow } from './dashprestamos.js?v=202611191956';
+import { icono } from './iconos.js?v=202611191956';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611191956';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -377,6 +377,7 @@ function botonWhatsApp(p) {
 }
 
 function avisoTelefono(p) {
+  if (p.tipo !== 'deuda') return '';
   const t = E.modelo?.nayarsound?.telefonos;
   if (!t || t.estado === 'sin-datos') return '';
   const tel = telefonoDe(p.titulo);
@@ -1767,7 +1768,7 @@ function abrirPendiente(p) {
       ${p.esperar ? `<p class="det-esperar ${p.esperar.estado}">${esc(textoEsperar(p))}. Si mandas el resumen ahora, al terminar tendrías que mandar otro.</p>` : ''}
       ${p.mensajeAnticipado ? `<label class="det-incluir-hoy"><input type="checkbox" data-accion="incluir-hoy" data-pendiente-msg="${esc(p.id)}" ${E.incluirHoy !== false ? 'checked' : ''}> Incluir el evento de hoy (resumen anticipado)</label>` : ''}
       <pre class="linea-hoja">${esc(ocultarImportes(mensajeDe(p)))}</pre>
-      <p class="nota">Mismo total que tu hoja (AGENDA Y VENTAS, celda I3). En eventos con sonido de otro socio se desglosa su ganancia para que cuadre.</p>
+      ${p.tipo === 'deuda' ? '<p class="nota">Mismo total que tu hoja (AGENDA Y VENTAS, celda I3). En eventos con sonido de otro socio se desglosa su ganancia para que cuadre.</p>' : ''}
     </section>` : '';
   const pagar = p.tipo === 'deuda' && p.pago && p.registros?.length
     ? `<button class="boton boton-exito boton-ancho" data-accion="marcar-pagado" data-pendiente-pago="${esc(p.id)}">${icono('pendientes')}${p.registros.length === 1 ? 'Marcar como pagado' : `Marcar los ${p.registros.length} eventos como pagados`}</button>` : '';
