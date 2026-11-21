@@ -338,3 +338,16 @@ test('Préstamos: mensaje de cobro para el cliente con monto, fecha y datos del 
   assert.equal(msg, '*RECORDATORIO DE PAGO - CESAR ROMERO*\n\n📅 Jueves, 19 de noviembre (hoy)\n💰 Monto a pagar: *$1,129*\n\n🧾 Préstamo: $11,285\n📈 Interés mensual: 10%');
   assert.match(mensajeCobro('PQ', h + 1, h, { montoMXN: 267 }), /\(mañana\)\n💰 Monto a pagar: \*\$267\*$/);
 });
+
+test('Inversores: «no les he pagado interés» con la misma lógica (INTERES RESTANTE > PAGO MES, ya pasó su día)', () => {
+  const hoy = idxDesdeYMD(2026, 11, 21);
+  const inv = [
+    { op: 61, nombre: 'JOSE BARBOSA', estado: 'ACTIVO', divisa: 'MXN', fechaInicio: '15 jun', interesRestante: 1900, pagoMes: 1500 },
+    { op: 66, nombre: 'OSCAR ARTEAGA', estado: 'ACTIVO', divisa: 'USDT', fechaInicio: '28 jul', interesRestante: 72.5, pagoMes: 87 },
+    { op: 69, nombre: 'SINDICATO', estado: 'ACTIVO', divisa: 'MXN', fechaInicio: '30 sep', interesRestante: 0, pagoMes: 0 },
+    { op: 71, nombre: 'OSCAR ARTEAGA', estado: 'ACTIVO', divisa: 'MXN', fechaInicio: '10 oct', interesRestante: 8090.67, pagoMes: 5920 },
+    { op: 65, nombre: 'LAUTARO MASSARI', estado: 'LIQUIDADO', divisa: 'USDT', fechaInicio: '24 jul', interesRestante: 206.5, pagoMes: 105 },
+  ];
+  const r = creditosSinInteres(inv, hoy);
+  assert.deepEqual(r.map((x) => [x.op, x.divisa]), [[71, 'MXN'], [61, 'MXN']]);
+});

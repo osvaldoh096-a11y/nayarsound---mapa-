@@ -2,8 +2,8 @@
 // estado: si uno falla, los demás se actualizan y el que falló conserva sus
 // datos anteriores, marcados como no actualizados.
 
-import { ARCHIVOS, ORDEN_ARCHIVOS } from './fuentes.js?v=202611210204';
-import { leerRangos } from './api.js?v=202611210204';
+import { ARCHIVOS, ORDEN_ARCHIVOS } from './fuentes.js?v=202611210209';
+import { leerRangos } from './api.js?v=202611210209';
 
 export async function leerArchivo(token, clave, archivo, lector = leerRangos) {
   const def = ARCHIVOS[clave];

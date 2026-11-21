@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611210204';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611210204';
+} from './fechas.js?v=202611210209';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611210209';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611210204';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611210204';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611210204';
-import { modeloST } from './st.js?v=202611210204';
-import { modeloOperacion } from './nsops.js?v=202611210204';
-import { dinero } from './formato.js?v=202611210204';
+} from './sheets.js?v=202611210209';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611210209';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611210209';
+import { modeloST } from './st.js?v=202611210209';
+import { modeloOperacion } from './nsops.js?v=202611210209';
+import { dinero } from './formato.js?v=202611210209';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -485,7 +485,7 @@ function tablaPrestamos(fuente, clave, encabezadosClave) {
   if (encabezado < 0) return null;
   const { registros } = tablaPorEncabezados(filas, encabezado, {
     op: 'OP.', nombre: 'NOMBRE', divisa: 'DIVISA', capital: 'CANTIDAD', compromiso: 'FECHA COMPROMISO',
-    estado: 'ESTADO', pagoMes: 'PAGO MES', dinamica: 'FECHA DINAMICA', fechaInicio: 'FECHA INICIO', intRestante: 'INT RESTANTE', intMes: 'INT/MES',
+    estado: 'ESTADO', pagoMes: 'PAGO MES', dinamica: 'FECHA DINAMICA', fechaInicio: 'FECHA INICIO', intRestante: 'INT RESTANTE', interesRestante: 'INTERES RESTANTE', intMes: 'INT/MES',
   }, inicio);
   // En REGISTRO PRESTAMOS, OP = fila − 8. En inversores OP es un conteo, no una fila.
   return clave === 'registro' ? registros.map((r) => ({ ...r, fila: filaPorOp(r, 8) })) : registros;
@@ -627,9 +627,11 @@ export function creditosSinInteres(registro, hoyIdx) {
     // Solo importa el día del mes: fecha de Sheets o texto «27 jul» / «27-jul».
     .map((r) => ({ ...r, diaInicio: typeof r.fechaInicio === 'number' ? ymdDesdeIdx(idxDesdeSerial(r.fechaInicio)).d
       : Number(String(r.fechaInicio ?? '').trim().match(/^(\d{1,2})\b/)?.[1]) || null }))
+    .map((r) => ({ ...r, intRestante: typeof r.intRestante === 'number' ? r.intRestante : r.interesRestante }))
     .filter((r) => typeof r.intRestante === 'number' && typeof r.pagoMes === 'number' && r.pagoMes > 0 && r.intRestante > r.pagoMes + 0.005
       && r.diaInicio !== null && dia > r.diaInicio)
-    .map((r) => ({ nombre: String(r.nombre).trim(), op: r.op, fila: r.fila, interes: r.intRestante, pago: r.pagoMes, diaInicio: r.diaInicio }))
+    .map((r) => ({ nombre: String(r.nombre).trim(), op: r.op, fila: r.fila, interes: r.intRestante, pago: r.pagoMes, diaInicio: r.diaInicio,
+      divisa: normalizar(r.divisa) === 'USDT' ? 'USDT' : 'MXN' }))
     .sort((a, b) => (b.interes - b.pago) - (a.interes - a.pago));
 }
 
@@ -655,6 +657,8 @@ export function modeloPrestamos({ prestamos }, hoyIdx) {
   salida.estado = leido.estado;
   const registro = tablaPrestamos(prestamos, 'registro', ['NOMBRE', 'ESTADO', 'PAGO MES', 'FECHA COMPROMISO']);
   const inversores = tablaPrestamos(prestamos, 'inversores', ['NOMBRE', 'ESTADO', 'PAGO MES', 'FECHA DINAMICA']);
+  // Inversores a los que yo no les he pagado su interés (misma lógica).
+  salida.sinInteresInversores = creditosSinInteres(inversores, hoyIdx);
   salida.sinInteres = creditosSinInteres(registro, hoyIdx).map((r) => ({ ...r, url: !prestamos.demo ? urlFila(prestamos, 'REGISTRO PRESTAMOS', r.fila) : null }));
   const usadas = { registro: new Set(), inversores: new Set() };
 

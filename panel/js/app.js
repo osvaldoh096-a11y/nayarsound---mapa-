@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210204';
-import { escribirCelda, leerRangos } from './api.js?v=202611210204';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210204';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210204';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210204';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210209';
+import { escribirCelda, leerRangos } from './api.js?v=202611210209';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210209';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210209';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210209';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx,
-} from './fechas.js?v=202611210204';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210204';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210204';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210204';
-import { fuentesDemo } from './demo.js?v=202611210204';
-import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611210204';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210204';
-import { leerCashflow } from './dashprestamos.js?v=202611210204';
-import { icono } from './iconos.js?v=202611210204';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210204';
+} from './fechas.js?v=202611210209';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210209';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210209';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210209';
+import { fuentesDemo } from './demo.js?v=202611210209';
+import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611210209';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210209';
+import { leerCashflow } from './dashprestamos.js?v=202611210209';
+import { icono } from './iconos.js?v=202611210209';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210209';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -222,7 +222,7 @@ function alHacerClic(evento) {
     }
     return;
   }
-  if (accion === 'ver-sin-interes') { abrirSinInteres(); return; }
+  if (accion === 'ver-sin-interes') { abrirSinInteres(el.dataset.tipo); return; }
   if (accion === 'tab-pr') { E.tabPr = el.dataset.tab; pintar(); window.scrollTo(0, 0); return; }
   if (accion === 'borrar-tarea') {
     const t = tareaPorClave(el.dataset.tareaBorrar);
@@ -920,21 +920,10 @@ function alertasPorNegocio(m) {
   const pr = filtrar(m.pendientes.filter((p) => p.negocio === 'Préstamos'));
   const sinInteres = m.prestamos.sinInteres ?? [];
   const filasPr = pr.map((p) => ({ urg: p.urgencia, fecha: p.fechaIdx, html: filaPendiente(p, hoyIdx) }));
-  if ((!E.filtro || E.filtro === 'aviso') && sinInteres.length) {
-    // Resumen de quién debe interés (una línea por persona, sumando sus créditos).
-    const porPersona = new Map();
-    for (const x of sinInteres) {
-      const k = normalizar(x.nombre);
-      const p = porPersona.get(k) ?? { nombre: x.nombre, interes: 0, creditos: 0 };
-      p.interes += x.interes; p.creditos += 1;
-      porPersona.set(k, p);
-    }
-    const personas = [...porPersona.values()].sort((a, b) => b.interes - a.interes);
-    filasPr.push({ urg: 'aviso', fecha: null, html: `<button class="fila-pend u-aviso" data-accion="ver-sin-interes">
-      <span class="fp-icono tipo-aviso">${icono('aviso')}</span>
-      <span class="fp-texto"><span class="fp-titulo">No ha pagado interés</span>
-        <ul class="lista-interes">${personas.map((p) => `<li><span>${esc(p.nombre)}${p.creditos > 1 ? ` <small>(${p.creditos} créditos)</small>` : ''}</span><b>${esc(dinero(p.interes, 0))}</b></li>`).join('')}</ul></span>
-      <span class="fp-derecha"><span class="fp-monto monto-cobrar">${esc(dinero(sinInteres.reduce((t, x) => t + x.interes, 0), 0))}</span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${plural(personas.length, 'persona', 'personas')}</span></span></button>` });
+  if (!E.filtro || E.filtro === 'aviso') {
+    if (sinInteres.length) filasPr.push({ urg: 'aviso', fecha: null, html: filaInteres(sinInteres, 'cobrar') });
+    const yoDebo = m.prestamos.sinInteresInversores ?? [];
+    if (yoDebo.length) filasPr.push({ urg: 'aviso', fecha: null, html: filaInteres(yoDebo, 'pagar') });
   }
   bloques.push({ nombre: 'Préstamos e inversores', ruta: 'prestamos', disponible: m.prestamos.disponible, filas: filasPr });
 
@@ -1694,15 +1683,42 @@ function vistaCargando() {
 
 // ------------------------------------------------------------------ detalle
 
-/** Detalle de «No ha pagado interés»: cada crédito con su número de OP. */
-function abrirSinInteres() {
-  const lista = E.modelo?.prestamos?.sinInteres ?? [];
+/** Importe de interés en su moneda («$1,300» o «72.5 USDT»). */
+const importeInteres = (v, divisa) => (divisa === 'USDT' ? `${v.toLocaleString('es-MX', { maximumFractionDigits: 2 })} USDT` : dinero(v, 0));
+const aMXN = (x) => (x.divisa === 'USDT' ? x.interes * TIPO_CAMBIO_USDT : x.interes);
+
+/**
+ * Fila de resumen de intereses atrasados. tipo 'cobrar': clientes que no me
+ * han pagado; 'pagar': inversores a los que yo no les he pagado.
+ */
+function filaInteres(lista, tipo) {
+  const porPersona = new Map();
+  for (const x of lista) {
+    const k = `${normalizar(x.nombre)}|${x.divisa}`;
+    const p = porPersona.get(k) ?? { nombre: x.nombre, divisa: x.divisa, interes: 0, creditos: 0 };
+    p.interes += x.interes; p.creditos += 1;
+    porPersona.set(k, p);
+  }
+  const personas = [...porPersona.values()].sort((a, b) => aMXN(b) - aMXN(a));
+  const cobrar = tipo === 'cobrar';
+  return `<button class="fila-pend u-aviso" data-accion="ver-sin-interes" data-tipo="${tipo}">
+      <span class="fp-icono tipo-aviso">${icono('aviso')}</span>
+      <span class="fp-texto"><span class="fp-titulo">${cobrar ? 'No ha pagado interés' : 'No les he pagado interés'}</span>
+        <ul class="lista-interes">${personas.map((p) => `<li><span>${esc(p.nombre)}${p.creditos > 1 ? ` <small>(${p.creditos} ${cobrar ? 'créditos' : 'inversiones'})</small>` : ''}</span><b>${esc(importeInteres(p.interes, p.divisa))}</b></li>`).join('')}</ul></span>
+      <span class="fp-derecha"><span class="fp-monto ${cobrar ? 'monto-cobrar' : 'monto-pagar'}">${esc(dinero(lista.reduce((t, x) => t + aMXN(x), 0), 0))}</span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${plural(personas.length, 'persona', 'personas')}</span></span></button>`;
+}
+
+/** Detalle de intereses atrasados: cada crédito o inversión con su número de OP. */
+function abrirSinInteres(tipo = 'cobrar') {
+  const cobrar = tipo === 'cobrar';
+  const lista = (cobrar ? E.modelo?.prestamos?.sinInteres : E.modelo?.prestamos?.sinInteresInversores) ?? [];
   const filas = lista.map((x) => `<tr><td><b>${esc(x.nombre)}</b></td><td class="num"><b>${x.op ? `op. ${esc(x.op)}` : '—'}</b></td>
-    <td class="num">${esc(dinero(x.interes, 0))}</td><td class="num">${esc(dinero(x.pago, 0))}</td><td class="num">día ${esc(x.diaInicio)}</td></tr>`).join('');
+    <td class="num">${esc(importeInteres(x.interes, x.divisa))}</td><td class="num">${esc(importeInteres(x.pago, x.divisa))}</td><td class="num">día ${esc(x.diaInicio)}</td></tr>`).join('');
   abrirDialogo(`
-    <header class="det-cab"><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>Interés</span><h2>No ha pagado interés</h2></header>
-    ${lista.length ? `<div class="tabla-scroll"><table class="tabla det-tabla-interes"><thead><tr><th>Nombre</th><th class="num">OP</th><th class="num">Interés restante</th><th class="num">Pago del mes</th><th class="num">Inicio</th></tr></thead><tbody>${filas}</tbody></table></div>`
-    : '<p class="vacio">Nadie debe interés.</p>'}`);
+    <header class="det-cab"><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>Interés</span><h2>${cobrar ? 'No ha pagado interés' : 'No les he pagado interés'}</h2></header>
+    ${lista.length ? `<div class="tabla-scroll"><table class="tabla det-tabla-interes"><thead><tr><th>${cobrar ? 'Nombre' : 'Inversor'}</th><th class="num">OP</th><th class="num">Interés restante</th><th class="num">Pago del mes</th><th class="num">Inicio</th></tr></thead><tbody>${filas}</tbody></table></div>`
+    : `<p class="vacio">${cobrar ? 'Nadie debe interés.' : 'Estás al corriente con tus inversores.'}</p>`}
+    ${cobrar ? '' : '<p class="nota">De REGISTRO DE INVERSORES: ACTIVO, interés restante mayor al pago del mes y ya pasó su día de inicio.</p>'}`);
 }
 
 function abrirDialogo(html) {
