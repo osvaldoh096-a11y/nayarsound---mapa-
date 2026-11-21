@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611191956';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611210204';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -112,7 +112,7 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   const registro = [
     ['OP.', 'PAGO MENSUAL', 'FECHA INICIO', 'NOMBRE', 'DIVISA', 'CANTIDAD', 'EQUIVALENCIA.', 'INT/MES', 'FECHA COMPROMISO', 'DIA FINAL', 'ESTADO', 'INT RESTANTE', 'PAGO MES'],
     [1, 'SI', serial(h - 40), 'CLIENTE DEMO UNO', 'MXN', 50000, '', 0.05, serial(h + 1), '', 'ACTIVO', 1200, 2500],
-    [2, 'SI', serial(h - 70), 'CLIENTE DEMO DOS', 'MXN', 20000, '', 0.05, serial(h + 3), '', 'ACTIVO', 0, 1000],
+    [2, 'SI', '1 ene', 'CLIENTE DEMO DOS', 'MXN', 20000, '', 0.05, serial(h + 3), '', 'ACTIVO', 1500, 1000],
     [3, 'SI', serial(h - 400), 'CLIENTE DEMO TRES', 'MXN', 10000, '', 0.05, serial(h + 2), '', 'LIQUIDADO', 0, 500],
   ];
   const inversores = [

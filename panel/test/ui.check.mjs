@@ -243,6 +243,13 @@ try {
         'Préstamos: el cobro trae un mensaje para copiar al cliente');
       revisar(!/lista de DJs/.test(await pagina.locator('#detalle').innerText()), 'Préstamos: sin aviso de teléfono de DJs en un cobro');
       await pagina.locator('#detalle [data-cerrar]').first().click();
+      if (!rutaSnapshot) {
+        await pagina.locator('[data-accion="ver-sin-interes"]').click();
+        await pagina.waitForSelector('#detalle[open] .det-tabla-interes');
+        const txtInt = await pagina.locator('#detalle').innerText();
+        revisar(/CLIENTE DEMO DOS/.test(txtInt) && /op\. 2/.test(txtInt) && /\$1,500/.test(txtInt), 'Préstamos: «No ha pagado interés» al tocarlo muestra cada crédito con su OP');
+        await pagina.locator('#detalle [data-cerrar]').first().click();
+      }
       await pagina.goto(`${url}/panel/#/prestamos`);
     }
     await pagina.waitForSelector('[data-pf="flujo"]');
