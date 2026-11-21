@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210448';
-import { escribirCelda, leerRangos } from './api.js?v=202611210448';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210448';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210448';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210448';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210450';
+import { escribirCelda, leerRangos } from './api.js?v=202611210450';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210450';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210450';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210450';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210448';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210448';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210448';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210448';
-import { fuentesDemo } from './demo.js?v=202611210448';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210448';
-import { agendaDinero } from './agenda.js?v=202611210448';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210448';
-import { leerCashflow } from './dashprestamos.js?v=202611210448';
-import { icono } from './iconos.js?v=202611210448';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210448';
+} from './fechas.js?v=202611210450';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210450';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210450';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210450';
+import { fuentesDemo } from './demo.js?v=202611210450';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210450';
+import { agendaDinero } from './agenda.js?v=202611210450';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210450';
+import { leerCashflow } from './dashprestamos.js?v=202611210450';
+import { icono } from './iconos.js?v=202611210450';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210450';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -901,13 +901,6 @@ function vistaInicio(m) {
         ${filtro('proximo', 'Próximos', m.conteo.proximo)}
         ${filtro('sin-fecha', 'Cobros de eventos', m.conteo['sin-fecha'], deudas.length ? `<span class="clase-monto">${esc(dinero(totalDeuda, 0))}</span>` : '')}
       </div>
-    </article>
-    <article class="tarjeta eventos">
-      <div class="tarjeta-cab"><h2 class="etq-cab">${icono('musica')}NayarSound</h2><a class="enlace-vista" href="#/nayarsound">Agenda ${icono('flecha')}</a></div>
-      ${m.eventos.agendaDisponible ? `<div class="par">
-        <div><div class="cifra cifra-l">${m.eventos.hoy}</div><div class="sub">eventos hoy</div></div>
-        <div><div class="cifra cifra-l">${m.eventos.manana}</div><div class="sub">eventos mañana</div></div>
-      </div>` : '<p class="sin-dato">Sin datos de agenda.</p>'}
     </article>
     <article class="tarjeta bloque-finanzas">
       <div class="tarjeta-cab"><h2 class="etq-cab">${icono('finanzas')}Finanzas</h2>${sel}</div>

@@ -78,9 +78,7 @@ try {
       const n = await texto(pagina, `.clase.u-${u} .clase-num`);
       revisar(n === String(esperado.conteo[u]), `  ${u}: ${n} (esperado ${esperado.conteo[u]})`);
     }
-    const eventos = await pagina.locator('.eventos .par .cifra').allInnerTexts();
-    revisar(eventos[0] === String(esperado.eventos.hoy) && eventos[1] === String(esperado.eventos.manana),
-      `Eventos hoy/mañana: ${eventos.join('/')} (esperado ${esperado.eventos.hoy}/${esperado.eventos.manana})`);
+    revisar(await pagina.locator('.inicio-rejilla .eventos').count() === 0, 'Inicio: sin la tarjeta de NayarSound (lo cubren los pendientes)');
     const tiles = await pagina.locator('.fin-fila .cifra').allInnerTexts();
     const mes = esperado.mesActual;
     const esperadoTiles = [mes.ganancia, mes.gastos, mes.sobrante].map((c) => dinero(c.valor));
