@@ -278,20 +278,20 @@ try {
       await pagina.locator('[data-pf="activos"] .pf-ver').click();
       // Préstamo SINDICATO: abierto por defecto, con su avance y el registro de abonos.
       const sec = pagina.locator('[data-pf="sindicato"]');
-      revisar(await sec.getAttribute('open') !== null && /Abonado \$0 de \$247,476/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección en la pestaña Préstamos con total a pagar');
+      revisar(await sec.getAttribute('open') !== null && /Capital pendiente \$208,738 de \$208,738 · interés pagado \$0/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección con capital pendiente e interés pagado');
       revisar(await sec.locator('.sd-cal-fila').count() === 24, 'SINDICATO: calendario de 24 pagos mensuales (48 quincenas)');
       {
         const ml = pagina.locator('[data-pf="mercadolibre"]');
         const txt = await ml.innerText();
-        revisar(/Abonado \$5,614 de \$22,454/.test(await ml.locator('summary').innerText()) && /3 de 12 pagos/.test(txt) && /Pago 4 de 12/.test(txt) && /4 ene 2027/.test(txt) && /CAT 46\.78%/.test(txt),
+        revisar(/Capital pendiente \$13,500 de \$18,000 · interés pagado \$1,114/.test(await ml.locator('summary').innerText()) && /3 de 12 pagos/.test(txt) && /Pago 4 de 12/.test(txt) && /4 ene 2027/.test(txt) && /CAT 46\.78%/.test(txt),
           'MERCADOLIBRE: sección con 3 de 12 pagos, siguiente pago 4 ene 2027 y CAT');
         if (capturas) await ml.screenshot({ path: `${capturas}/mercadolibre.png` });
       }
       {
         const bb = pagina.locator('[data-pf="bbva"]');
         const txt = await bb.innerText();
-        revisar(/Saldo pendiente \$112,308/.test(await bb.locator('summary').innerText()) && /Pago 1 de 48/.test(txt) && /\$1,582\.92/.test(txt) && /35\.16%|35%/.test(txt) && /1 nov 2028/.test(txt) && !/NaN/.test(txt),
-          'BBVA: saldo pendiente, recibo 1 de 48 por $1,582.92, tasa y vencimiento');
+        revisar(/Capital pendiente \$110,600 de \$110,600/.test(await bb.locator('summary').innerText()) && /Pago 1 de 24/.test(txt) && /\$6,449/.test(txt) && /estimado/.test(txt) && /24 meses/.test(txt) && /35\.16%|35%/.test(txt) && /1 nov 2028/.test(txt) && !/NaN/.test(txt),
+          'BBVA: capital pendiente, 24 pagos mensuales estimados con su tasa, y vencimiento');
         if (capturas) await bb.screenshot({ path: `${capturas}/bbva.png` });
       }
       await sec.locator('input[name="monto"]').fill('10310');
@@ -301,11 +301,11 @@ try {
       for (let i = 0; i < 40 && !lecturas.sindicato.some((f) => f[4] === 10310); i++) await pagina.waitForTimeout(100);
       const filaAbono = lecturas.sindicato.find((f) => f[4] === 10310);
       revisar(!!filaAbono && typeof filaAbono[3] === 'number' && filaAbono[5] === '=PRUEBA transferencia', 'SINDICATO: el abono se guarda en la hoja (fecha, monto y nota como texto)');
-      await pagina.waitForFunction(() => /Abonado \$10,310/.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
-      revisar(/resta \$237,166/.test(await pagina.locator('[data-pf="sindicato"] summary').innerText()), 'SINDICATO: se descuenta del restante');
+      await pagina.waitForFunction(() => /Capital pendiente \$200,042/.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
+      revisar(/interés pagado \$1,614/.test(await pagina.locator('[data-pf="sindicato"] summary').innerText()), 'SINDICATO: el abono se reparte en capital e interés');
       pagina.once('dialog', (dlg) => dlg.accept());
       await pagina.locator('[data-accion="borrar-abono"]').first().click();
-      await pagina.waitForFunction(() => /Abonado \$0 /.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
+      await pagina.waitForFunction(() => /Capital pendiente \$208,738 /.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
       revisar(!lecturas.sindicato.some((f) => f[4] === 10310), 'SINDICATO: borrar abono lo quita de la hoja');
       await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
       await pagina.locator('[data-pf="activos"] .pf-ver').click();

@@ -984,3 +984,4 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .det-tabla-interes { width: 100%; font-size: 14px; }
 .det-tabla-interes td, .det-tabla-interes th { white-space: nowrap; }
 .fin-diario { margin-top: 2px; font-size: 12.5px; color: var(--tenue); font-variant-numeric: tabular-nums; }
+.sd-desglose { display: block; font-size: 12px; font-weight: 500; color: var(--tenue); text-align: right; }
