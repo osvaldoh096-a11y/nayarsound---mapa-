@@ -1016,3 +1016,9 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .ag-chevron { position: absolute; right: 0; top: 2px; width: 18px; height: 18px; color: var(--tenue); transform: rotate(90deg); transition: transform .15s; }
 .ag-semana[open] .ag-chevron { transform: rotate(-90deg); }
 .pf-inv-total { padding: 12px 16px; margin-bottom: 12px; font-size: 14px; color: var(--tinta-2); }
+.campo-pago-int { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--borde); border-radius: 8px; padding: 0 8px; background: var(--tarjeta); }
+.campo-pago-int input { width: 96px; border: 0; padding: 7px 0; font: inherit; text-align: right; background: transparent; color: var(--tinta); }
+.det-tabla-interes .boton-chico { white-space: nowrap; }
+.fila-pago-int td { border-top: 0 !important; padding-top: 0 !important; }
+.pago-int { display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 6px; }
+.pago-int label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tinta-2); }

@@ -252,7 +252,18 @@ try {
         await pagina.waitForSelector('#detalle[open] .det-tabla-interes');
         const txtInt = await pagina.locator('#detalle').innerText();
         revisar(/CLIENTE DEMO DOS/.test(txtInt) && /op\. 2/.test(txtInt) && /\$1,500/.test(txtInt), 'Préstamos: «No ha pagado interés» al tocarlo muestra cada crédito con su OP');
-        await pagina.locator('#detalle [data-cerrar]').first().click();
+        // Confirmar pago: se anota en el registro de intereses (U:W) de REGISTRO PRESTAMOS.
+        if (capturas) await pagina.locator('#detalle').screenshot({ path: `${capturas}/pago-interes.png` });
+        await pagina.locator('#detalle input[data-pago-int="2"]').fill('1500');
+        const antesPago = lecturas.length;
+        pagina.once('dialog', (dlg) => dlg.accept());
+        await pagina.locator('#detalle [data-accion="confirmar-pago-int"][data-op="2"]').click();
+        for (let i = 0; i < 40 && !lecturas.slice(antesPago).some((l) => l.metodo === 'PUT'); i++) await pagina.waitForTimeout(100);
+        const pagoInt = lecturas.slice(antesPago).filter((l) => l.metodo === 'PUT');
+        revisar(pagoInt.length === 1 && /^'REGISTRO PRESTAMOS'!U\d+:W\d+$/.test(pagoInt[0].celda) && /^\d{4}-\d{2}-\d{2}$/.test(pagoInt[0].valor),
+          `Confirmar pago: anota fecha, OP y cantidad en REGISTRO PRESTAMOS (${pagoInt.map((e) => e.celda).join(', ')})`);
+        await pagina.waitForSelector('#detalle', { state: 'hidden' }).catch(() => {});
+        if (await pagina.locator('#detalle[open]').count()) await pagina.locator('#detalle [data-cerrar]').first().click();
       }
       await pagina.goto(`${url}/panel/#/prestamos`);
     }
