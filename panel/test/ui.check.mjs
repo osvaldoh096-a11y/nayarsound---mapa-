@@ -138,15 +138,14 @@ try {
       await pagina.waitForSelector('.ns-cols');
       const op = esperado.nayarsound.operacion;
       revisar(await pagina.locator('.ns-col').count() === 14 && await pagina.locator('.ns-col.actual').count() === 1, 'NayarSound: eventos por mes (12 atrás, 2 adelante) con el mes actual resaltado');
-      const comp = await pagina.locator('.ns-comp tbody tr').first().innerText();
-      revisar(comp.includes(String(op.anterior.eventos)) && comp.includes(String(op.actual.eventos)) && comp.includes(String(op.proximo.eventos)), `NayarSound: mes anterior / este / próximo (${comp.replace(/\s+/g, ' ')})`);
+      revisar(await pagina.locator('.ns-comp').count() === 0 && !/DJs con más eventos/.test(await pagina.locator('#vista').innerText()), 'NayarSound: sin «Mes anterior · este mes · próximo» ni «DJs con más eventos»');
       revisar(await pagina.locator('.ns-dia').count() === 7, 'NayarSound: próximos 7 días');
       await pagina.locator('.ns-col').nth(5).focus();
       revisar(await pagina.locator('.tip').isVisible(), 'Gráfica: al tocar una barra aparece su información');
       await pagina.mouse.wheel(0, 400);
       await pagina.waitForTimeout(200);
       revisar(!(await pagina.locator('.tip').isVisible()), 'Gráfica: la información se oculta al deslizar');
-      revisar(await pagina.locator('.ns-fila-3 .graf-fila').count() > 0, 'NayarSound: desglose por ciudad, DJ y tipo');
+      revisar(await pagina.locator('.ns-fila-2 .graf-fila').count() > 0, 'NayarSound: desglose por ciudad y tipo');
       revisar(/\$100,000/.test(await pagina.locator('[data-pf="ns-operacion"] > summary').innerText()), 'NayarSound: números del DASHBOARD (operación mensual)');
     }
     {

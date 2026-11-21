@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210524';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611210524';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210524';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210524';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210524';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210527';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611210527';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210527';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210527';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210527';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210524';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210524';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210524';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210524';
-import { fuentesDemo } from './demo.js?v=202611210524';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210524';
-import { agendaDinero } from './agenda.js?v=202611210524';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210524';
-import { leerCashflow } from './dashprestamos.js?v=202611210524';
-import { icono } from './iconos.js?v=202611210524';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210524';
+} from './fechas.js?v=202611210527';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210527';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210527';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210527';
+import { fuentesDemo } from './demo.js?v=202611210527';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210527';
+import { agendaDinero } from './agenda.js?v=202611210527';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210527';
+import { leerCashflow } from './dashprestamos.js?v=202611210527';
+import { icono } from './iconos.js?v=202611210527';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210527';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1088,20 +1088,6 @@ function operacionNs(op, m) {
     ${kpi('ambar', `Agendados ${MESES[p.m - 1].toLowerCase()}`, esc(cuenta(p.eventos)), `${din(p.generado, 0)} por cobrar en eventos`)}
   </section>`;
 
-  // Mes anterior · este mes · próximo mes
-  const filaComp = (etq, f, { dinero: esDinero = false, solo = null } = {}) => `<tr><td>${etq}</td>${[a, c, p].map((x, i) => `<td class="num">${solo && !solo[i] ? '<span class="sin-dato">—</span>' : esDinero ? din(f(x), 0) : esc(cuenta(f(x)))}</td>`).join('')}</tr>`;
-  const comparativo = `<article class="tarjeta">
-    <header class="pf-cab"><h2>Mes anterior · este mes · próximo</h2></header>
-    <table class="pf-tabla ns-comp"><thead><tr><th></th><th class="num">${esc(nombreMesLargo(a))}</th><th class="num actual">${esc(nombreMesLargo(c))}</th><th class="num">${esc(nombreMesLargo(p))}</th></tr></thead><tbody>
-      ${filaComp('Eventos', (x) => x.eventos)}
-      ${filaComp('Realizados', (x) => x.realizados)}
-      ${filaComp('Generado', (x) => x.generado, { dinero: true })}
-      ${filaComp('Pagado a DJs', (x) => x.pagoDj, { dinero: true, solo: [true, true, false] })}
-      ${filaComp('Tu ganancia', (x) => x.gananciaPersonal, { dinero: true, solo: [true, true, false] })}
-    </tbody></table>
-    <p class="nota">De AGENDA Y VENTAS. La ganancia solo cuenta eventos ya realizados; el próximo mes muestra lo agendado.</p>
-  </article>`;
-
   // Gráficas
   const kActual = c.k;
   const eventosMes = `<article class="tarjeta">
@@ -1146,8 +1132,7 @@ function operacionNs(op, m) {
 
   return `${kpis}
     <section class="pf-fila ns-fila-graf">${eventosMes}${semana}</section>
-    ${comparativo}
-    <section class="ns-fila-3">${desglose('Por ciudad', op.ciudades)}${desglose('DJs con más eventos', op.djs, op.sinDj ? `<p class="nota texto-rojo">${plural(op.sinDj, 'evento', 'eventos')} sin DJ asignado.</p>` : '', { tal: true })}${desglose('Tipo de evento', op.tipos)}</section>
+    <section class="ns-fila-2">${desglose('Por ciudad', op.ciudades)}${desglose('Tipo de evento', op.tipos)}</section>
     ${seccionesDash.length ? `<section class="pf-fila">${seccionesDash.join('')}</section>` : ''}`;
 }
 
