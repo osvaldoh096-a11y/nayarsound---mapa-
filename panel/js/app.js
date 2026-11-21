@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210438';
-import { escribirCelda, leerRangos } from './api.js?v=202611210438';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210438';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210438';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210438';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210440';
+import { escribirCelda, leerRangos } from './api.js?v=202611210440';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210440';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210440';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210440';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210438';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210438';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210438';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210438';
-import { fuentesDemo } from './demo.js?v=202611210438';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210438';
-import { agendaDinero } from './agenda.js?v=202611210438';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210438';
-import { leerCashflow } from './dashprestamos.js?v=202611210438';
-import { icono } from './iconos.js?v=202611210438';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210438';
+} from './fechas.js?v=202611210440';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210440';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210440';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210440';
+import { fuentesDemo } from './demo.js?v=202611210440';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210440';
+import { agendaDinero } from './agenda.js?v=202611210440';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210440';
+import { leerCashflow } from './dashprestamos.js?v=202611210440';
+import { icono } from './iconos.js?v=202611210440';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210440';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1276,7 +1276,7 @@ function leerCobros(texto) {
   return grupos.filter((g) => g.filas.length);
 }
 
-const PESTANAS_PR = [['resumen', 'Resumen'], ['agenda', 'Agenda'], ['prestamos', 'Préstamos'], ['inversores', 'Inversores'], ['historial', 'Historial']];
+const PESTANAS_PR = [['resumen', 'Resumen'], ['agenda', 'Agenda'], ['prestamos', 'Institucionales'], ['inversores', 'Inversores'], ['historial', 'Historial']];
 
 /** «10 nov» */
 function diaMes(idx) {
@@ -1364,7 +1364,7 @@ function prResumen(m, pr, d) {
   const prestamos = pa.length ? seccionPF('activos', 'verde', 'Préstamos activos', `${plural(pa.length, 'cliente', 'clientes')} · capital <b>${din(suma(pa, 'capital'), 0)}</b> · pago mensual <b>${din(suma(pa, 'pago'), 0)}</b>`,
     `${tablaPF([['Cliente'], ['Capital', 1], ['Pago mensual', 1], ['Interés restante', 1]],
       pa.slice(0, 5).map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num">${din(x.pago, 0)}</td><td class="num">${din(x.interes, 0)}</td></tr>`))}
-    <div class="pf-pie">${verTodos('prestamos', `Ver los ${pa.length}`)}</div>`) : '';
+    <div class="pf-pie">${verTodos('agenda', `Ver los ${pa.length}`)}</div>`) : '';
   const inversores = ia.length ? seccionPF('inversores', 'rojo', 'Inversores activos', `${plural(ia.length, 'registro', 'registros')} · capital <b>${din(suma(ia, 'capital'), 0)}</b> · pago mensual <b>${din(suma(ia, 'pago'))}</b>`,
     `${tablaPF([['Inversor'], ['Capital', 1], ['Pago mensual', 1]],
       ia.map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num">${din(x.pago, 0)}</td></tr>`),
@@ -1443,7 +1443,7 @@ function seccionPrestamoPropio(m, P) {
 }
 
 /** Agenda de dinero: 30 días de cobros y pagos por fecha, con totales por semana. */
-function prAgenda(m, pr) {
+function prAgenda(m, pr, d) {
   const hoyIdx = m.hoy.idx;
   const ag = agendaDinero({ clientes: pr.clientesActivos ?? [], inversiones: pr.inversiones ?? [], propios: PRESTAMOS_PROPIOS }, hoyIdx, 30);
   const fecha = (idx) => { const t = fechaCorta(idx); return idx === hoyIdx ? `Hoy · ${t}` : idx === hoyIdx + 1 ? `Mañana · ${t}` : t; };
@@ -1468,17 +1468,22 @@ function prAgenda(m, pr) {
       <div><span>Neto</span><b class="${ag.neto < 0 ? 'texto-rojo' : 'texto-verde'}">${din(ag.neto, 0)}</b></div>
     </div>
     ${semanas || '<p class="vacio">Nada por cobrar ni pagar en los próximos 30 días.</p>'}
+    ${seccionPrestamosActivos(d ?? {})}
     <p class="nota">Cobros: el interés del mes de cada cliente activo de REGISTRO PRESTAMOS, en el día de su fecha de inicio (J J H F no entra). Pagos: interés de tus inversores y las cuotas de tus créditos. Lo atrasado aparece hoy. USDT a ${TIPO_CAMBIO_USDT} MXN.</p>`;
 }
 
-function prPrestamos(m, pr, d) {
-  const pa = [...(d.prestamosActivos ?? [])].sort((a, b) => (b.capital ?? 0) - (a.capital ?? 0));
-  const sind = `<div class="pr-acciones"><button class="boton boton-primario" data-accion="nuevo-credito">${icono('mas')}Agregar crédito</button></div>`
+function prPrestamos(m) {
+  return `<div class="pr-acciones"><button class="boton boton-primario" data-accion="nuevo-credito">${icono('mas')}Agregar crédito</button></div>`
     + PRESTAMOS_PROPIOS.map((P) => seccionPrestamoPropio(m, P)).join('');
-  if (!pa.length) return `${sind}<p class="vacio">No encontré la tabla PRESTAMOS ACTIVOS en tu DASHBOARD.</p>`;
+}
+
+/** Tabla «Préstamos activos» (tus clientes), en la pestaña Agenda. */
+function seccionPrestamosActivos(d) {
+  const pa = [...(d.prestamosActivos ?? [])].sort((a, b) => (b.capital ?? 0) - (a.capital ?? 0));
+  if (!pa.length) return '<p class="vacio">No encontré la tabla PRESTAMOS ACTIVOS en tu DASHBOARD.</p>';
   const total = pa.reduce((s, x) => s + (x.capital ?? 0), 0) || 1;
   const suma = (k) => pa.reduce((s, x) => s + (x[k] ?? 0), 0);
-  return sind + seccionPF('t-prestamos', 'verde', 'Préstamos activos', `${plural(pa.length, 'cliente', 'clientes')} · capital <b>${din(suma('capital'), 0)}</b> · interés restante <b>${din(suma('interes'), 0)}</b>`,
+  return seccionPF('t-prestamos', 'verde', 'Préstamos activos', `${plural(pa.length, 'cliente', 'clientes')} · capital <b>${din(suma('capital'), 0)}</b> · interés restante <b>${din(suma('interes'), 0)}</b>`,
     `${tablaPF([['Cliente'], ['Capital', 1], ['% cartera', 1], ['Pago mensual', 1], ['Interés restante', 1]],
       pa.map((x) => `<tr><td>${esc(x.nombre)}</td><td class="num">${din(x.capital, 0)}</td><td class="num pf-pct"><span class="pf-pista"><i style="width:${((x.capital ?? 0) / total) * 100}%"></i></span>${esc(pctTxt((x.capital ?? 0) / total))}</td><td class="num">${din(x.pago, 0)}</td><td class="num">${din(x.interes, 0)}</td></tr>`),
       { pie: `<tr><td>Total</td><td class="num">${din(suma('capital'), 0)}</td><td class="num">100%</td><td class="num">${din(suma('pago'))}</td><td class="num">${din(suma('interes'))}</td></tr>` })}`);

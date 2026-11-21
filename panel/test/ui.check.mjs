@@ -260,7 +260,7 @@ try {
     }
     await pagina.waitForSelector('[data-pf="flujo"]');
     revisar(await pagina.locator('[data-pf="movimientos"]').count() === 0, 'Préstamos: sin la sección «Próximos movimientos»');
-    revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Agenda,Préstamos,Inversores,Historial', 'Panel financiero: pestañas Resumen, Agenda, Préstamos, Inversores, Historial');
+    revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Agenda,Institucionales,Inversores,Historial', 'Panel financiero: pestañas Resumen, Agenda, Institucionales, Inversores, Historial');
     {
       await pagina.locator('.pf-tab', { hasText: 'Agenda' }).click();
       await pagina.waitForSelector('.ag-resumen');
@@ -289,8 +289,7 @@ try {
       await pagina.reload();
       await pagina.waitForSelector('[data-pf="flujo"]');
       revisar(await pagina.locator('[data-pf="flujo"][open]').count() === 1 && await pagina.locator('[data-pf="capital"]').count() === 0, 'Panel financiero: recuerda las secciones abiertas');
-      await pagina.locator('[data-pf="activos"] > summary').click();
-      await pagina.locator('[data-pf="activos"] .pf-ver').click();
+      await pagina.locator('.pf-tab', { hasText: 'Institucionales' }).click();
       // Préstamo SINDICATO: abierto por defecto, con su avance y el registro de abonos.
       const sec = pagina.locator('[data-pf="sindicato"]');
       revisar(await sec.getAttribute('open') !== null && /Capital pendiente \$208,738 de \$208,738 · interés pagado \$0/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección con capital pendiente e interés pagado');
@@ -322,7 +321,7 @@ try {
         await pagina.reload();
         await pagina.waitForSelector('.pf-tab.activo');
         revisar((await pagina.locator('.pf-tab.activo').innerText()).trim() === 'Inversores', 'Recargar: se queda en la misma pestaña (Inversores)');
-        await pagina.locator('.pf-tab', { hasText: 'Préstamos' }).click();
+        await pagina.locator('.pf-tab', { hasText: 'Institucionales' }).click();
         await pagina.waitForSelector('[data-accion="nuevo-credito"]');
       }
       {
@@ -363,9 +362,10 @@ try {
       await pagina.waitForFunction(() => /Capital pendiente \$208,738 /.test(document.querySelector('[data-pf="sindicato"] summary')?.innerText ?? ''));
       revisar(!lecturas.sindicato.some((f) => f[4] === 10310), 'SINDICATO: borrar abono lo quita de la hoja');
       await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
+      if (await pagina.locator('[data-pf="activos"]').getAttribute('open') === null) await pagina.locator('[data-pf="activos"] > summary').click();
       await pagina.locator('[data-pf="activos"] .pf-ver').click();
       await pagina.locator('[data-pf="t-prestamos"] > summary').click();
-      revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Préstamos' && /100%/.test(await pagina.locator('[data-pf="t-prestamos"] tfoot').innerText()), 'Panel financiero: «Ver los…» abre la pestaña Préstamos con totales');
+      revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Agenda' && /100%/.test(await pagina.locator('[data-pf="t-prestamos"] tfoot').innerText()), 'Panel financiero: «Ver los…» abre la Agenda con los préstamos activos y totales');
       await pagina.locator('.pf-tab', { hasText: 'Inversores' }).click();
       const secInv = await pagina.locator('.pf details.pf-sec').evaluateAll((els) => els.map((e) => e.dataset.pf));
       revisar(secInv.join() === 't-inversores', `Inversores: una sola sección (${secInv.join(', ')})`);
