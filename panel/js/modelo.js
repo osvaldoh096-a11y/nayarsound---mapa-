@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611210440';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611210440';
+} from './fechas.js?v=202611210448';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611210448';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611210440';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611210440';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611210440';
-import { modeloST } from './st.js?v=202611210440';
-import { modeloOperacion } from './nsops.js?v=202611210440';
-import { dinero } from './formato.js?v=202611210440';
+} from './sheets.js?v=202611210448';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611210448';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611210448';
+import { modeloST } from './st.js?v=202611210448';
+import { modeloOperacion } from './nsops.js?v=202611210448';
+import { dinero } from './formato.js?v=202611210448';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -533,7 +533,7 @@ export function inversionesActivas(fuente, hoyIdx) {
   if (enc < 0) return null;
   const { registros } = tablaPorEncabezados(filas, enc, {
     op: 'OP.', inicio: 'FECHA INICIO', nombre: 'NOMBRE', divisa: 'DIVISA', cantidad: 'CANTIDAD', tasa: 'INT/MES',
-    compromiso: 'FECHA COMPROMISO', estado: 'ESTADO', pagoMes: 'PAGO MES',
+    compromiso: 'FECHA COMPROMISO', estado: 'ESTADO', pagoMes: 'PAGO MES', interesRestante: 'INTERES RESTANTE',
   }, inicio);
   // Registro de pagos: segunda aparición de CANTIDAD / DIVISA / NOMBRE en la misma fila de encabezados.
   const h = (filas[enc] ?? []).map(normalizar);
@@ -566,6 +566,7 @@ export function inversionesActivas(fuente, hoyIdx) {
       capitalMXN: cantidad === null ? null : (divisa === 'USDT' ? cantidad * TIPO_CAMBIO_USDT : cantidad),
       tasa: typeof r.tasa === 'number' ? r.tasa : null, inicioIdx, compromisoIdx, diasLiquidar: dias,
       alertaLiquidar: dias !== null && dias <= 30, pagoMes, pagosHechos: suyos.length, ultimoPago: suyos.at(-1) ?? null,
+      historial: suyos, interesRestante: typeof r.interesRestante === 'number' ? r.interesRestante : null,
     };
     // Estado del pago de este mes
     let pago;

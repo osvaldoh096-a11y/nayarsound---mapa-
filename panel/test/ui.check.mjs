@@ -368,13 +368,15 @@ try {
       revisar(await pagina.locator('.pf-tab.activo').innerText() === 'Agenda' && /100%/.test(await pagina.locator('[data-pf="t-prestamos"] tfoot').innerText()), 'Panel financiero: «Ver los…» abre la Agenda con los préstamos activos y totales');
       await pagina.locator('.pf-tab', { hasText: 'Inversores' }).click();
       const secInv = await pagina.locator('.pf details.pf-sec').evaluateAll((els) => els.map((e) => e.dataset.pf));
-      revisar(secInv.join() === 't-inversores', `Inversores: una sola sección (${secInv.join(', ')})`);
-      await pagina.locator('[data-pf="t-inversores"] > summary').click();
-      const filasInv = await pagina.locator('.pf-inv').allInnerTexts();
+      revisar(secInv.length === 4 && secInv.every((x) => /^inv-\d+$/.test(x)), `Inversores: un desplegable por inversión (${secInv.join(', ')})`);
+      const filasInv = await pagina.locator('details.pf-invsec > summary').allInnerTexts();
       revisar(filasInv.length === 4 && filasInv.every((t) => /Pagado|Pendiente|Atrasado|Sin pago este mes|Sin interés/.test(t)), 'Inversores: cada inversión muestra el estado del pago del mes');
-      const alerta = await pagina.locator('.pf-inv.con-alerta').allInnerTexts();
-      revisar(alerta.length === 1 && /INVERSOR DEMO UNO/.test(alerta[0]) && /faltan 10 días/.test(alerta[0]), 'Inversores: alerta de liquidación a 30 días o menos, con fecha y días');
+      const alerta = await pagina.locator('details.pf-invsec.con-alerta').allInnerTexts();
+      await pagina.locator('details.pf-invsec.con-alerta > summary').first().click();
+      const abierta = await pagina.locator('details.pf-invsec.con-alerta').first().innerText();
+      revisar(alerta.length === 1 && /INVERSOR DEMO UNO/.test(alerta[0]) && /faltan 10 días/.test(abierta) && /Tasa/.test(abierta) && /Pagos registrados/i.test(abierta), 'Inversores: al abrir se ven sus datos y la alerta de liquidación');
       revisar(/USDT/.test(filasInv.join(' ')) && /MXN/.test(filasInv.join(' ')), 'Inversores: importe con moneda (MXN o USDT)');
+      if (capturas) await pagina.screenshot({ path: `${capturas}/inversores.png`, fullPage: true });
       // ST
       await pagina.goto(`${url}/panel/#/st`);
       await pagina.waitForSelector('.pf-kpis');
