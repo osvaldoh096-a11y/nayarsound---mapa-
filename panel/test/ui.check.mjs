@@ -234,8 +234,8 @@ try {
     if (!rutaSnapshot) {
       await pagina.goto(`${url}/panel/#/inicio`);
       await pagina.waitForSelector('.bloque-finanzas');
-      const diario = await pagina.locator('.bloque-finanzas .fin-diario').innerText().catch(() => '');
-      revisar(/^Al día \(\d+ días?\): ganancia \$[\d,]+ · gasto \$[\d,]+ · sobrante -?\$[\d,]+$/.test(diario.trim()), `Finanzas: promedio al día (${diario.trim()})`);
+      const diario = await pagina.locator('.bloque-finanzas .fin-diario').allInnerTexts();
+      revisar(diario.length === 3 && diario.every((x) => /^-?\$[\d,]+ al día$/.test(x.trim())), `Finanzas: equivalente por día debajo de cada cifra (${diario.join(' | ')})`);
     }
     // Préstamos
     await pagina.goto(`${url}/panel/#/prestamos`);

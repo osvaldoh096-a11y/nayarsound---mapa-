@@ -983,4 +983,4 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .tabla-scroll { overflow-x: auto; }
 .det-tabla-interes { width: 100%; font-size: 14px; }
 .det-tabla-interes td, .det-tabla-interes th { white-space: nowrap; }
-.fin-diario { margin: 10px 0 0; font-size: 12.5px; color: var(--tenue); font-variant-numeric: tabular-nums; }
+.fin-diario { margin-top: 2px; font-size: 12.5px; color: var(--tenue); font-variant-numeric: tabular-nums; }

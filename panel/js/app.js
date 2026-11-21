@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210257';
-import { escribirCelda, leerRangos } from './api.js?v=202611210257';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210257';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210257';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210257';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210303';
+import { escribirCelda, leerRangos } from './api.js?v=202611210303';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210303';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210303';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210303';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210257';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210257';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210257';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210257';
-import { fuentesDemo } from './demo.js?v=202611210257';
-import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611210257';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210257';
-import { leerCashflow } from './dashprestamos.js?v=202611210257';
-import { icono } from './iconos.js?v=202611210257';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210257';
+} from './fechas.js?v=202611210303';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210303';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210303';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210303';
+import { fuentesDemo } from './demo.js?v=202611210303';
+import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611210303';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210303';
+import { leerCashflow } from './dashprestamos.js?v=202611210303';
+import { icono } from './iconos.js?v=202611210303';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210303';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -782,13 +782,15 @@ function resumenFinanzas(mes) {
     return `<p class="sin-dato">No hay datos de finanzas${f?.error ? `: ${esc(f.error.mensaje)}` : '.'}</p>`;
   }
   const negativo = typeof mes.sobrante.valor === 'number' && mes.sobrante.valor < 0;
+  const dias = diasDelPeriodo(mes);
+  const alDia = (celda) => (dias && typeof celda?.valor === 'number' ? `<div class="fin-diario">${esc(dinero(celda.valor / dias, 0))} al día</div>` : '');
   const dato = (clase, celda, etiqueta, nota = '') => `
-    <div class="fin-dato ${clase}"><div class="cifra">${valorCelda(celda)}</div><div class="sub">${etiqueta}</div>${nota ? `<div class="fin-nota">${nota}</div>` : ''}</div>`;
+    <div class="fin-dato ${clase}"><div class="cifra">${valorCelda(celda)}</div><div class="sub">${etiqueta}</div>${alDia(celda)}${nota ? `<div class="fin-nota">${nota}</div>` : ''}</div>`;
   return `<div class="fin-fila">
     ${dato('fin-ganancia', mes.ganancia, mes.esAnio ? `ganancia ${mes.y}` : 'ganancia del mes')}
     ${dato('fin-gasto', mes.gastos, 'gastos personales', mes.registrosGastos === 0 ? 'Sin gastos registrados' : '')}
     ${dato(`fin-sobrante ${negativo ? 'negativo' : ''}`, mes.sobrante, mes.esAnio ? `sobrante ${mes.y}` : 'sobrante del mes')}
-  </div>${lineaDiaria(mes)}`;
+  </div>`;
 }
 
 /**
@@ -810,13 +812,6 @@ function diasDelPeriodo(mes) {
   return ini < hoy.idx ? fin - ini : null;
 }
 
-function lineaDiaria(mes) {
-  const dias = diasDelPeriodo(mes);
-  const v = (c) => (typeof c?.valor === 'number' ? c.valor : null);
-  if (!dias || v(mes.ganancia) === null) return '';
-  const por = (c) => (v(c) === null ? '—' : esc(dinero(v(c) / dias, 0)));
-  return `<p class="fin-diario">Al día (${dias} ${dias === 1 ? 'día' : 'días'}): ganancia ${por(mes.ganancia)} · gasto ${por(mes.gastos)} · sobrante ${por(mes.sobrante)}</p>`;
-}
 
 /** Periodo elegido: un mes de la tabla mensual o un año completo («a2026»). */
 function periodoElegido(fi) {
