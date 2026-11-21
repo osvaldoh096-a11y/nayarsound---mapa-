@@ -301,6 +301,25 @@ try {
           'Préstamos: un crédito nuevo en CREDITOS aparece solo con su capital pendiente');
         revisar(/Préstamo MERCADO PAGO/.test(await pagina.locator('[data-pf="mercadolibre"] summary').innerText()), 'Préstamos: el nombre sale de la pestaña CREDITOS');
       }
+      {
+        // Agregar crédito desde el panel: crea su pestaña y su fila en CREDITOS.
+        const sec = pagina.locator('[data-pf="nuevo-credito"]');
+        if (await sec.getAttribute('open') === null) await sec.locator('summary').click();
+        const f = sec.locator('form[data-form="credito"]');
+        await f.locator('input[name="nombre"]').fill('Nu');
+        await f.locator('input[name="monto"]').fill('20000');
+        await f.locator('input[name="meses"]').fill('10');
+        await f.locator('input[name="pago"]').fill('2500');
+        pagina.once('dialog', (dlg) => dlg.accept());
+        await f.locator('button[type="submit"]').click();
+        await pagina.waitForSelector('[data-pf="nu"]', { timeout: 10000 }).catch(() => {});
+        const h = lecturas.hojasTodo;
+        const fila = (h.CREDITOS ?? []).find((x) => x?.[0] === 'Nu');
+        revisar(!!h.NU && fila?.[1] === 'NU' && h.NU.some((x) => x?.[0] === 'MONTO' && x?.[1] === 20000) && h.NU.some((x) => x?.[0] === 'TOTAL A PAGAR' && x?.[1] === 25000) && String(h.NU[1]?.[18] ?? '').startsWith('=LET('),
+          'Agregar crédito: crea la pestaña NU con datos y fórmulas, y su fila en CREDITOS');
+        revisar(await pagina.locator('[data-pf="nu"]').count() === 1 && /Capital pendiente \$20,000 de \$20,000/.test(await pagina.locator('[data-pf="nu"] summary').innerText()),
+          'Agregar crédito: aparece en el panel con su capital');
+      }
       await sec.locator('input[name="monto"]').fill('10310');
       await sec.locator('input[name="nota"]').fill('=PRUEBA transferencia');
       pagina.once('dialog', (dlg) => dlg.accept());

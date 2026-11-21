@@ -88,7 +88,7 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, PUT, POST' };
     if (metodo === 'OPTIONS') return ruta.fulfill({ status: 204, headers: cors });
     if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });
-    if (url.pathname.includes(`/spreadsheets/${TAREAS.id}/`)) return tareasSim(ruta, url, metodo, cors);
+    if (url.pathname.includes(`/spreadsheets/${TAREAS.id}/`) || url.pathname.endsWith(`/spreadsheets/${TAREAS.id}:batchUpdate`)) return tareasSim(ruta, url, metodo, cors);
     const m = url.pathname.match(/\/v4\/spreadsheets\/([^/:]+)\/values(?::batchGet|\/(.+))$/);
     const clave = m && porId[decodeURIComponent(m[1])];
     if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });
@@ -143,6 +143,11 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
       }) });
     }
     const cuerpo = JSON.parse(ruta.request().postData() ?? '{}');
+    if (url.pathname.endsWith(':batchUpdate')) {
+      lecturas.push({ metodo, clave: 'tareas', celda: ':batchUpdate', valor: cuerpo.requests });
+      for (const r of cuerpo.requests ?? []) if (r.addSheet) hojas[r.addSheet.properties.title] = [];
+      return ok({ replies: (cuerpo.requests ?? []).map(() => ({})) });
+    }
     const rango = sub.replace(/^\//, '');
     lecturas.push({ metodo, clave: 'tareas', celda: rango, valor: cuerpo.values?.[0], entrada: url.searchParams.get('valueInputOption') });
     const c = celdas(rango);
@@ -172,6 +177,7 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     return ok({});
   }
   lecturas.sindicato = sindicato;
+  lecturas.hojasTodo = hojas;
   lecturas.mercadolibre = mercadolibre;
   lecturas.habitos = habitos;
   lecturas.tareas = tareas;

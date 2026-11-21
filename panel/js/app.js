@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210412';
-import { escribirCelda, leerRangos } from './api.js?v=202611210412';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210412';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210412';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210412';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210419';
+import { escribirCelda, leerRangos } from './api.js?v=202611210419';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210419';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210419';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210419';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210412';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210412';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210412';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210412';
-import { fuentesDemo } from './demo.js?v=202611210412';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios } from './sindicato.js?v=202611210412';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210412';
-import { leerCashflow } from './dashprestamos.js?v=202611210412';
-import { icono } from './iconos.js?v=202611210412';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210412';
+} from './fechas.js?v=202611210419';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210419';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210419';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210419';
+import { fuentesDemo } from './demo.js?v=202611210419';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210419';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210419';
+import { leerCashflow } from './dashprestamos.js?v=202611210419';
+import { icono } from './iconos.js?v=202611210419';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210419';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -438,9 +438,25 @@ async function guardarAbono(form) {
   finally { P.S.guardando = false; pintar(); }
 }
 
+async function guardarCredito(form) {
+  const el = form.elements;
+  const datos = { nombre: el.nombre.value, monto: el.monto.value, meses: el.meses.value, pago: el.pago.value, total: el.total.value, tasa: el.tasa.value, fecha: el.fecha.value };
+  const boton = form.querySelector('button[type="submit"]');
+  if (!confirm(`¿Crear el crédito «${String(datos.nombre).trim()}»?\n\nSe agregará a tu hoja «TO DO · Dashboard personal» (pestaña nueva y su fila en CREDITOS) y se sumará a tu RESUMEN FINANCIERO.`)) return;
+  boton.disabled = true; boton.textContent = 'Creando…';
+  try {
+    const r = await crearCredito(datos, tokenParaEscribir);
+    E.avisoTemporal = `Crédito ${r.nombre} creado en tu hoja (pestaña ${r.pestana}).`;
+    form.reset();
+  } catch (error) { alert(error.message); }
+  finally { boton.disabled = false; boton.textContent = 'Crear crédito'; pintar(); }
+}
+
 function alEnviar(evento) {
   const abono = evento.target.closest?.('form[data-form="abono"]');
   if (abono) { evento.preventDefault(); guardarAbono(abono); return; }
+  const credito = evento.target.closest?.('form[data-form="credito"]');
+  if (credito) { evento.preventDefault(); guardarCredito(credito); return; }
   const form = evento.target.closest?.('form[data-form="tarea"]');
   if (!form) return;
   evento.preventDefault();
@@ -1406,7 +1422,20 @@ function seccionPrestamoPropio(m, P) {
 
 function prPrestamos(m, pr, d) {
   const pa = [...(d.prestamosActivos ?? [])].sort((a, b) => (b.capital ?? 0) - (a.capital ?? 0));
-  const sind = PRESTAMOS_PROPIOS.map((P) => seccionPrestamoPropio(m, P)).join('');
+  const hoyTxt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
+  const nuevo = seccionPF('nuevo-credito', 'azul', 'Agregar crédito', 'Registra un crédito nuevo y se copia a tu hoja', `
+    <form class="sd-form form-credito" data-form="credito" autocomplete="off">
+      <label class="sd-nota"><span>Nombre del crédito</span><input name="nombre" maxlength="40" placeholder="COPPEL, NU, préstamo de nómina…" required></label>
+      <label><span>Capital (lo que te prestaron)</span><span class="campo-dinero"><span>$</span><input name="monto" inputmode="decimal" required></span></label>
+      <label><span>Meses para pagarlo</span><input name="meses" inputmode="numeric" placeholder="12" required></label>
+      <label><span>Pago mensual</span><span class="campo-dinero"><span>$</span><input name="pago" inputmode="decimal" placeholder="opcional"></span></label>
+      <label><span>Total a pagar</span><span class="campo-dinero"><span>$</span><input name="total" inputmode="decimal" placeholder="opcional"></span></label>
+      <label><span>Tasa anual %</span><input name="tasa" inputmode="decimal" placeholder="opcional, ej. 39"></label>
+      <label><span>Fecha de contratación</span><input name="fecha" type="date" value="${hoyTxt}"></label>
+      <p class="nota sd-nota">Con el pago mensual (o el total, o la tasa) basta. Se crea su pestaña en tu hoja «TO DO», se anota en CREDITOS y se suma solo a tu RESUMEN FINANCIERO.</p>
+      <button class="boton boton-primario" type="submit">Crear crédito</button>
+    </form>`);
+  const sind = PRESTAMOS_PROPIOS.map((P) => seccionPrestamoPropio(m, P)).join('') + nuevo;
   if (!pa.length) return `${sind}<p class="vacio">No encontré la tabla PRESTAMOS ACTIVOS en tu DASHBOARD.</p>`;
   const total = pa.reduce((s, x) => s + (x.capital ?? 0), 0) || 1;
   const suma = (k) => pa.reduce((s, x) => s + (x[k] ?? 0), 0);

@@ -71,6 +71,11 @@ export async function agregarFila(token, id, rango, fila, { entrada = 'RAW', tex
   return m ? Number(m[1]) : null;
 }
 
+/** Cambios de estructura (crear pestañas, formatos): spreadsheets.batchUpdate. */
+export function actualizarHoja(token, id, requests) {
+  return pedir(token, `${API}/${encodeURIComponent(id)}:batchUpdate`, 'POST', { requests });
+}
+
 /** Vacía un rango (no borra la fila de la hoja). */
 export function borrarRango(token, id, rango) {
   return pedir(token, `${API}/${encodeURIComponent(id)}/values/${encodeURIComponent(rango)}:clear`, 'POST', {});

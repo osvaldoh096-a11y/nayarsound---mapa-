@@ -5,9 +5,9 @@
 //   H:I  (opcional) calendario: N, VENCE. Sin calendario se usan quincenas
 //        desde INICIO PRIMERA QUINCENA (como el SINDICATO).
 
-import { TAREAS } from './fuentes.js?v=202611210412';
-import { leerRangos, agregarFila, borrarRango } from './api.js?v=202611210412';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611210412';
+import { TAREAS } from './fuentes.js?v=202611210419';
+import { leerRangos, agregarFila, borrarRango, escribirRango, actualizarHoja } from './api.js?v=202611210419';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611210419';
 
 const numero = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(/[$,\s%]/g, '')));
 /** Número o null (celda vacía o texto). */
@@ -275,3 +275,103 @@ export const usarDemoSindicato = (hoyIdx) => SINDICATO.usarDemo(hoyIdx);
 export const resumenSindicato = (hoyIdx) => SINDICATO.resumen(hoyIdx);
 export const agregarAbono = (datos, obtenerToken) => SINDICATO.agregarAbono(datos, obtenerToken);
 export const borrarAbono = (fila, obtenerToken) => SINDICATO.borrarAbono(fila, obtenerToken);
+
+
+// ---------------------------------------------------------------- Crédito nuevo
+const LET_TOTAL = 'capi,VLOOKUP("MONTO",A2:B30,2,FALSE),totx,IFERROR(VLOOKUP("TOTAL A PAGAR",A2:B30,2,FALSE),""),quin,IFERROR(VLOOKUP("QUINCENAS",A2:B30,2,FALSE),""),tasa,IFERROR(VLOOKUP("TASA ANUAL",A2:B30,2,FALSE),""),total,IF(totx<>"",totx,-PMT(tasa/24,quin,capi)*quin)';
+/** Las mismas fórmulas que tienen SINDICATO, MERCADOLIBRE y BBVA. */
+export const FORMULAS_CREDITO = {
+  tablaMensual: `=IF(COUNT(E2:E)=0,"Sin abonos",IFERROR(LET(${LET_TOTAL},prop,capi/total,fechas,FILTER(D2:D,ISNUMBER(E2:E),E2:E<>0),montos,FILTER(E2:E,ISNUMBER(E2:E),E2:E<>0),meses,SORT(UNIQUE(EOMONTH(fechas,0))),abonos,MAP(meses,LAMBDA(x,SUMPRODUCT((EOMONTH(fechas,0)=x)*montos))),acum,SCAN(0,abonos,LAMBDA(s,v,s+v)),HSTACK(meses,abonos,abonos*prop,abonos*(1-prop),capi-acum*prop)),"Revisa los datos"))`,
+  capitalPagado: `=LET(${LET_TOTAL},SUM(E2:E)*capi/total)`,
+  capitalPendiente: '=VLOOKUP("MONTO",A2:B30,2,FALSE)-S2',
+  pagoMensual: `=LET(${LET_TOTAL},meses,IFERROR(VLOOKUP("NUMERO DE PAGOS MENSUALES",A2:B30,2,FALSE),quin/2),pmes,IFERROR(VLOOKUP("PAGO MENSUAL",A2:B30,2,FALSE),""),IF(pmes<>"",pmes,total/meses))`,
+  interesMensual: '=LET(capi,VLOOKUP("MONTO",A2:B30,2,FALSE),quin,IFERROR(VLOOKUP("QUINCENAS",A2:B30,2,FALSE),""),meses,IFERROR(VLOOKUP("NUMERO DE PAGOS MENSUALES",A2:B30,2,FALSE),quin/2),S4-capi/meses)',
+};
+
+const numeroDe = (v) => {
+  const t = String(v ?? '').replace(/[$,\s%]/g, '');
+  return t === '' ? null : Number(t);
+};
+
+/** Nombre de pestaña válido y que no se repita. */
+export function nombrePestana(nombre, existentes) {
+  const base = String(nombre ?? '').toUpperCase().replace(/[\[\]*/\\?:'"]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40) || 'CREDITO';
+  const usadas = new Set([...existentes].map((x) => normalizar(x)));
+  let t = base; let k = 2;
+  while (usadas.has(normalizar(t))) t = `${base} ${k++}`;
+  return t;
+}
+
+/**
+ * Datos del crédito listos para la hoja. Pide nombre, capital y meses, y al
+ * menos uno de: pago mensual, total a pagar o tasa anual.
+ */
+export function datosCreditoNuevo(form) {
+  const nombre = String(form.nombre ?? '').trim();
+  const monto = numeroDe(form.monto);
+  const meses = numeroDe(form.meses);
+  const pago = numeroDe(form.pago);
+  const total = numeroDe(form.total);
+  const tasa = numeroDe(form.tasa);
+  if (!nombre) throw new Error('Escribe el nombre del crédito (por ejemplo COPPEL).');
+  if (!Number.isFinite(monto) || monto <= 0) throw new Error('Escribe el capital que te prestaron.');
+  if (!Number.isInteger(meses) || meses <= 0) throw new Error('Escribe en cuántos meses lo pagas.');
+  if (![pago, total, tasa].some((x) => Number.isFinite(x) && x > 0)) throw new Error('Escribe el pago mensual, el total a pagar o la tasa anual.');
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(form.fecha ?? '') ? form.fecha : hoyTexto();
+  const filas = [['DATO', 'VALOR'], ['MONTO', monto]];
+  if (Number.isFinite(total) && total > 0) filas.push(['TOTAL A PAGAR', total]);
+  else if (Number.isFinite(pago) && pago > 0) filas.push(['TOTAL A PAGAR', Math.round(pago * meses * 100) / 100]);
+  else {
+    // Solo con tasa: pagos fijos mensuales (sistema francés).
+    const i = tasa / 100 / 12;
+    const cuota = monto * i / (1 - (1 + i) ** -meses);
+    filas.push(['TOTAL A PAGAR', Math.round(cuota * meses * 100) / 100]);
+  }
+  if (Number.isFinite(pago) && pago > 0) filas.push(['PAGO MENSUAL', pago]);
+  filas.push(['NUMERO DE PAGOS MENSUALES', meses]);
+  if (Number.isFinite(tasa) && tasa > 0) filas.push(['TASA ANUAL', tasa / 100]);
+  filas.push(['FECHA CONTRATACION', fecha]);
+  return { nombre, filas };
+}
+
+/**
+ * Crea el crédito en tu hoja «TO DO»: su pestaña (datos, abonos, tabla
+ * mensual y resumen) y su fila en CREDITOS. Así entra solo a la HOJA DATA y
+ * a tu RESUMEN FINANCIERO.
+ */
+export async function crearCredito(form, obtenerToken) {
+  const { nombre, filas } = datosCreditoNuevo(form);
+  const token = await obtenerToken();
+  const [lista] = await leerRangos(token, TAREAS.id, ["'CREDITOS'!A1:B60"]);
+  const pestanas = (lista ?? []).slice(1).map((f) => String(f?.[1] ?? '')).filter(Boolean);
+  if ((lista ?? []).slice(1).some((f) => normalizar(f?.[0]) === normalizar(nombre))) throw new Error(`Ya tienes un crédito llamado ${nombre}.`);
+  const pestana = nombrePestana(nombre, [...pestanas, ...PRESTAMOS_PROPIOS.map((P) => P.pestana), 'TAREAS', 'HABITOS', 'CREDITOS']);
+  const sheetId = 800 + Math.floor(Math.random() * 1e6);
+  const azul = { red: 0.35686275, green: 0.60784316, blue: 0.8352941 };
+  const blanco = { red: 1, green: 1, blue: 1 };
+  const rango = (r0, r1, c0, c1) => ({ sheetId, startRowIndex: r0, endRowIndex: r1, startColumnIndex: c0, endColumnIndex: c1 });
+  const formato = (r, f, campos) => ({ repeatCell: { range: r, cell: { userEnteredFormat: f }, fields: campos } });
+  await actualizarHoja(token, TAREAS.id, [
+    { addSheet: { properties: { sheetId, title: pestana, gridProperties: { rowCount: 200, columnCount: 20, frozenRowCount: 1 } } } },
+    formato(rango(0, 1, 0, 19), { backgroundColor: azul, textFormat: { bold: true, foregroundColor: blanco } }, 'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat'),
+    formato(rango(1, 200, 3, 4), { numberFormat: { type: 'DATE', pattern: 'yyyy-mm-dd' } }, 'userEnteredFormat.numberFormat'),
+    formato(rango(1, 200, 4, 5), { numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' } }, 'userEnteredFormat.numberFormat'),
+    formato(rango(1, 200, 11, 12), { numberFormat: { type: 'DATE', pattern: 'mmmm yyyy' } }, 'userEnteredFormat.numberFormat'),
+    formato(rango(1, 200, 12, 16), { numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' } }, 'userEnteredFormat.numberFormat'),
+    formato(rango(1, 5, 18, 19), { numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' } }, 'userEnteredFormat.numberFormat'),
+  ]);
+  const H = `'${pestana}'`;
+  await escribirRango(token, TAREAS.id, `${H}!A1:B${filas.length}`, filas, { entrada: 'USER_ENTERED' });
+  await escribirRango(token, TAREAS.id, `${H}!D1:F1`, [['FECHA', 'ABONO', 'NOTA']]);
+  await escribirRango(token, TAREAS.id, `${H}!L1:P2`, [['MES', 'ABONADO', 'A CAPITAL', 'A INTERÉS', 'CAPITAL PENDIENTE'], [FORMULAS_CREDITO.tablaMensual, '', '', '', '']], { entrada: 'USER_ENTERED' });
+  await escribirRango(token, TAREAS.id, `${H}!R1:S5`, [['RESUMEN DEL CRÉDITO', ''], ['CAPITAL PAGADO', FORMULAS_CREDITO.capitalPagado],
+    ['CAPITAL PENDIENTE', FORMULAS_CREDITO.capitalPendiente], ['PAGO MENSUAL', FORMULAS_CREDITO.pagoMensual], ['INTERES MENSUAL', FORMULAS_CREDITO.interesMensual]], { entrada: 'USER_ENTERED' });
+  // Su fila en CREDITOS (la primera vacía): de ahí lo toman la HOJA DATA y el panel.
+  let fila = 2;
+  while (String(lista?.[fila - 1]?.[0] ?? '').trim()) fila += 1;
+  await escribirRango(token, TAREAS.id, `'CREDITOS'!A${fila}:B${fila}`, [[nombre, pestana]]);
+  await cargarPrestamosPropios(token);
+  const P = PRESTAMOS_PROPIOS.find((x) => normalizar(x.pestana) === normalizar(pestana));
+  if (P) P.url = `https://docs.google.com/spreadsheets/d/${TAREAS.id}/edit#gid=${sheetId}`;
+  return { nombre, pestana };
+}
