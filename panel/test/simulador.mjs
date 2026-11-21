@@ -89,6 +89,10 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     if (metodo === 'OPTIONS') return ruta.fulfill({ status: 204, headers: cors });
     if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });
     if (url.pathname.includes(`/spreadsheets/${TAREAS.id}/`) || url.pathname.endsWith(`/spreadsheets/${TAREAS.id}:batchUpdate`)) return tareasSim(ruta, url, metodo, cors);
+    if (metodo === 'POST' && url.pathname.endsWith(':batchUpdate')) {
+      lecturas.push({ metodo, clave: 'formato', celda: ':batchUpdate' });
+      return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ replies: [] }) });
+    }
     const m = url.pathname.match(/\/v4\/spreadsheets\/([^/:]+)\/values(?::batchGet|\/(.+))$/);
     const clave = m && porId[decodeURIComponent(m[1])];
     if (ruta.request().headers().authorization !== 'Bearer token-de-prueba') return ruta.fulfill({ status: 401, headers: cors, body: '{}' });

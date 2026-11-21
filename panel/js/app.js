@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210513';
-import { escribirCelda, leerRangos, escribirRango } from './api.js?v=202611210513';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210513';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210513';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210513';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210516';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611210516';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210516';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210516';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210516';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210513';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210513';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210513';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210513';
-import { fuentesDemo } from './demo.js?v=202611210513';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210513';
-import { agendaDinero } from './agenda.js?v=202611210513';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210513';
-import { leerCashflow } from './dashprestamos.js?v=202611210513';
-import { icono } from './iconos.js?v=202611210513';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210513';
+} from './fechas.js?v=202611210516';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210516';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210516';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210516';
+import { fuentesDemo } from './demo.js?v=202611210516';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210516';
+import { agendaDinero } from './agenda.js?v=202611210516';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210516';
+import { leerCashflow } from './dashprestamos.js?v=202611210516';
+import { icono } from './iconos.js?v=202611210516';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210516';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1873,6 +1873,13 @@ async function confirmarPagoInteres(boton) {
     // Clientes: FECHA, OP, CANT. Inversores: OP, FECHA, CANTIDAD (el resto lo llenan sus fórmulas).
     const valores = inversor ? [op, hoyTxt, monto] : [hoyTxt, op, monto];
     await escribirRango(token, id, `'${hoja}'!U${fila}:W${fila}`, [valores], { entrada: 'USER_ENTERED' });
+    // Misma presentación que tus filas: fecha «d mmm» (los colores alternos los pone tu hoja).
+    const sheetId = ARCHIVOS.prestamos.pestanas?.[hoja];
+    const col = inversor ? 21 : 20;
+    if (sheetId !== undefined) {
+      await actualizarHoja(token, id, [{ repeatCell: { range: { sheetId, startRowIndex: fila - 1, endRowIndex: fila, startColumnIndex: col, endColumnIndex: col + 1 },
+        cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'd mmm' } } }, fields: 'userEnteredFormat.numberFormat' } }]).catch(() => {});
+    }
     E.avisoTemporal = `Pago de ${dinero(monto)} ${inversor ? 'a' : 'de'} ${boton.dataset.nombre} (op. ${op}) anotado en tu hoja.`;
     if ($('#detalle').open) $('#detalle').close();
     await actualizar({ interactivo: true });
