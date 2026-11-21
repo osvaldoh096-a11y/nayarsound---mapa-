@@ -294,6 +294,13 @@ try {
           'BBVA: capital pendiente, 24 pagos mensuales estimados con su tasa, y vencimiento');
         if (capturas) await bb.screenshot({ path: `${capturas}/bbva.png` });
       }
+      {
+        // Crédito nuevo: basta su fila en CREDITOS para que aparezca y cuente.
+        const nuevo = pagina.locator('[data-pf="coppel"]');
+        revisar(await nuevo.count() === 1 && /Préstamo COPPEL/.test(await nuevo.locator('summary').innerText()) && /Capital pendiente \$9,167 de \$10,000/.test(await nuevo.locator('summary').innerText()),
+          'Préstamos: un crédito nuevo en CREDITOS aparece solo con su capital pendiente');
+        revisar(/Préstamo MERCADO PAGO/.test(await pagina.locator('[data-pf="mercadolibre"] summary').innerText()), 'Préstamos: el nombre sale de la pestaña CREDITOS');
+      }
       await sec.locator('input[name="monto"]').fill('10310');
       await sec.locator('input[name="nota"]').fill('=PRUEBA transferencia');
       pagina.once('dialog', (dlg) => dlg.accept());

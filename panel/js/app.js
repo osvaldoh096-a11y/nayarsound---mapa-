@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210349';
-import { escribirCelda, leerRangos } from './api.js?v=202611210349';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210349';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210349';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210349';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210412';
+import { escribirCelda, leerRangos } from './api.js?v=202611210412';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210412';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210412';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210412';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210349';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210349';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210349';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210349';
-import { fuentesDemo } from './demo.js?v=202611210349';
-import { PRESTAMOS_PROPIOS } from './sindicato.js?v=202611210349';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210349';
-import { leerCashflow } from './dashprestamos.js?v=202611210349';
-import { icono } from './iconos.js?v=202611210349';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210349';
+} from './fechas.js?v=202611210412';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210412';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210412';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210412';
+import { fuentesDemo } from './demo.js?v=202611210412';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios } from './sindicato.js?v=202611210412';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210412';
+import { leerCashflow } from './dashprestamos.js?v=202611210412';
+import { icono } from './iconos.js?v=202611210412';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210412';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -156,7 +156,7 @@ async function actualizar({ interactivo = false } = {}) {
   E.ultimoIntento = Date.now();
   pintar();
   try {
-    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token), ...PRESTAMOS_PROPIOS.map((P) => P.cargar(token)), cargarHabitos(token)]);
+    const [fuentes] = await Promise.all([leerTodo(token, E.cfg.archivos, E.fuentes), cargarTareas(token), cargarPrestamosPropios(token), cargarHabitos(token)]);
     E.fuentes = fuentes;
     const errores = ORDEN_ARCHIVOS.map((k) => E.fuentes[k]).filter((f) => f.estado === 'error');
     if (errores.some((f) => f.error.tipo === 'sesion')) { olvidarToken(); E.sesion = 'expirada'; }

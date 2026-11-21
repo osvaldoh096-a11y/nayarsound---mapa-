@@ -5,9 +5,9 @@
 //   H:I  (opcional) calendario: N, VENCE. Sin calendario se usan quincenas
 //        desde INICIO PRIMERA QUINCENA (como el SINDICATO).
 
-import { TAREAS } from './fuentes.js?v=202611210349';
-import { leerRangos, agregarFila, borrarRango } from './api.js?v=202611210349';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611210349';
+import { TAREAS } from './fuentes.js?v=202611210412';
+import { leerRangos, agregarFila, borrarRango } from './api.js?v=202611210412';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611210412';
 
 const numero = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(/[$,\s%]/g, '')));
 /** Número o null (celda vacía o texto). */
@@ -64,7 +64,7 @@ export function crearPrestamo({ clave, pestana, gid, titulo, demo }) {
   const H = `'${pestana}'`;
   const P = {
     clave, pestana, titulo,
-    url: `https://docs.google.com/spreadsheets/d/${TAREAS.id}/edit#gid=${gid}`,
+    url: `https://docs.google.com/spreadsheets/d/${TAREAS.id}/edit${gid !== null && gid !== undefined ? `#gid=${gid}` : ''}`,
     S: { estado: 'sin-leer', datos: {}, abonos: [], vencimientos: [], error: null, guardando: false, demo: false },
   };
   const S = P.S;
@@ -236,6 +236,36 @@ export const BBVA = crearPrestamo({
 });
 
 export const PRESTAMOS_PROPIOS = [SINDICATO, MERCADOLIBRE, BBVA];
+
+/**
+ * Lista de créditos de la pestaña CREDITOS (CRÉDITO, PESTAÑA). Un crédito
+ * nuevo aparece solo en cuanto tiene su fila ahí; uno que quitas, desaparece.
+ * Sin la pestaña (o vacía) se quedan los tres de siempre.
+ */
+export function sincronizarCreditos(filas) {
+  const lista = (filas ?? []).map((f) => ({ nombre: String(f?.[0] ?? '').trim(), pestana: String(f?.[1] ?? '').trim() }))
+    .filter((x) => x.nombre && x.pestana);
+  if (!lista.length) return;
+  const actuales = new Map(PRESTAMOS_PROPIOS.map((P) => [normalizar(P.pestana), P]));
+  const nueva = lista.map(({ nombre, pestana }) => {
+    const P = actuales.get(normalizar(pestana)) ?? crearPrestamo({
+      clave: normalizar(pestana).toLowerCase().replace(/[^a-z0-9]+/g, '-'), pestana, gid: null, titulo: '',
+      demo: () => ({ datos: {}, abonos: [], vencimientos: [] }),
+    });
+    P.titulo = `Préstamo ${nombre}`;
+    return P;
+  });
+  PRESTAMOS_PROPIOS.splice(0, PRESTAMOS_PROPIOS.length, ...nueva);
+}
+
+/** Lee la lista de CREDITOS y luego cada crédito. */
+export async function cargarPrestamosPropios(token) {
+  try {
+    const [v] = await leerRangos(token, TAREAS.id, ["'CREDITOS'!A2:B60"]);
+    sincronizarCreditos(v);
+  } catch { /* sin pestaña CREDITOS: se quedan los de siempre */ }
+  await Promise.all(PRESTAMOS_PROPIOS.map((P) => P.cargar(token)));
+}
 
 // Compatibilidad: el SINDICATO con los nombres de antes.
 export const S = SINDICATO.S;

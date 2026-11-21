@@ -124,7 +124,9 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
   const bbva = [['DATO', 'VALOR', '', 'FECHA', 'ABONO', 'NOTA', '', 'N', 'VENCE', 'MONTO'],
     ['MONTO', 110600, '', '', '', '', '', 1, 46333, 1582.92], ['SALDO PENDIENTE', 112308.21], ['PAGO QUINCENAL', ''], ['TOTAL A PAGAR', ''],
     ['QUINCENAS', 48], ['TASA ANUAL', 0.3516], ['FECHA CONTRATACION', 46329], ['FECHA VENCIMIENTO', 47058]];
-  const hojas = { TAREAS: tareas, SINDICATO: sindicato, HABITOS: habitos, MERCADOLIBRE: mercadolibre, BBVA: bbva };
+  const creditos = [['CRÉDITO', 'PESTAÑA'], ['SINDICATO', 'SINDICATO'], ['MERCADO PAGO', 'MERCADOLIBRE'], ['BBVA', 'BBVA'], ['COPPEL', 'COPPEL']];
+  const coppel = [['DATO', 'VALOR', '', 'FECHA', 'ABONO', 'NOTA'], ['MONTO', 10000, '', 46340, 1000], ['TOTAL A PAGAR', 12000], ['NUMERO DE PAGOS MENSUALES', 12], ['TASA ANUAL', 0.3], ['FECHA CONTRATACION', 46330]];
+  const hojas = { TAREAS: tareas, SINDICATO: sindicato, HABITOS: habitos, MERCADOLIBRE: mercadolibre, BBVA: bbva, CREDITOS: creditos, COPPEL: coppel };
   function tareasSim(ruta, url, metodo, cors) {
     const ok = (cuerpo) => ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
     const sub = decodeURIComponent(url.pathname.split('/values')[1] ?? '');
