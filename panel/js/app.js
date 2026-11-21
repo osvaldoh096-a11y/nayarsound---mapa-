@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210527';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611210527';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210527';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210527';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210527';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611212350';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611212350';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611212350';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611212350';
+import { construirModelo, entregarCon } from './modelo.js?v=202611212350';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210527';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210527';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210527';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210527';
-import { fuentesDemo } from './demo.js?v=202611210527';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210527';
-import { agendaDinero } from './agenda.js?v=202611210527';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210527';
-import { leerCashflow } from './dashprestamos.js?v=202611210527';
-import { icono } from './iconos.js?v=202611210527';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210527';
+} from './fechas.js?v=202611212350';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611212350';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611212350';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611212350';
+import { fuentesDemo } from './demo.js?v=202611212350';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611212350';
+import { agendaDinero } from './agenda.js?v=202611212350';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611212350';
+import { leerCashflow } from './dashprestamos.js?v=202611212350';
+import { icono } from './iconos.js?v=202611212350';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611212350';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -384,7 +384,9 @@ function enlaceWhatsApp(numero, texto) {
 
 /** Registro (deuda o evento de hoy) por número de fila. */
 function registroDe(p, fila) {
-  return [...(p?.registros ?? []), ...(p?.hoy ?? [])].find((x) => String(x.fila) === String(fila)) ?? null;
+  // En los eventos de la agenda, «registros» son filas de AMAL AGENDA: solo cuentan los de hoy.
+  const lista = p?.tipo === 'agenda' ? (p?.hoy ?? []) : [...(p?.registros ?? []), ...(p?.hoy ?? [])];
+  return lista.find((x) => String(x.fila) === String(fila)) ?? null;
 }
 /** Mensaje a enviar: con el evento de hoy (anticipado) si lo elegiste. */
 function mensajeDe(p) {
@@ -400,7 +402,7 @@ function botonWhatsApp(p) {
 }
 
 function avisoTelefono(p) {
-  if (p.tipo !== 'deuda') return '';
+  if (p.tipo !== 'deuda' && p.tipo !== 'agenda') return '';
   const t = E.modelo?.nayarsound?.telefonos;
   if (!t || t.estado === 'sin-datos') return '';
   const tel = telefonoDe(p.titulo);
@@ -1975,7 +1977,7 @@ function abrirPendiente(p) {
   } else if (p.registros?.length) {
     registros = `<section><h3>Registro</h3><ul class="det-lista">${p.registros.map((r) => `<li>${r.rango ?? r.hora ? `${esc(r.rango ?? r.hora)} · ` : ''}${r.tipo ? `${esc(r.tipo)} · ` : ''}${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">fila ${r.fila} ↗</a>` : `fila ${r.fila}`}${r.banderas?.length ? ` · ${esc(r.banderas.map((b) => b.texto).join(', '))}` : ''}</li>`).join('')}</ul></section>`;
   }
-  if (p.tipo === 'deuda' && p.hoy?.length) {
+  if ((p.tipo === 'deuda' || p.tipo === 'agenda') && p.hoy?.length) {
     registros += `<section class="det-hoy"><h3>Evento de hoy · cobro anticipado</h3>
       <p class="nota">Anota desde ya el pago al DJ para sacar el resumen completo. Se escribe en la columna DJ de AGENDA Y VENTAS; el evento entra a la deuda cuando se registre como realizado.</p>
       <ul class="det-lista">${p.hoy.map((r) => {

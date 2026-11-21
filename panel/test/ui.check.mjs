@@ -86,6 +86,7 @@ try {
       const textoPr = await pagina.locator('.bloque-alertas', { hasText: 'Préstamos e inversores' }).innerText();
       revisar(/Pago de crédito/.test(textoPr) && /(SINDICATO|BBVA)/.test(textoPr), 'Pendientes: avisa los pagos de tus créditos (SINDICATO, BBVA…) de los próximos días');
     }
+
     const tiles = await pagina.locator('.fin-fila .cifra').allInnerTexts();
     const mes = esperado.mesActual;
     const esperadoTiles = [mes.ganancia, mes.gastos, mes.sobrante].map((c) => dinero(c.valor));
@@ -93,6 +94,24 @@ try {
     if (extra?.inicio) revisar(JSON.stringify(tiles) === JSON.stringify(extra.inicio), `  coincide con la hoja: ${extra.inicio.join(' · ')}`);
     revisar(/Actualizado/.test(await texto(pagina, '#estado-lectura')), 'Muestra fecha y hora de la última actualización');
     revisar(lecturas.length > 0 && lecturas.every((l) => l.metodo === 'GET'), `Todas las consultas a Sheets son de lectura (${lecturas.length} GET)`);
+    {
+      // Evento de hoy desde la agenda: se anota el pago al DJ y sale la cuenta anticipada.
+      await pagina.locator(`[data-dia="${hoy.idx}"]`).first().click();
+      await pagina.waitForSelector('#detalle[open] .det-horario');
+      await pagina.locator('#detalle [data-pendiente$="|DJ ALFA"]').first().click();
+      await pagina.waitForSelector('#detalle[open] .det-hoy');
+      const campo = pagina.locator('#detalle .det-hoy input[data-fila-pagodj]').first();
+      await campo.fill('950');
+      const antesHoyAg = lecturas.length;
+      await pagina.locator('#detalle .det-hoy [data-accion="guardar-pagodj"]').first().click();
+      for (let i = 0; i < 40 && !lecturas.slice(antesHoyAg).some((l) => l.metodo === 'PUT'); i++) await pagina.waitForTimeout(100);
+      const put = lecturas.slice(antesHoyAg).filter((l) => l.metodo === 'PUT');
+      for (let i = 0; i < 60 && !/DJ: \$950/.test(await pagina.locator('#detalle .det-mensaje pre').innerText().catch(() => '')); i++) await pagina.waitForTimeout(100);
+      const msg = await pagina.locator('#detalle .det-mensaje pre').innerText().catch(() => '');
+      revisar(put.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(put[0].celda) && /· HOY\*/.test(msg) && /DJ: \$950/.test(msg),
+        'Eventos de hoy: desde la agenda se anota el pago al DJ y sale la cuenta anticipada para mandar');
+      await pagina.locator('#detalle [data-cerrar]').first().click();
+    }
     await pagina.reload();
     await pagina.waitForSelector('.inicio-rejilla');
     revisar(await pagina.locator('[data-accion="entrar"]').count() === 0, 'Al recargar con la sesión vigente no pide la cuenta otra vez');

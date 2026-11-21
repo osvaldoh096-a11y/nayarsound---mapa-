@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611210527';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611210527';
+} from './fechas.js?v=202611212350';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611212350';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611210527';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611210527';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611210527';
-import { modeloST } from './st.js?v=202611210527';
-import { modeloOperacion } from './nsops.js?v=202611210527';
-import { dinero } from './formato.js?v=202611210527';
+} from './sheets.js?v=202611212350';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611212350';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611212350';
+import { modeloST } from './st.js?v=202611212350';
+import { modeloOperacion } from './nsops.js?v=202611212350';
+import { dinero } from './formato.js?v=202611212350';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -444,6 +444,29 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
       deuda.cruce = { texto: faltan.texto, coincide: faltan.cantidad === eventos, eventos };
     }
     salida.deuda = { ...deuda, origen: origenDeuda };
+  }
+  // Eventos de HOY desde la agenda: también aquí se anota el pago al DJ y sale
+  // la cuenta anticipada (con lo que ya debía, si debía), aunque no tenga deuda.
+  {
+    const deudoresHoy = ventas?.registros.filter((r) => normalizar(r.pagado) === 'DEUDOR') ?? [];
+    for (const p of pendientes) {
+      if (p.tipo !== 'agenda' || p.sinDj || p.fechaIdx !== hoyIdx) continue;
+      const hoyRows = (ventas?.registros ?? [])
+        .filter((r) => r.idx === hoyIdx && normalizar(r.dj) === normalizar(p.titulo) && !['DEUDOR', 'PAGADO'].includes(normalizar(r.pagado)))
+        .map((r) => {
+          const estimado = { ...r, realizado: 'SI', anticipado: true, url: urlFila(nayarsound, 'AGENDA Y VENTAS', r.fila) };
+          estimado.entregar = typeof r.pagoDj === 'number' ? entregarCon(estimado, r.pagoDj) : null;
+          estimado.importe = { valor: estimado.entregar };
+          return estimado;
+        });
+      if (!hoyRows.length) continue;
+      const debe = deudoresHoy.filter((r) => normalizar(r.dj) === normalizar(p.titulo))
+        .map((r) => ({ ...r, url: urlFila(nayarsound, 'AGENDA Y VENTAS', r.fila), importe: numeroCelda(r.entregar) }));
+      p.hoy = hoyRows;
+      p.deudaPrevia = debe.length;
+      p.mensaje = mensajeDeuda(p.titulo, [...debe, ...hoyRows]);
+      p.pago = ventas?.columnas?.pago && !nayarsound.demo ? { archivo: nayarsound.id, pestana: 'AGENDA Y VENTAS', columnas: ventas.columnas } : null;
+    }
   }
 
   // ---- Controles de captura (avisos, no pendientes)
