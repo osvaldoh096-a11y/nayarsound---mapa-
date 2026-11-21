@@ -267,6 +267,12 @@ try {
       const ag = await pagina.locator('.pf').innerText();
       revisar(await pagina.locator('.ag-item.cobrar').count() > 0 && await pagina.locator('.ag-item.pagar').count() > 0 && /Entra en 30 días/.test(ag) && await pagina.locator('.ag-semana').count() >= 3,
         `Agenda: cobros y pagos de 30 días por semana (${await pagina.locator('.ag-item').count()} movimientos)`);
+      {
+        const sem = pagina.locator('details.ag-semana').nth(1);
+        const cerrada = await sem.getAttribute('open') === null && await pagina.locator('details.ag-semana').first().getAttribute('open') !== null;
+        await sem.locator('summary').click();
+        revisar(cerrada && await sem.getAttribute('open') !== null, 'Agenda: cada semana se abre y se cierra con un clic (la primera abierta)');
+      }
       if (capturas) await pagina.screenshot({ path: `${capturas}/agenda.png`, fullPage: true });
       await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
     }

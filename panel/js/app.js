@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210435';
-import { escribirCelda, leerRangos } from './api.js?v=202611210435';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210435';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210435';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210435';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210438';
+import { escribirCelda, leerRangos } from './api.js?v=202611210438';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210438';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210438';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210438';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210435';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210435';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210435';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210435';
-import { fuentesDemo } from './demo.js?v=202611210435';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210435';
-import { agendaDinero } from './agenda.js?v=202611210435';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210435';
-import { leerCashflow } from './dashprestamos.js?v=202611210435';
-import { icono } from './iconos.js?v=202611210435';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210435';
+} from './fechas.js?v=202611210438';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210438';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210438';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210438';
+import { fuentesDemo } from './demo.js?v=202611210438';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210438';
+import { agendaDinero } from './agenda.js?v=202611210438';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210438';
+import { leerCashflow } from './dashprestamos.js?v=202611210438';
+import { icono } from './iconos.js?v=202611210438';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210438';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1448,18 +1448,19 @@ function prAgenda(m, pr) {
   const ag = agendaDinero({ clientes: pr.clientesActivos ?? [], inversiones: pr.inversiones ?? [], propios: PRESTAMOS_PROPIOS }, hoyIdx, 30);
   const fecha = (idx) => { const t = fechaCorta(idx); return idx === hoyIdx ? `Hoy · ${t}` : idx === hoyIdx + 1 ? `Mañana · ${t}` : t; };
   const importe = (it) => `${it.tipo === 'cobrar' ? '+' : '−'}${din(it.montoMXN, 0)}${it.divisa === 'USDT' ? `<small>${esc(it.monto.toLocaleString('es-MX', { maximumFractionDigits: 2 }))} USDT</small>` : ''}`;
-  const semanas = ag.semanas.map((s) => {
+  const semanas = ag.semanas.map((s, k) => {
     const dias = new Map();
     for (const it of s.items) { if (!dias.has(it.idx)) dias.set(it.idx, []); dias.get(it.idx).push(it); }
-    return `<section class="ag-semana ${s.pesada ? 'pesada' : ''}">
-      <header class="ag-semana-cab"><b>${esc(diaMes(Math.max(s.ini, hoyIdx)))} – ${esc(diaMes(s.fin))}</b>
+    return `<details class="ag-semana ${s.pesada ? 'pesada' : ''}" ${k === 0 ? 'open' : ''}>
+      <summary class="ag-semana-cab"><b>${esc(diaMes(Math.max(s.ini, hoyIdx)))} – ${esc(diaMes(s.fin))}</b>
         <span>entra <b class="texto-verde">${din(s.entra, 0)}</b> · sale <b class="texto-rojo">${din(s.sale, 0)}</b> · neto <b class="${s.neto < 0 ? 'texto-rojo' : 'texto-verde'}">${din(s.neto, 0)}</b></span>
-        ${s.pesada ? '<span class="ag-alerta">⚠ Semana pesada: sale más de lo que entra</span>' : ''}</header>
+        ${s.pesada ? '<span class="ag-alerta">⚠ Semana pesada: sale más de lo que entra</span>' : ''}
+        <span class="ag-conteo">${plural(s.items.length, 'movimiento', 'movimientos')}</span>${icono('flecha', 'ag-chevron')}</summary>
       ${[...dias.entries()].map(([idx, lista]) => `<div class="ag-dia"><div class="ag-fecha">${esc(fecha(idx))}</div><div class="ag-lista">${lista.map((it) => `
         <div class="ag-item ${it.tipo} ${it.vencido ? 'vencido' : ''}"><span class="pf-tag ${it.tipo}">${it.tipo === 'cobrar' ? 'Cobrar' : 'Pagar'}</span>
           <span class="ag-nombre"><b>${esc(it.nombre)}</b><small>${esc(it.grupo)}${it.detalle ? ` · ${esc(it.detalle)}` : ''}</small></span>
           <span class="ag-monto ${it.tipo === 'cobrar' ? 'texto-verde' : 'texto-rojo'}">${importe(it)}</span></div>`).join('')}</div></div>`).join('')}
-    </section>`;
+    </details>`;
   }).join('');
   return `<div class="ag-resumen">
       <div><span>Entra en 30 días</span><b class="texto-verde">${din(ag.entra, 0)}</b></div>
