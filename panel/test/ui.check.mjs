@@ -302,6 +302,15 @@ try {
         revisar(/Préstamo MERCADO PAGO/.test(await pagina.locator('[data-pf="mercadolibre"] summary').innerText()), 'Préstamos: el nombre sale de la pestaña CREDITOS');
       }
       {
+        // Recargar la página deja la misma pestaña de Préstamos.
+        await pagina.locator('.pf-tab', { hasText: 'Inversores' }).click();
+        await pagina.reload();
+        await pagina.waitForSelector('.pf-tab.activo');
+        revisar((await pagina.locator('.pf-tab.activo').innerText()).trim() === 'Inversores', 'Recargar: se queda en la misma pestaña (Inversores)');
+        await pagina.locator('.pf-tab', { hasText: 'Préstamos' }).click();
+        await pagina.waitForSelector('[data-accion="nuevo-credito"]');
+      }
+      {
         // Agregar crédito desde el panel: crea su pestaña y su fila en CREDITOS.
         const btn = pagina.locator('[data-accion="nuevo-credito"]');
         if (capturas) { await btn.scrollIntoViewIfNeeded(); await pagina.screenshot({ path: `${capturas}/boton-credito.png` }); }

@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210422';
-import { escribirCelda, leerRangos } from './api.js?v=202611210422';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210422';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210422';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210422';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210425';
+import { escribirCelda, leerRangos } from './api.js?v=202611210425';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210425';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210425';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210425';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210422';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210422';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210422';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210422';
-import { fuentesDemo } from './demo.js?v=202611210422';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210422';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210422';
-import { leerCashflow } from './dashprestamos.js?v=202611210422';
-import { icono } from './iconos.js?v=202611210422';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210422';
+} from './fechas.js?v=202611210425';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210425';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210425';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210425';
+import { fuentesDemo } from './demo.js?v=202611210425';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210425';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210425';
+import { leerCashflow } from './dashprestamos.js?v=202611210425';
+import { icono } from './iconos.js?v=202611210425';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210425';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -52,6 +52,19 @@ const E = {
 };
 
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
+
+// Al recargar la página: misma pestaña de Préstamos y mismo lugar de la pantalla
+// (solo en esta pestaña del navegador; si no se puede guardar, no pasa nada).
+const RECUERDO = 'panel-recuerdo';
+function leerRecuerdo() {
+  try { return JSON.parse(sessionStorage.getItem(RECUERDO) ?? '{}') ?? {}; } catch { return {}; }
+}
+function guardarRecuerdo(cambios) {
+  try { sessionStorage.setItem(RECUERDO, JSON.stringify({ ...leerRecuerdo(), ...cambios })); } catch { /* sin almacenamiento */ }
+}
+E.tabPr = leerRecuerdo().tabPr;
+let scrollPendiente = (() => { const r = leerRecuerdo(); return r.ruta && location.hash.startsWith(`#/${r.ruta}`) ? r.scroll : null; })();
+addEventListener('pagehide', () => guardarRecuerdo({ scroll: window.scrollY, ruta: (location.hash.match(/^#\/(\w+)/) ?? [])[1] ?? 'inicio' }));
 
 // ------------------------------------------------------------------ arranque
 
@@ -165,6 +178,12 @@ async function actualizar({ interactivo = false } = {}) {
   } finally {
     E.cargando = false;
     pintar();
+    // Tras recargar la página, vuelve al lugar donde estabas (una sola vez).
+    if (scrollPendiente !== null && E.modelo) {
+      const y = scrollPendiente;
+      scrollPendiente = null;
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    }
   }
 }
 
@@ -224,7 +243,7 @@ function alHacerClic(evento) {
   }
   if (accion === 'nuevo-credito') { abrirNuevoCredito(); return; }
   if (accion === 'ver-sin-interes') { abrirSinInteres(el.dataset.tipo); return; }
-  if (accion === 'tab-pr') { E.tabPr = el.dataset.tab; pintar(); window.scrollTo(0, 0); return; }
+  if (accion === 'tab-pr') { E.tabPr = el.dataset.tab; guardarRecuerdo({ tabPr: E.tabPr }); pintar(); window.scrollTo(0, 0); return; }
   if (accion === 'borrar-tarea') {
     const t = tareaPorClave(el.dataset.tareaBorrar);
     if (t && confirm(`¿Borrar la tarea «${t.texto}»?`)) borrarTarea(t, tokenParaEscribir, pintarTareas);
