@@ -231,6 +231,12 @@ try {
     const esperadosDj = primerDia.ciudades.reduce((s, c) => s + c.djs.length, 0) + (primerDia.eventosSinDj ?? 0);
     revisar(djs === esperadosDj, `DJs del primer día en pantalla: ${djs} (esperado ${esperadosDj})`);
 
+    if (!rutaSnapshot) {
+      await pagina.goto(`${url}/panel/#/inicio`);
+      await pagina.waitForSelector('.bloque-finanzas');
+      const diario = await pagina.locator('.bloque-finanzas .fin-diario').innerText().catch(() => '');
+      revisar(/^Al día \(\d+ días?\): ganancia \$[\d,]+ · gasto \$[\d,]+ · sobrante -?\$[\d,]+$/.test(diario.trim()), `Finanzas: promedio al día (${diario.trim()})`);
+    }
     // Préstamos
     await pagina.goto(`${url}/panel/#/prestamos`);
     {

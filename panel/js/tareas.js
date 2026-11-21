@@ -3,10 +3,10 @@
 // también desde Sheets. Antes de cambiar o borrar una fila se comprueba que
 // sigue siendo la misma tarea.
 
-import { TAREAS } from './fuentes.js?v=202611210209';
-import { leerRangos, agregarFila, escribirRango, borrarRango } from './api.js?v=202611210209';
-import { esc, plural } from './formato.js?v=202611210209';
-import { icono } from './iconos.js?v=202611210209';
+import { TAREAS } from './fuentes.js?v=202611210257';
+import { leerRangos, agregarFila, escribirRango, borrarRango } from './api.js?v=202611210257';
+import { esc, plural } from './formato.js?v=202611210257';
+import { icono } from './iconos.js?v=202611210257';
 
 const H = `'${TAREAS.pestana}'`;
 const RANGO = `${H}!A2:E`;
