@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210516';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611210516';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210516';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210516';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210516';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210524';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611210524';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210524';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210524';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210524';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210516';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210516';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210516';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210516';
-import { fuentesDemo } from './demo.js?v=202611210516';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210516';
-import { agendaDinero } from './agenda.js?v=202611210516';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210516';
-import { leerCashflow } from './dashprestamos.js?v=202611210516';
-import { icono } from './iconos.js?v=202611210516';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210516';
+} from './fechas.js?v=202611210524';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210524';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210524';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210524';
+import { fuentesDemo } from './demo.js?v=202611210524';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210524';
+import { agendaDinero } from './agenda.js?v=202611210524';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210524';
+import { leerCashflow } from './dashprestamos.js?v=202611210524';
+import { icono } from './iconos.js?v=202611210524';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210524';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -610,7 +610,39 @@ function alCambiar(evento) {
 
 // ------------------------------------------------------------------ pintar
 
+/**
+ * Pendientes de pago que la hoja no avisa: interés a tus inversores y cuotas
+ * de tus créditos (SINDICATO, BBVA, Mercado Pago…) de los próximos 7 días, más
+ * lo atrasado. No repite lo que ya trae el recordatorio de 5 días de tu hoja.
+ */
+function agregarPagosPendientes(m) {
+  if (!m || m._pagosAgregados || !m.prestamos?.disponible) return;
+  m._pagosAgregados = true;
+  const hoyIdx = m.hoy.idx;
+  const ag = agendaDinero({ clientes: [], inversiones: m.prestamos.inversiones ?? [], propios: PRESTAMOS_PROPIOS }, hoyIdx, 7);
+  // Lo que ya trae el recordatorio de tu hoja (mismo nombre, ±3 días) no se repite.
+  const ya = m.pendientes.filter((p) => p.accion === 'PAGAR' && p.tipo !== 'liquidar' && p.fechaIdx !== null);
+  const repetido = (it) => ya.some((p) => normalizar(p.titulo) === normalizar(it.nombre) && Math.abs(p.fechaIdx - it.idx) <= 3);
+  for (const it of ag.items) {
+    if (it.tipo !== 'pagar' || repetido(it)) continue;
+    const credito = it.grupo === 'Crédito';
+    const P = credito ? PRESTAMOS_PROPIOS.find((x) => normalizar(x.titulo.replace(/^Préstamo\s+/i, '')) === normalizar(it.nombre)) : null;
+    const urgencia = it.vencido ? 'vencido' : it.idx <= hoyIdx ? 'hoy' : 'proximo';
+    m.pendientes.push({
+      id: `pago|${it.grupo}|${normalizar(it.nombre)}|${it.idx}|${it.detalle}`,
+      negocio: 'Préstamos', tipo: 'pagar', accion: 'PAGAR', titulo: it.nombre,
+      subtitulo: `${credito ? 'Pago de crédito' : 'Interés a inversor'} · ${it.detalle}`,
+      fechaIdx: it.idx, urgencia, monto: it.montoMXN, moneda: 'MXN', usdt: it.divisa === 'USDT' ? it.monto : null, decimales: 0,
+      registros: null, linea: '',
+      origen: credito ? { archivo: 'TO DO · Dashboard personal', pestana: P?.pestana ?? it.nombre, url: P?.url ?? null }
+        : { archivo: '💵REGISTRO DE PRESTAMOS', pestana: 'REGISTRO DE INVERSORES', url: m.prestamos.inversionesUrl ?? null },
+    });
+    m.conteo[urgencia] = (m.conteo[urgencia] ?? 0) + 1;
+  }
+}
+
 function pintar() {
+  agregarPagosPendientes(E.modelo);
   ocultarTip();
   E.limpiar.forEach((f) => f());
   E.limpiar = [];

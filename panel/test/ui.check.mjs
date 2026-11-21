@@ -73,12 +73,19 @@ try {
     revisar(await pagina.locator('.inicio-rejilla').count() === 0 && lecturas.length === 0, 'Sin iniciar sesión no se consulta ni se muestra nada');
     await entrar(pagina);
     const total = await texto(pagina, '.protagonista .cifra-xl');
-    revisar(total === String(esperado.pendientes.length), `Pendientes en Inicio: ${total} (esperado ${esperado.pendientes.length})`);
+    // Además de lo del modelo, el panel agrega los pagos a inversores y de créditos que la hoja no avisa.
+    const extras = await pagina.locator('[data-pendiente^="pago|"]').evaluateAll((els) => els.map((e) => [...e.classList].find((c) => c.startsWith('u-'))?.slice(2)));
+    revisar(total === String(esperado.pendientes.length + extras.length), `Pendientes en Inicio: ${total} (esperado ${esperado.pendientes.length} + ${extras.length} pagos)`);
     for (const u of ['hoy', 'proximo', 'sin-fecha']) {
       const n = await texto(pagina, `.clase.u-${u} .clase-num`);
-      revisar(n === String(esperado.conteo[u]), `  ${u}: ${n} (esperado ${esperado.conteo[u]})`);
+      const e = esperado.conteo[u] + extras.filter((x) => x === u).length;
+      revisar(n === String(e), `  ${u}: ${n} (esperado ${e})`);
     }
     revisar(await pagina.locator('.inicio-rejilla .eventos').count() === 0, 'Inicio: sin la tarjeta de NayarSound (lo cubren los pendientes)');
+    {
+      const textoPr = await pagina.locator('.bloque-alertas', { hasText: 'Préstamos e inversores' }).innerText();
+      revisar(/Pago de crédito/.test(textoPr) && /(SINDICATO|BBVA)/.test(textoPr), 'Pendientes: avisa los pagos de tus créditos (SINDICATO, BBVA…) de los próximos días');
+    }
     const tiles = await pagina.locator('.fin-fila .cifra').allInnerTexts();
     const mes = esperado.mesActual;
     const esperadoTiles = [mes.ganancia, mes.gastos, mes.sobrante].map((c) => dinero(c.valor));
