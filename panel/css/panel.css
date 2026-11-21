@@ -988,3 +988,24 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .pr-acciones { display: flex; justify-content: flex-end; margin: 0 0 12px; }
 .pr-acciones .boton { display: inline-flex; align-items: center; gap: 6px; }
 .form-credito { margin-top: 8px; }
+
+/* Agenda de dinero */
+.ag-resumen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.ag-resumen > div { background: var(--tarjeta); border-radius: 12px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.06); display: grid; gap: 2px; }
+.ag-resumen span { font-size: 12.5px; color: var(--tenue); }
+.ag-resumen b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.ag-semana { background: var(--tarjeta); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); border-left: 4px solid var(--verde); }
+.ag-semana.pesada { border-left-color: #D92D20; }
+.ag-semana-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding-bottom: 8px; border-bottom: 1px solid var(--borde); margin-bottom: 6px; font-size: 14px; }
+.ag-semana-cab span { color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+.ag-alerta { color: #B42318 !important; font-weight: 650; font-size: 13px; }
+.ag-dia { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--borde); }
+.ag-dia:last-child { border-bottom: 0; }
+.ag-fecha { font-size: 13px; color: var(--tinta-2); font-weight: 600; padding-top: 3px; }
+.ag-lista { display: grid; gap: 4px; }
+.ag-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 14px; }
+.ag-item.vencido .ag-nombre small { color: #B42318; font-weight: 600; }
+.ag-nombre { display: grid; } .ag-nombre small { color: var(--tenue); font-size: 12px; }
+.ag-monto { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; display: grid; }
+.ag-monto small { font-weight: 500; font-size: 11.5px; color: var(--tenue); }
+@media (max-width: 640px) { .ag-dia { grid-template-columns: minmax(0, 1fr); gap: 2px; } .ag-resumen b { font-size: 16px; } }

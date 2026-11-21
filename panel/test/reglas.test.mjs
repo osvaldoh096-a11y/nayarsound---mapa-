@@ -8,6 +8,7 @@ import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
 import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj, creditosSinInteres, mensajeCobro } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
+import { agendaDinero, fechasMensuales } from '../js/agenda.js';
 
 const HOY = idxDesdeYMD(2026, 11, 7); // sábado
 
@@ -350,4 +351,35 @@ test('Inversores: «no les he pagado interés» con la misma lógica (INTERES RE
   ];
   const r = creditosSinInteres(inv, hoy);
   assert.deepEqual(r.map((x) => [x.op, x.divisa]), [[71, 'MXN'], [61, 'MXN']]);
+});
+
+test('Agenda de dinero: cobros, pagos y créditos por fecha, con lo atrasado hoy y semanas pesadas', () => {
+  const hoy = idxDesdeYMD(2026, 11, 21); // sábado
+  assert.deepEqual(fechasMensuales(13, hoy, hoy + 29), [idxDesdeYMD(2026, 12, 13)]);
+  assert.deepEqual(fechasMensuales(31, hoy, hoy + 29), [idxDesdeYMD(2026, 11, 30)]); // último día del mes
+  const propio = { titulo: 'Préstamo BBVA', resumen: () => ({ nPagos: 48, pagos: [
+    { n: 1, vence: hoy - 3, monto: 1582.92, cubierto: 1582.92, estado: 'pagado' },
+    { n: 2, vence: idxDesdeYMD(2026, 12, 1), monto: 3479.21, cubierto: 0, estado: 'en-curso' },
+    { n: 3, vence: idxDesdeYMD(2026, 12, 16), monto: 3479.21, cubierto: 0, estado: 'pendiente' },
+    { n: 4, vence: idxDesdeYMD(2027, 1, 1), monto: 3479.21, cubierto: 0, estado: 'pendiente' },
+  ] }) };
+  const ag = agendaDinero({
+    clientes: [{ nombre: 'PQ', op: 196, pagoMes: 267.32, divisa: 'MXN', dia: 18, inicioIdx: idxDesdeYMD(2026, 10, 18) }],
+    inversiones: [
+      { nombre: 'JOSE BARBOSA', op: 61, pagoMes: 1500, divisa: 'MXN', inicioIdx: idxDesdeYMD(2026, 6, 15), pago: { estado: 'atrasado', idx: idxDesdeYMD(2026, 11, 15) } },
+      { nombre: 'OSCAR ARTEAGA', op: 66, pagoMes: 87, divisa: 'USDT', inicioIdx: idxDesdeYMD(2026, 7, 28), pago: { estado: 'pendiente', idx: idxDesdeYMD(2026, 11, 28) } },
+    ],
+    propios: [propio],
+  }, hoy, 30);
+  const r = ag.items.map((i) => `${ymdDesdeIdx(i.idx).m}/${ymdDesdeIdx(i.idx).d} ${i.tipo} ${i.nombre} ${Math.round(i.montoMXN)}${i.vencido ? ' vencido' : ''}`);
+  assert.deepEqual(r, [
+    '11/21 pagar JOSE BARBOSA 1500 vencido',
+    '11/28 pagar OSCAR ARTEAGA 1566',
+    '12/1 pagar BBVA 3479',
+    '12/15 pagar JOSE BARBOSA 1500',
+    '12/16 pagar BBVA 3479',
+    '12/18 cobrar PQ 267',
+  ]);
+  assert.equal(Math.round(ag.sale), Math.round(1500 + 87 * 18 + 3479.21 * 2 + 1500));
+  assert.ok(ag.semanas.every((s) => s.pesada === s.sale > s.entra));
 });

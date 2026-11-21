@@ -260,7 +260,16 @@ try {
     }
     await pagina.waitForSelector('[data-pf="flujo"]');
     revisar(await pagina.locator('[data-pf="movimientos"]').count() === 0, 'Préstamos: sin la sección «Próximos movimientos»');
-    revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Préstamos,Inversores,Historial', 'Panel financiero: pestañas Resumen, Préstamos, Inversores, Historial');
+    revisar((await pagina.locator('.pf-tabs .pf-tab').allInnerTexts()).join() === 'Resumen,Agenda,Préstamos,Inversores,Historial', 'Panel financiero: pestañas Resumen, Agenda, Préstamos, Inversores, Historial');
+    {
+      await pagina.locator('.pf-tab', { hasText: 'Agenda' }).click();
+      await pagina.waitForSelector('.ag-resumen');
+      const ag = await pagina.locator('.pf').innerText();
+      revisar(await pagina.locator('.ag-item.cobrar').count() > 0 && await pagina.locator('.ag-item.pagar').count() > 0 && /Entra en 30 días/.test(ag) && await pagina.locator('.ag-semana').count() >= 3,
+        `Agenda: cobros y pagos de 30 días por semana (${await pagina.locator('.ag-item').count()} movimientos)`);
+      if (capturas) await pagina.screenshot({ path: `${capturas}/agenda.png`, fullPage: true });
+      await pagina.locator('.pf-tab', { hasText: 'Resumen' }).click();
+    }
     revisar(await pagina.locator('.pf details.pf-sec').count() > 0 && await pagina.locator('.pf details.pf-sec[open]').count() === 0, 'Panel financiero: todas las secciones empiezan contraídas');
     if (!rutaSnapshot) {
       const kpis = await pagina.locator('.pf-kpi .pf-kpi-valor .solo-escritorio').allInnerTexts();
