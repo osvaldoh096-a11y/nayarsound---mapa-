@@ -303,9 +303,14 @@ try {
       }
       {
         // Agregar crédito desde el panel: crea su pestaña y su fila en CREDITOS.
-        const sec = pagina.locator('[data-pf="nuevo-credito"]');
-        if (await sec.getAttribute('open') === null) await sec.locator('summary').click();
-        const f = sec.locator('form[data-form="credito"]');
+        const btn = pagina.locator('[data-accion="nuevo-credito"]');
+        if (capturas) { await btn.scrollIntoViewIfNeeded(); await pagina.screenshot({ path: `${capturas}/boton-credito.png` }); }
+        const bb0 = await btn.boundingBox(); const sec0 = await pagina.locator('[data-pf="sindicato"]').boundingBox();
+        revisar(bb0 && sec0 && bb0.y < sec0.y && bb0.x + bb0.width > sec0.x + sec0.width - 40, 'Agregar crédito: botón arriba del SINDICATO, a la derecha');
+        await btn.click();
+        await pagina.waitForSelector('#detalle[open] form[data-form="credito"]');
+        const f = pagina.locator('#detalle form[data-form="credito"]');
+        if (capturas) { await pagina.screenshot({ path: `${capturas}/nuevo-credito.png` }); }
         await f.locator('input[name="nombre"]').fill('Nu');
         await f.locator('input[name="monto"]').fill('20000');
         await f.locator('input[name="meses"]').fill('10');
