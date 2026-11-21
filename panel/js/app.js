@@ -1,22 +1,22 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210425';
-import { escribirCelda, leerRangos } from './api.js?v=202611210425';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210425';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210425';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210425';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210431';
+import { escribirCelda, leerRangos } from './api.js?v=202611210431';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210431';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210431';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210431';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210425';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210425';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210425';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210425';
-import { fuentesDemo } from './demo.js?v=202611210425';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210425';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210425';
-import { leerCashflow } from './dashprestamos.js?v=202611210425';
-import { icono } from './iconos.js?v=202611210425';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210425';
+} from './fechas.js?v=202611210431';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210431';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210431';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210431';
+import { fuentesDemo } from './demo.js?v=202611210431';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210431';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210431';
+import { leerCashflow } from './dashprestamos.js?v=202611210431';
+import { icono } from './iconos.js?v=202611210431';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210431';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1406,7 +1406,7 @@ function seccionPrestamoPropio(m, P) {
     ? `Capital pendiente <b>${din(r.capitalPendiente, 0)}</b> de ${din(r.monto, 0)} · interés pagado <b>${din(r.interesPagado, 0)}</b>${est ? ` · ${est}` : ''}`
     : `Saldo pendiente <b>${din(r.saldo, 0)}</b> · abonado <b>${din(r.abonado, 0)}</b>${est ? ` · ${est}` : ''}`;
   const actual = r.actual ? `<div class="sd-actual"><span>Pago ${r.actual.n} de ${r.nPagos} · ${r.actual.ini !== null ? `${esc(diaMes(r.actual.ini))} al ${esc(diaMes(r.actual.vence))}` : r.actual.vence !== null ? `vence ${esc(diaMes(r.actual.vence))} ${ymdDesdeIdx(r.actual.vence).y}` : ''}</span>
-    <b>${r.actual.monto !== null ? din(r.actual.monto - r.actual.cubierto, 2) : din(null)}</b><small>${r.capitalMes !== null && r.interesMes !== null ? `capital ${din(r.capitalMes, 0)} + interés ${din(r.interesMes, 0)}${r.estimado ? ' (estimado)' : ''} · ` : ''}${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : (r.actual.vence !== null && r.actual.ini !== null ? `vence el ${esc(diaMes(r.actual.vence))}` : '')}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
+    <b>${r.actual.monto !== null ? din(r.actual.monto - r.actual.cubierto, 2) : din(null)}</b><small>${r.prop !== null && r.actual.monto !== null ? `capital ${din(r.actual.monto * r.prop, 0)} + interés ${din(r.actual.monto * (1 - r.prop), 0)}${r.estimado ? ' (estimado)' : ''} · ` : ''}${r.actual.cubierto ? `ya abonaste ${din(r.actual.cubierto, 0)} de ${din(r.actual.monto, 0)}` : (r.actual.vence !== null && r.actual.ini !== null ? `vence el ${esc(diaMes(r.actual.vence))}` : '')}</small></div>` : '<p class="texto-verde"><b>Préstamo liquidado.</b></p>';
   const cuerpo = `
     <div class="sd-barra"><i style="width:${Math.min(100, (r.avance ?? 0) * 100)}%"></i></div>
     <div class="sd-barra-etq"><span>${r.total !== null ? `${esc(pctTxt(r.avance ?? 0, 1))} pagado` : `Contratado ${r.inicioIdx !== null ? `${esc(diaMes(r.inicioIdx))} ${ymdDesdeIdx(r.inicioIdx).y}` : ''}`}${r.pagados !== undefined ? ` · ${r.pagados} de ${r.nPagos} pagos` : ''}</span><span>${r.finIdx ? `termina ${esc(diaMes(r.finIdx))} ${ymdDesdeIdx(r.finIdx).y}` : ''}</span></div>
@@ -1425,9 +1425,9 @@ function seccionPrestamoPropio(m, P) {
           <div class="pf-dato"><span>Capital</span><b>${din(r.monto)}</b></div>
           <div class="pf-dato"><span>Interés total${r.estimado ? ' (estimado)' : ''}</span><b>${din(r.interes)}</b></div>
           <div class="pf-dato"><span>Total a pagar${r.estimado ? ' (estimado)' : ''}</span><b>${din(r.total)}</b></div>
-          <div class="pf-dato"><span>Pago mensual</span><b>${din(r.mensual)}${r.capitalMes !== null && r.interesMes !== null ? `<small class="sd-desglose">capital ${din(r.capitalMes, 0)} + interés ${din(r.interesMes, 0)}</small>` : ''}</b></div>
+          <div class="pf-dato"><span>${r.etiquetaPago}</span><b>${din(r.pagoPeriodo)}${r.prop !== null && r.pagoPeriodo !== null ? `<small class="sd-desglose">capital ${din(r.pagoPeriodo * r.prop, 0)} + interés ${din(r.pagoPeriodo * (1 - r.prop), 0)}${r.quincenal ? ` · al mes ${din(r.mensual, 0)}` : ''}</small>` : ''}</b></div>
           <div class="pf-dato"><span>Pagado</span><b>${din(r.abonado)}${r.capitalPagado !== null ? `<small class="sd-desglose">capital ${din(r.capitalPagado, 0)} + interés ${din(r.interesPagado, 0)}</small>` : ''}</b></div>
-          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, Number.isInteger(Math.round((r.tasa ?? 0) * 10000) / 100) ? 0 : 2))} anual${Number.isFinite(r.cat) ? ` · CAT ${esc(pctTxt(r.cat, 2))}` : ''} · ${r.meses ?? r.pagos?.length ?? '—'} meses</b></div>
+          <div class="pf-dato"><span>Tasa</span><b>${esc(pctTxt(r.tasa, Number.isInteger(Math.round((r.tasa ?? 0) * 10000) / 100) ? 0 : 2))} anual${Number.isFinite(r.cat) ? ` · CAT ${esc(pctTxt(r.cat, 2))}` : ''} · ${r.quincenal ? `${r.nPagos ?? r.quincenas ?? '—'} quincenas` : `${r.meses ?? r.pagos?.length ?? '—'} meses`}</b></div>
         </div>
       </div>
       <div>

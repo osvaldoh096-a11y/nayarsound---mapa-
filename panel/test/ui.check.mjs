@@ -279,7 +279,7 @@ try {
       // Préstamo SINDICATO: abierto por defecto, con su avance y el registro de abonos.
       const sec = pagina.locator('[data-pf="sindicato"]');
       revisar(await sec.getAttribute('open') !== null && /Capital pendiente \$208,738 de \$208,738 · interés pagado \$0/.test(await sec.locator('summary').innerText()), 'SINDICATO: sección con capital pendiente e interés pagado');
-      revisar(await sec.locator('.sd-cal-fila').count() === 24, 'SINDICATO: calendario de 24 pagos mensuales (48 quincenas)');
+      revisar(await sec.locator('.sd-cal-fila').count() === 48 && /Pago quincenal/.test(await sec.innerText()), 'SINDICATO: calendario de 48 pagos quincenales');
       {
         const ml = pagina.locator('[data-pf="mercadolibre"]');
         const txt = await ml.innerText();
@@ -290,8 +290,8 @@ try {
       {
         const bb = pagina.locator('[data-pf="bbva"]');
         const txt = await bb.innerText();
-        revisar(/Capital pendiente \$110,600 de \$110,600/.test(await bb.locator('summary').innerText()) && /Pago 1 de 24/.test(txt) && /\$6,449/.test(txt) && /estimado/.test(txt) && /24 meses/.test(txt) && /35\.16%|35%/.test(txt) && /1 nov 2028/.test(txt) && !/NaN/.test(txt),
-          'BBVA: capital pendiente, 24 pagos mensuales estimados con su tasa, y vencimiento');
+        revisar(/Capital pendiente \$110,600 de \$110,600/.test(await bb.locator('summary').innerText()) && /Pago 1 de 48/.test(txt) && /\$3,224/.test(txt) && /estimado/.test(txt) && /48 quincenas/.test(txt) && /35\.16%|35%/.test(txt) && /1 nov 2028/.test(txt) && !/NaN/.test(txt),
+          'BBVA: capital pendiente, 48 pagos quincenales estimados con su tasa, y vencimiento');
         if (capturas) await bb.screenshot({ path: `${capturas}/bbva.png` });
       }
       {

@@ -5,9 +5,9 @@
 //   H:I  (opcional) calendario: N, VENCE. Sin calendario se usan quincenas
 //        desde INICIO PRIMERA QUINCENA (como el SINDICATO).
 
-import { TAREAS } from './fuentes.js?v=202611210425';
-import { leerRangos, agregarFila, borrarRango, escribirRango, actualizarHoja } from './api.js?v=202611210425';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611210425';
+import { TAREAS } from './fuentes.js?v=202611210431';
+import { leerRangos, agregarFila, borrarRango, escribirRango, actualizarHoja } from './api.js?v=202611210431';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611210431';
 
 const numero = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(/[$,\s%]/g, '')));
 /** Número o null (celda vacía o texto). */
@@ -105,10 +105,15 @@ export function crearPrestamo({ clave, pestana, gid, titulo, demo }) {
     // Solo capital e interés: cada peso pagado se reparte en la proporción capital / total.
     const parteCapital = total && monto ? monto / total : null;
     const capitalPagado = parteCapital !== null ? abonado * parteCapital : null;
+    // Los pagos van como los pide cada institución: quincenales (SINDICATO, BBVA) o mensuales.
+    const quincenal = !!nq || normalizar(d.FRECUENCIA) === 'QUINCENAL';
+    const pagoPeriodo = quincenal
+      ? (dato(d['PAGO QUINCENAL']) ?? (dato(d['PAGO MENSUAL']) !== null ? dato(d['PAGO MENSUAL']) / 2 : null) ?? (total !== null && nq ? Math.round(total / nq * 100) / 100 : null))
+      : mensual;
     const r = {
       monto, total, mensual, estimado, tasa, cat: dato(d.CAT), saldo: dato(d['SALDO PENDIENTE']),
       interes: total !== null && monto !== null ? total - monto : dato(d['INTERES TOTAL']),
-      quincenas: nq, meses, etiquetaPago: 'Pago mensual',
+      quincenas: nq, meses, quincenal, pagoPeriodo, prop: parteCapital, etiquetaPago: quincenal ? 'Pago quincenal' : 'Pago mensual',
       capitalMes: monto !== null && meses ? monto / meses : null,
       interesMes: mensual !== null && monto !== null && meses ? mensual - monto / meses : null,
       capitalPagado, interesPagado: capitalPagado !== null ? abonado - capitalPagado : null,
@@ -118,18 +123,18 @@ export function crearPrestamo({ clave, pestana, gid, titulo, demo }) {
     };
     if (total === null) return r;
 
-    // Calendario mensual: el de la hoja (H:J) si está completo; si no, por meses.
+    // Calendario: el de la hoja (H:J) si está completo; si no, por quincenas o por meses.
+    const nEsperado = quincenal ? (nq || (meses ? meses * 2 : null)) : meses;
     let filas = null;
-    if (S.vencimientos.length && (!meses || S.vencimientos.length >= meses)) {
+    if (S.vencimientos.length && (!nEsperado || S.vencimientos.length >= nEsperado)) {
       filas = S.vencimientos.map((v, i) => ({ n: v.n, vence: v.vence, monto: v.monto, ini: i > 0 && S.vencimientos[i - 1].vence !== null && v.vence !== null ? S.vencimientos[i - 1].vence + 1 : null }));
     } else {
       const inicioV = d['INICIO PRIMERA QUINCENA'];
-      const inicioQ = typeof inicioV === 'number' ? idxDesdeSerial(inicioV) : fechaDe(inicioV);
+      const inicioQ = (typeof inicioV === 'number' ? idxDesdeSerial(inicioV) : fechaDe(inicioV)) ?? (quincenal ? r.inicioIdx : null);
       filas = [];
-      if (inicioQ !== null) {
-        const q = nq || 48;
-        const qs = quincenas(inicioQ, q);
-        for (let k = 0; k < q; k += 2) filas.push({ n: k / 2 + 1, ini: qs[k].ini, vence: qs[Math.min(k + 1, q - 1)].fin, monto: null });
+      if (quincenal && inicioQ !== null && nEsperado) {
+        // Un pago por quincena (1–15 y 16–fin de mes).
+        quincenas(inicioQ, nEsperado).forEach((q, k) => filas.push({ n: k + 1, ini: q.ini, vence: q.fin, monto: null }));
       } else if (r.inicioIdx !== null && meses) {
         // Un pago por mes, el mismo día en que se contrató.
         const { y, m, d: dia } = ymdDesdeIdx(r.inicioIdx);
@@ -152,14 +157,14 @@ export function crearPrestamo({ clave, pestana, gid, titulo, demo }) {
     for (const f of filas) {
       // Monto del calendario; si no, el pago de tu hoja (el último ajusta la diferencia para llegar al total).
       let monto = f.monto;
-      if (monto === null && mensual !== null && mensual > 0) monto = f.n < nPagos || total === null ? mensual : Math.round((total - mensual * (nPagos - 1)) * 100) / 100;
+      if (monto === null && pagoPeriodo !== null && pagoPeriodo > 0) monto = f.n < nPagos || total === null ? pagoPeriodo : Math.round((total - acumulado) * 100) / 100;
       if (monto === null && total !== null) monto = total / nPagos;
       const desdeA = acumulado; acumulado += monto ?? 0;
       const cubierto = monto === null ? 0 : Math.max(0, Math.min(monto, abonado - desdeA));
       const pagado = monto !== null && cubierto >= monto - 0.5;
       // Sin fecha de vencimiento (pagos viejos del calendario) cuenta como ya vencido.
       const vencido = f.vence === null ? true : f.vence < hoyIdx;
-      const enCurso = f.ini !== null ? f.ini <= hoyIdx : f.vence !== null && f.vence - 31 <= hoyIdx;
+      const enCurso = f.ini !== null ? f.ini <= hoyIdx : f.vence !== null && f.vence - (quincenal ? 16 : 31) <= hoyIdx;
       r.pagos.push({ ...f, monto, cubierto, vencido,
         estado: pagado ? 'pagado' : vencido ? 'atrasado' : enCurso ? 'en-curso' : cubierto > 0 ? 'parcial' : 'pendiente' });
     }
