@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210500';
-import { escribirCelda, leerRangos, escribirRango } from './api.js?v=202611210500';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210500';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611210500';
-import { construirModelo, entregarCon } from './modelo.js?v=202611210500';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611210513';
+import { escribirCelda, leerRangos, escribirRango } from './api.js?v=202611210513';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611210513';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611210513';
+import { construirModelo, entregarCon } from './modelo.js?v=202611210513';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611210500';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210500';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210500';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210500';
-import { fuentesDemo } from './demo.js?v=202611210500';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210500';
-import { agendaDinero } from './agenda.js?v=202611210500';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210500';
-import { leerCashflow } from './dashprestamos.js?v=202611210500';
-import { icono } from './iconos.js?v=202611210500';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210500';
+} from './fechas.js?v=202611210513';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611210513';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611210513';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611210513';
+import { fuentesDemo } from './demo.js?v=202611210513';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611210513';
+import { agendaDinero } from './agenda.js?v=202611210513';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611210513';
+import { leerCashflow } from './dashprestamos.js?v=202611210513';
+import { icono } from './iconos.js?v=202611210513';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611210513';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1848,27 +1848,32 @@ function abrirNuevoCredito() {
  */
 async function confirmarPagoInteres(boton) {
   const op = Number(boton.dataset.op);
+  const inversor = boton.dataset.tipo === 'pagar';
   const entrada = document.querySelector(`input[data-pago-int="${op}"]`);
   const texto = String(entrada?.value ?? '').trim().replace(/[$,\s]/g, '');
   const monto = Number(texto);
-  if (!texto || !Number.isFinite(monto) || monto <= 0) { alert('Escribe la cantidad que te pagó, por ejemplo 1000.'); entrada?.focus(); return; }
+  if (!texto || !Number.isFinite(monto) || monto <= 0) { alert(`Escribe la cantidad que ${inversor ? 'le pagaste' : 'te pagó'}, por ejemplo 1000.`); entrada?.focus(); return; }
   const hoyTxt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
-  if (!confirm(`¿Confirmar pago de ${dinero(monto)} de ${boton.dataset.nombre} (op. ${op})?\n\nSe anotará hoy (${hoyTxt}) en tu registro de intereses de REGISTRO PRESTAMOS.`)) return;
+  const hoja = inversor ? 'REGISTRO DE INVERSORES' : 'REGISTRO PRESTAMOS';
+  if (!confirm(`¿Confirmar pago de ${dinero(monto)} ${inversor ? 'a' : 'de'} ${boton.dataset.nombre} (op. ${op})?\n\nSe anotará hoy (${hoyTxt}) en el registro de pagos de ${hoja}.`)) return;
   boton.disabled = true; boton.textContent = 'Guardando…';
   try {
     const token = await tokenParaEscribir();
     const id = ARCHIVOS.prestamos.id;
-    const [registro, op8] = await leerRangos(token, id, ["'REGISTRO PRESTAMOS'!U9:W3000", `'REGISTRO PRESTAMOS'!A${op + 8}:K${op + 8}`]);
-    // La OP debe seguir siendo la de ese cliente y estar ACTIVO.
-    const filaOp = op8?.[0] ?? [];
+    const inicio = inversor ? 10 : 9;
+    // Clientes: OP = fila − 8. Inversores: la OP es un conteo, se busca en la columna A.
+    const [registro, tabla] = await leerRangos(token, id, [`'${hoja}'!U${inicio}:W3000`, inversor ? `'${hoja}'!A10:K1000` : `'${hoja}'!A${op + 8}:K${op + 8}`]);
+    const filaOp = (tabla ?? []).find((f) => Number(f?.[0]) === op) ?? [];
     if (Number(filaOp[0]) !== op || normalizar(filaOp[3]) !== normalizar(boton.dataset.nombre) || normalizar(filaOp[10]) !== 'ACTIVO') {
       throw new Error(`La op. ${op} ya no corresponde a ${boton.dataset.nombre} activo en tu hoja. Toca «Actualizar» y vuelve a intentarlo.`);
     }
     let i = 0;
     while ((registro ?? [])[i]?.slice(0, 3).some((v) => String(v ?? '').trim() !== '')) i += 1;
-    const fila = 9 + i;
-    await escribirRango(token, id, `'REGISTRO PRESTAMOS'!U${fila}:W${fila}`, [[hoyTxt, op, monto]], { entrada: 'USER_ENTERED' });
-    E.avisoTemporal = `Pago de ${dinero(monto)} de ${boton.dataset.nombre} (op. ${op}) anotado en tu hoja.`;
+    const fila = inicio + i;
+    // Clientes: FECHA, OP, CANT. Inversores: OP, FECHA, CANTIDAD (el resto lo llenan sus fórmulas).
+    const valores = inversor ? [op, hoyTxt, monto] : [hoyTxt, op, monto];
+    await escribirRango(token, id, `'${hoja}'!U${fila}:W${fila}`, [valores], { entrada: 'USER_ENTERED' });
+    E.avisoTemporal = `Pago de ${dinero(monto)} ${inversor ? 'a' : 'de'} ${boton.dataset.nombre} (op. ${op}) anotado en tu hoja.`;
     if ($('#detalle').open) $('#detalle').close();
     await actualizar({ interactivo: true });
   } catch (error) {
@@ -1884,13 +1889,13 @@ function abrirSinInteres(tipo = 'cobrar') {
   const filas = lista.map((x) => `<tr><td><b>${esc(x.nombre)}</b></td><td class="num"><b>${x.op ? `op. ${esc(x.op)}` : '—'}</b></td>
     <td class="num">${esc(importeInteres(x.interes, x.divisa))}</td><td class="num">${esc(importeInteres(x.pago, x.divisa))}</td><td class="num">día ${esc(x.diaInicio)}</td>
 </tr>
-    ${cobrar ? `<tr class="fila-pago-int"><td colspan="5"><div class="pago-int"><label>Cantidad <span class="campo-dinero campo-pago-int">${x.divisa === 'USDT' ? 'USDT' : '$'}<input inputmode="decimal" data-pago-int="${esc(x.op)}" placeholder="${esc(String(Math.round(x.interes * 100) / 100))}" aria-label="Cantidad pagada por ${esc(x.nombre)}"></span></label>
-      <button class="boton boton-chico boton-exito" data-accion="confirmar-pago-int" data-op="${esc(x.op)}" data-nombre="${esc(x.nombre)}">Confirmar pago</button></div></td></tr>` : ''}`).join('');
+    <tr class="fila-pago-int"><td colspan="5"><div class="pago-int"><label>Cantidad <span class="campo-dinero campo-pago-int">${x.divisa === 'USDT' ? 'USDT' : '$'}<input inputmode="decimal" data-pago-int="${esc(x.op)}" placeholder="${esc(String(Math.round(x.interes * 100) / 100))}" aria-label="Cantidad pagada por ${esc(x.nombre)}"></span></label>
+      <button class="boton boton-chico boton-exito" data-accion="confirmar-pago-int" data-tipo="${tipo}" data-op="${esc(x.op)}" data-nombre="${esc(x.nombre)}">Confirmar pago</button></div></td></tr>`).join('');
   abrirDialogo(`
     <header class="det-cab"><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>Interés</span><h2>${cobrar ? 'No ha pagado interés' : 'No les he pagado interés'}</h2></header>
     ${lista.length ? `<div class="tabla-scroll"><table class="tabla det-tabla-interes"><thead><tr><th>${cobrar ? 'Nombre' : 'Inversor'}</th><th class="num">OP</th><th class="num">Interés restante</th><th class="num">Pago del mes</th><th class="num">Inicio</th></tr></thead><tbody>${filas}</tbody></table></div>`
     : `<p class="vacio">${cobrar ? 'Nadie debe interés.' : 'Estás al corriente con tus inversores.'}</p>`}
-    ${cobrar ? '<p class="nota">Escribe cuánto te pagó y toca «Confirmar pago»: se anota en tu registro de intereses (REGISTRO PRESTAMOS, columnas U:W) con la fecha de hoy.</p>' : '<p class="nota">De REGISTRO DE INVERSORES: ACTIVO, interés restante mayor al pago del mes y ya pasó su día de inicio.</p>'}`);
+    ${cobrar ? '<p class="nota">Escribe cuánto te pagó y toca «Confirmar pago»: se anota en tu registro de intereses (REGISTRO PRESTAMOS, columnas U:W) con la fecha de hoy.</p>' : '<p class="nota">Escribe cuánto le pagaste y toca «Confirmar pago»: se anota en el registro de pagos de REGISTRO DE INVERSORES (columnas U:W) con la fecha de hoy. Si es en USDT, escribe los USDT.</p>'}`);
 }
 
 function abrirDialogo(html) {
