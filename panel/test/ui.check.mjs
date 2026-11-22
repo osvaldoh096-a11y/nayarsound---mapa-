@@ -165,7 +165,7 @@ try {
       const op = esperado.nayarsound.operacion;
       revisar(await pagina.locator('.ns-col').count() === 14 && await pagina.locator('.ns-col.actual').count() === 1, 'NayarSound: eventos por mes (12 atrás, 2 adelante) con el mes actual resaltado');
       revisar(await pagina.locator('.ns-comp').count() === 0 && !/DJs con más eventos/.test(await pagina.locator('#vista').innerText()), 'NayarSound: sin «Mes anterior · este mes · próximo» ni «DJs con más eventos»');
-      revisar(await pagina.locator('.ns-dia').count() === 7, 'NayarSound: próximos 7 días');
+      revisar(await pagina.locator('.ns-dia').count() === 0, 'NayarSound: sin «Próximos 7 días»');
       await pagina.locator('.ns-col').nth(5).focus();
       revisar(await pagina.locator('.tip').isVisible(), 'Gráfica: al tocar una barra aparece su información');
       await pagina.mouse.wheel(0, 400);

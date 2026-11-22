@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221602';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221602';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221602';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611221602';
-import { construirModelo, entregarCon } from './modelo.js?v=202611221602';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221604';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221604';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221604';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611221604';
+import { construirModelo, entregarCon } from './modelo.js?v=202611221604';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611221602';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221602';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221602';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221602';
-import { fuentesDemo } from './demo.js?v=202611221602';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221602';
-import { agendaDinero } from './agenda.js?v=202611221602';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221602';
-import { leerCashflow } from './dashprestamos.js?v=202611221602';
-import { icono } from './iconos.js?v=202611221602';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221602';
+} from './fechas.js?v=202611221604';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221604';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221604';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221604';
+import { fuentesDemo } from './demo.js?v=202611221604';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221604';
+import { agendaDinero } from './agenda.js?v=202611221604';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221604';
+import { leerCashflow } from './dashprestamos.js?v=202611221604';
+import { icono } from './iconos.js?v=202611221604';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221604';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1137,14 +1137,6 @@ function operacionNs(op, m) {
     <header class="pf-cab"><h2>Eventos por mes</h2><span class="pf-cab-der">Últimos 12 meses y los próximos 2</span></header>
     ${columnasMeses(op.serie, kActual)}
   </article>`;
-  const dias = op.porDia;
-  const maxDia = Math.max(1, ...dias.map((d) => d.eventos));
-  const semana = `<article class="tarjeta">
-    <header class="pf-cab"><h2>Próximos 7 días</h2><span class="pf-cab-der">${cuenta(dias.reduce((t, d) => t + d.eventos, 0))} eventos</span></header>
-    <div class="ns-dias">${dias.map((d, i) => `<div class="ns-dia" data-tip="${esc(`${capitalizar(fechaLarga(d.idx))}: ${d.eventos} eventos · ${dinero(d.generado, 0)}`)}" tabindex="0">
-      <span class="ns-col-num">${d.eventos || ''}</span><div class="ns-col-pila"><i class="ns-re" style="height:${(d.eventos / maxDia) * 100}%"></i></div>
-      <span class="ns-col-etq">${i === 0 ? 'Hoy' : esc(fechaCorta(d.idx).split(' ')[0])}<small>${esc(String(ymdDesdeIdx(d.idx).d))}</small></span></div>`).join('')}</div>
-  </article>`;
   const fmtEventos = (v) => `${cuenta(v)} ${v === 1 ? 'evento' : 'eventos'}`;
   const desglose = (titulo, lista, nota = '', { tal = false } = {}) => `<article class="tarjeta">
     <header class="pf-cab"><h2>${titulo}</h2><span class="pf-cab-der">${esc(nombreMesLargo(c))}</span></header>
@@ -1154,7 +1146,7 @@ function operacionNs(op, m) {
 
   return `${kpis}
     ${tarjetaEntregaSemanal(op.entregaSemanal)}
-    <section class="pf-fila ns-fila-graf">${eventosMes}${semana}</section>
+    <section class="ns-fila-graf">${eventosMes}</section>
     <section class="ns-fila-2">${desglose('Por ciudad', op.ciudades)}${desglose('Tipo de evento', op.tipos)}</section>`;
 }
 
