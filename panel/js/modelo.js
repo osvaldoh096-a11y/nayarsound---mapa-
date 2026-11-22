@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611221823';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611221823';
+} from './fechas.js?v=202611221827';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611221827';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611221823';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611221823';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611221823';
-import { modeloST } from './st.js?v=202611221823';
-import { modeloOperacion } from './nsops.js?v=202611221823';
-import { dinero } from './formato.js?v=202611221823';
+} from './sheets.js?v=202611221827';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611221827';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611221827';
+import { modeloST } from './st.js?v=202611221827';
+import { modeloOperacion } from './nsops.js?v=202611221827';
+import { dinero } from './formato.js?v=202611221827';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -393,6 +393,14 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
   const origenDeuda = hacerOrigen(nayarsound, 'dashboard', 'DASHBOARD', celdaDeuda.a1);
   const ventas = tablaVentas(nayarsound);
   salida.operacion = modeloOperacion(ventas?.registros ?? [], dashboard, hoyIdx);
+  // Eventos sin DJ en AGENDA Y VENTAS (DJ vacío o «BUSCAR») que no están pagados:
+  // sin DJ no hay a quién cobrarle. Los ya pasados son dinero que se está perdiendo.
+  salida.eventosSinDj = (ventas?.registros ?? [])
+    .filter((r) => r.idx !== null && r.idx !== undefined && (vacio(r.dj) || normalizar(r.dj) === 'BUSCAR') && normalizar(r.pagado) !== 'PAGADO')
+    .map((r) => ({ op: r.op, idx: r.idx, ciudad: String(r.ciudad ?? '').trim(), tipo: String(r.tipo ?? '').trim(), dj: normalizar(r.dj) === 'BUSCAR' ? 'BUSCAR' : '',
+      total: typeof r.total === 'number' ? r.total : null, pasado: r.idx < hoyIdx, hoy: r.idx === hoyIdx, fila: r.fila,
+      url: nayarsound && !nayarsound.demo ? urlFila(nayarsound, 'AGENDA Y VENTAS', r.fila) : null }))
+    .sort((a, z) => a.idx - z.idx);
   if (!celdaDeuda.encontrado) {
     salida.deuda = { estado: 'no-encontrado', personas: [], origen: origenDeuda };
     avisos.push({ texto: 'No encontré el encabezado «RECORDATORIO DE DEUDA» en DASHBOARD.', tipo: 'lectura' });

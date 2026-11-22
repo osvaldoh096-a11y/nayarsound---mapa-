@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221823';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221823';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221823';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611221823';
-import { construirModelo, entregarCon } from './modelo.js?v=202611221823';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221827';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221827';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221827';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611221827';
+import { construirModelo, entregarCon } from './modelo.js?v=202611221827';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611221823';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221823';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221823';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221823';
-import { fuentesDemo } from './demo.js?v=202611221823';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221823';
-import { agendaDinero } from './agenda.js?v=202611221823';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221823';
-import { leerCashflow } from './dashprestamos.js?v=202611221823';
-import { icono } from './iconos.js?v=202611221823';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221823';
+} from './fechas.js?v=202611221827';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221827';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221827';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221827';
+import { fuentesDemo } from './demo.js?v=202611221827';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221827';
+import { agendaDinero } from './agenda.js?v=202611221827';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221827';
+import { leerCashflow } from './dashprestamos.js?v=202611221827';
+import { icono } from './iconos.js?v=202611221827';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221827';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -111,6 +111,7 @@ async function arrancar() {
     }
     if (e.target.matches?.('details.tareas-hechas')) T.verHechas = e.target.open;
     if (e.target.id === 'deuda-desplegable') E.deudaAbierta = e.target.open;
+    if (e.target.id === 'alerta-sindj') E.sinDjAbierta = e.target.open;
     if (e.target.id === 'controles-desplegable') E.controlesAbierto = e.target.open;
   }, true);
   document.addEventListener('visibilitychange', revisarAuto);
@@ -938,6 +939,30 @@ function selectorMes(fi) {
 
 // ------------------------------------------------------------------ Inicio
 
+/** Alerta urgente: eventos de AGENDA Y VENTAS sin DJ (vacío o «BUSCAR»). */
+function alertaSinDj(m) {
+  const lista = m?.nayarsound?.eventosSinDj ?? [];
+  if (!lista.length) return '';
+  const total = lista.reduce((t, e) => t + (e.total ?? 0), 0);
+  const pasados = lista.filter((e) => e.pasado).length;
+  const hoyIdx = m.hoy.idx;
+  const cuando = (e) => { const n = e.idx - hoyIdx; return n === 0 ? 'hoy' : n === 1 ? 'mañana' : n > 1 ? `en ${n} días` : `hace ${-n} días`; };
+  return `<details class="alerta-sindj" ${E.sinDjAbierta ? 'open' : ''} id="alerta-sindj">
+    <summary>
+      <span class="as-icono" aria-hidden="true">🚨</span>
+      <span class="as-texto"><b>${plural(lista.length, 'evento sin DJ', 'eventos sin DJ')}</b>
+        <small>${esc(dinero(total, 0))} que no podrás cobrar si no asignas DJ${pasados ? ` · <b>${pasados} ya pasaron</b>` : ''}</small></span>
+      ${icono('flecha', 'desp-flecha')}
+    </summary>
+    <ul class="as-lista">${lista.map((e) => `<li class="${e.pasado ? 'pasado' : e.idx - hoyIdx <= 7 ? 'pronto' : ''}">
+      <span class="as-fecha"><b>${esc(capitalizar(fechaCorta(e.idx)))}</b><small>${esc(cuando(e))}</small></span>
+      <span class="as-det">${chipCiudad(e.ciudad || 'Sin ciudad')}<small>${esc(capitalizar((e.tipo || 'Sin tipo').toLowerCase()))}${e.dj ? ' · «BUSCAR»' : ' · DJ vacío'}${e.op ? ` · OP ${esc(String(e.op))}` : ''}</small></span>
+      <b class="as-monto">${e.total === null ? '—' : esc(dinero(e.total, 0))}</b>
+      ${e.url ? `<a class="as-enlace" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">Asignar ↗</a>` : ''}
+    </li>`).join('')}</ul>
+  </details>`;
+}
+
 function vistaInicio(m) {
   const deudas = m.pendientes.filter((p) => p.tipo === 'deuda');
   // Total que te deben: el «TOTAL DE DEUDA» de tu hoja (o la suma por persona si no viene).
@@ -951,6 +976,7 @@ function vistaInicio(m) {
   const sel = selectorMes(fi);
   const mes = periodoElegido(fi) ?? m.mesActual;
   return `
+  ${alertaSinDj(m)}
   <section class="inicio-arriba">
     <article class="tarjeta tareas" id="tareas-caja">${htmlTareas()}</article>
     <article class="tarjeta habitos" id="habitos-caja">${htmlHabitos(m.hoy.idx)}</article>
@@ -1067,6 +1093,7 @@ function vistaNayarsound(m) {
   if (!ns.disponible) return '<article class="tarjeta tarjeta-error">No hay datos de NayarSound.</article>';
   return `
   <h1 class="titulo-vista">NayarSound</h1>
+  ${alertaSinDj(m)}
   <div class="pf">${operacionNs(ns.operacion, m)}</div>
   <div class="rejilla-ns">
     ${tarjetaAgenda(ns.agenda, m.hoy.idx)}
