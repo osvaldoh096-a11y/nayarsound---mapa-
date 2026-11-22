@@ -172,7 +172,7 @@ try {
       await pagina.waitForTimeout(200);
       revisar(!(await pagina.locator('.tip').isVisible()), 'Gráfica: la información se oculta al deslizar');
       revisar(await pagina.locator('.ns-fila-2 .graf-fila').count() > 0, 'NayarSound: desglose por ciudad y tipo');
-      revisar(/\$100,000/.test(await pagina.locator('[data-pf="ns-operacion"] > summary').innerText()), 'NayarSound: números del DASHBOARD (operación mensual)');
+      revisar(await pagina.locator('[data-pf="ns-operacion"], [data-pf="ns-historico"]').count() === 0, 'NayarSound: sin «Operación mensual» ni «Resultado histórico»');
     }
     {
       await pagina.waitForSelector('#controles-desplegable');

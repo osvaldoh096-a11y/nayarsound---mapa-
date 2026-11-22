@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221554';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221554';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221554';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611221554';
-import { construirModelo, entregarCon } from './modelo.js?v=202611221554';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221559';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221559';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221559';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611221559';
+import { construirModelo, entregarCon } from './modelo.js?v=202611221559';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611221554';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221554';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221554';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221554';
-import { fuentesDemo } from './demo.js?v=202611221554';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221554';
-import { agendaDinero } from './agenda.js?v=202611221554';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221554';
-import { leerCashflow } from './dashprestamos.js?v=202611221554';
-import { icono } from './iconos.js?v=202611221554';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221554';
+} from './fechas.js?v=202611221559';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221559';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221559';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221559';
+import { fuentesDemo } from './demo.js?v=202611221559';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221559';
+import { agendaDinero } from './agenda.js?v=202611221559';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221559';
+import { leerCashflow } from './dashprestamos.js?v=202611221559';
+import { icono } from './iconos.js?v=202611221559';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221559';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1153,32 +1153,10 @@ function operacionNs(op, m) {
     ${nota}
   </article>`;
 
-  // Números del DASHBOARD
-  const d = op.dashboard ?? {};
-  const o = d.operacion;
-  const filtro = d.filtro ? `${nombreBonito(d.filtro.ciudad)} · ${nombreBonito(d.filtro.mes)}` : '';
-  const datoD = (etq, x, { resaltar = false } = {}) => (x ? `<div class="pf-dato ${resaltar ? 'resaltar' : ''}"><span>${etq}</span><b>${din(x.valor)}${x.pct !== null && x.pct !== undefined ? ` <small class="pf-sub-in">${esc(pctTxt(x.pct, 0))}</small>` : ''}</b></div>` : '');
-  const seccionesDash = [];
-  if (o) {
-    seccionesDash.push(seccionPF('ns-operacion', 'ambar', `Operación mensual${filtro ? ` · ${esc(filtro)}` : ''}`,
-      `Generado <b>${din(o.generado?.valor, 0)}</b> · ganancia neta <b class="texto-verde">${din(o.neta?.valor, 0)}</b>`,
-      `<div class="pf-datos">${datoD('Generado', o.generado)}${datoD('Pagado a DJs', o.djs)}${datoD('Publicidad', o.publicidad)}${datoD('Operación y at. cliente', o.operacion)}${datoD('Ganancia neta mensual', o.neta, { resaltar: true })}${datoD('Ganancia neta personal', o.netaPersonal)}${datoD('Te queda por evento', o.porEvento)}</div>
-      ${d.roas && (d.roas.ventas || d.roas.neta) ? `<div class="df-mini-tabla"><div><span>Por $1 en ads vende</span><b>${esc(String(d.roas.ventas ?? '—'))}x</b></div><div><span>Por $1 en ads gana neto</span><b>${esc(String(d.roas.neta ?? '—'))}x</b></div></div>` : ''}
-      <p class="nota">Con el filtro de ciudad y mes que tienes elegido en tu DASHBOARD.</p>`));
-  }
-  if (d.historico || d.personal) {
-    const h = d.historico ?? {};
-    seccionesDash.push(seccionPF('ns-historico', 'verde', 'Resultado histórico',
-      `${d.realizadosTexto ? `${esc(capitalizar(d.realizadosTexto.toLowerCase()))} · ` : ''}utilidad acumulada <b>${din(h.utilidad, 0)}</b>`,
-      `<div class="pf-datos">${h.stock !== undefined ? `<div class="pf-dato"><span>Inversión total en stock</span><b>${din(h.stock)}</b></div>` : ''}${h.utilidad !== undefined ? `<div class="pf-dato"><span>Utilidad acumulada</span><b>${din(h.utilidad)}</b></div>` : ''}${h.excedente !== undefined ? `<div class="pf-dato resaltar"><span>Excedente sobre inversión</span><b>${din(h.excedente)}</b></div>` : ''}</div>
-      ${d.personal ? `<h3 class="df-sub">Ganancia personal histórica</h3><div class="pf-datos">${d.personal.map((x) => `<div class="pf-dato ${x.total ? 'resaltar' : ''}"><span>${esc(nombreBonito(x.etiqueta))}</span><b>${din(x.valor)}</b></div>`).join('')}</div>` : ''}`));
-  }
-
   return `${kpis}
     ${tarjetaEntregaSemanal(op.entregaSemanal)}
     <section class="pf-fila ns-fila-graf">${eventosMes}${semana}</section>
-    <section class="ns-fila-2">${desglose('Por ciudad', op.ciudades)}${desglose('Tipo de evento', op.tipos)}</section>
-    ${seccionesDash.length ? `<section class="pf-fila">${seccionesDash.join('')}</section>` : ''}`;
+    <section class="ns-fila-2">${desglose('Por ciudad', op.ciudades)}${desglose('Tipo de evento', op.tipos)}</section>`;
 }
 
 function tarjetaAgenda(agenda, hoyIdx) {
