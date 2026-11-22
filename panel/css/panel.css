@@ -1034,18 +1034,5 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .pm-fila b { font-variant-numeric: tabular-nums; }
 .pm-fila.inst span::before { content: "🏦 "; }
 @media (max-width: 640px) { .bloque-pagos-mes { grid-template-columns: minmax(0, 1fr); } .pm-total .cifra { font-size: 30px; } }
-.ns-entrega { margin-bottom: 16px; }
-.ns-ent-cab { display: flex; gap: 32px; flex-wrap: wrap; margin: 4px 0 14px; }
-.ns-ent-cab div { display: grid; gap: 2px; }
-.ns-ent-cab span { color: var(--tenue); font-size: 13px; }
-.ns-ent-cab b { font-size: 28px; font-variant-numeric: tabular-nums; }
-.ns-ent-cab small { color: var(--tenue); font-size: 12px; }
-.ns-ent-lista { display: grid; gap: 2px; }
-.ns-ent-fila { display: grid; grid-template-columns: 170px minmax(0, 1fr) 90px 110px; gap: 10px; align-items: center; padding: 5px 0; font-size: 14px; }
-.ns-ent-fila b { text-align: right; font-variant-numeric: tabular-nums; }
-.ns-ent-fila small { color: var(--tenue); font-size: 12px; }
-.ns-ent-fila em { font-style: normal; font-size: 11px; color: var(--tenue); }
-.ns-ent-fila.actual { font-weight: 600; }
-.ns-ent-barra { height: 8px; border-radius: 4px; background: var(--borde); overflow: hidden; }
-.ns-ent-barra i { display: block; height: 100%; background: var(--verde, #2e9d5b); border-radius: 4px; }
-@media (max-width: 640px) { .ns-ent-fila { grid-template-columns: minmax(0, 1fr) auto; } .ns-ent-barra { grid-column: 1 / -1; order: 3; } .ns-ent-fila small { grid-column: 1 / -1; order: 4; } }
+.ns-entrega { margin-bottom: 16px; max-width: 420px; }
+.texto-tenue { color: var(--tenue); }

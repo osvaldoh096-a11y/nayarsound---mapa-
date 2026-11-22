@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221549';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221549';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221549';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611221549';
-import { construirModelo, entregarCon } from './modelo.js?v=202611221549';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221554';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221554';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221554';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611221554';
+import { construirModelo, entregarCon } from './modelo.js?v=202611221554';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611221549';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221549';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221549';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221549';
-import { fuentesDemo } from './demo.js?v=202611221549';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221549';
-import { agendaDinero } from './agenda.js?v=202611221549';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221549';
-import { leerCashflow } from './dashprestamos.js?v=202611221549';
-import { icono } from './iconos.js?v=202611221549';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221549';
+} from './fechas.js?v=202611221554';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221554';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221554';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221554';
+import { fuentesDemo } from './demo.js?v=202611221554';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221554';
+import { agendaDinero } from './agenda.js?v=202611221554';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221554';
+import { leerCashflow } from './dashprestamos.js?v=202611221554';
+import { icono } from './iconos.js?v=202611221554';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221554';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1108,25 +1108,13 @@ function columnasMeses(serie, kActual) {
 /** «ENTREGAR A OSVALDO» sumado por semana (lunes a domingo), solo eventos realizados. */
 function tarjetaEntregaSemanal(es) {
   if (!es?.semanas?.length) return '';
-  const lista = es.semanas.slice().reverse();
-  const max = Math.max(1, ...lista.map((x) => x.entregar));
   const rango = (x) => {
     const i = ymdDesdeIdx(x.ini); const f = ymdDesdeIdx(x.fin);
     return i.m === f.m ? `${i.d} – ${f.d} ${MES_CORTO[f.m - 1]}` : `${i.d} ${MES_CORTO[i.m - 1]} – ${f.d} ${MES_CORTO[f.m - 1]}`;
   };
-  const actual = es.semanas.at(-1);
   return `<article class="tarjeta ns-entrega">
-    <header class="pf-cab"><h2>Entregar a Osvaldo por semana</h2><span class="pf-cab-der">Lunes a domingo · eventos realizados</span></header>
-    <div class="ns-ent-cab">
-      <div><span>Esta semana</span><b>${esc(dinero(actual.entregar, 0))}</b><small>${cuenta(actual.eventos)} eventos${actual.sinDj ? ` · ${actual.sinDj} sin pago de DJ` : ''}</small></div>
-      <div><span>Promedio últimas 4</span><b>${es.promedio4 === null ? '—' : esc(dinero(es.promedio4, 0))}</b><small>semanas completas</small></div>
-    </div>
-    <div class="ns-ent-lista">${lista.map((x) => `<div class="ns-ent-fila ${x.actual ? 'actual' : ''}">
-      <span class="ns-ent-sem">${esc(rango(x))}${x.actual ? ' <em>en curso</em>' : ''}</span>
-      <span class="ns-ent-barra"><i style="width:${(x.entregar / max) * 100}%"></i></span>
-      <b>${esc(dinero(x.entregar, 0))}</b>
-      <small>${cuenta(x.eventos)} ev.${x.sinDj ? ` · <span class="texto-rojo">${x.sinDj} sin DJ</span>` : ''}</small>
-    </div>`).join('')}</div>
+    <header class="pf-cab"><h2>Entregar a Osvaldo</h2><span class="pf-cab-der">Por semana</span></header>
+    ${es.semanas.slice(-4).reverse().map((x) => `<div class="pm-fila"><span>${esc(rango(x))}${x.actual ? ' <small class="texto-tenue">en curso</small>' : ''}${x.sinDj ? ` <small class="texto-rojo">${x.sinDj} sin DJ</small>` : ''}</span><b>${esc(dinero(x.entregar, 0))}</b></div>`).join('')}
   </article>`;
 }
 
