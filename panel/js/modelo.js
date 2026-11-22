@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611221827';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611221827';
+} from './fechas.js?v=202611221828';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611221828';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611221827';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611221827';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611221827';
-import { modeloST } from './st.js?v=202611221827';
-import { modeloOperacion } from './nsops.js?v=202611221827';
-import { dinero } from './formato.js?v=202611221827';
+} from './sheets.js?v=202611221828';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611221828';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611221828';
+import { modeloST } from './st.js?v=202611221828';
+import { modeloOperacion } from './nsops.js?v=202611221828';
+import { dinero } from './formato.js?v=202611221828';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -393,10 +393,12 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
   const origenDeuda = hacerOrigen(nayarsound, 'dashboard', 'DASHBOARD', celdaDeuda.a1);
   const ventas = tablaVentas(nayarsound);
   salida.operacion = modeloOperacion(ventas?.registros ?? [], dashboard, hoyIdx);
-  // Eventos sin DJ en AGENDA Y VENTAS (DJ vacío o «BUSCAR») que no están pagados:
-  // sin DJ no hay a quién cobrarle. Los ya pasados son dinero que se está perdiendo.
+  // Eventos por cobrar sin DJ en AGENDA Y VENTAS: ya pasaron (o están marcados
+  // REALIZADO) y el DJ está vacío o «BUSCAR», así que no hay a quién cobrarle.
+  // Los próximos no entran: solo lo que ya deberías estar cobrando.
   salida.eventosSinDj = (ventas?.registros ?? [])
-    .filter((r) => r.idx !== null && r.idx !== undefined && (vacio(r.dj) || normalizar(r.dj) === 'BUSCAR') && normalizar(r.pagado) !== 'PAGADO')
+    .filter((r) => r.idx !== null && r.idx !== undefined && (r.idx < hoyIdx || normalizar(r.realizado) === 'SI')
+      && (vacio(r.dj) || normalizar(r.dj) === 'BUSCAR') && normalizar(r.pagado) !== 'PAGADO')
     .map((r) => ({ op: r.op, idx: r.idx, ciudad: String(r.ciudad ?? '').trim(), tipo: String(r.tipo ?? '').trim(), dj: normalizar(r.dj) === 'BUSCAR' ? 'BUSCAR' : '',
       total: typeof r.total === 'number' ? r.total : null, pasado: r.idx < hoyIdx, hoy: r.idx === hoyIdx, fila: r.fila,
       url: nayarsound && !nayarsound.demo ? urlFila(nayarsound, 'AGENDA Y VENTAS', r.fila) : null }))

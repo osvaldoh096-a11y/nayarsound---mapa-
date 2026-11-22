@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611221827';
+import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611221828';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -90,9 +90,10 @@ export function fuentesDemo(hoy = hoyCDMX()) {
         total, 100, 0, hecho ? pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj : '', hecho ? total - pagoDj - 100 : '', hecho ? 'SI' : 'NO', '', '', hecho ? 'PAGADO' : '', hecho ? 'SI' : '']);
     }
   }
-  // Eventos sin DJ (vacío y «BUSCAR»): disparan la alerta urgente.
-  ventas.push([opDemo++, 'OSVALDO', 'GUADALAJARA', '', serial(h + 6), 'BODA', 5, 'CLIENTE DEMO', 3000, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
-  ventas.push([opDemo++, 'OSVALDO', 'LEON', 'BUSCAR', serial(h + 13), 'XV', 5, 'CLIENTE DEMO', 3500, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
+  // Eventos ya pasados sin DJ (vacío y «BUSCAR»): disparan la alerta urgente; el próximo no.
+  ventas.push([opDemo++, 'OSVALDO', 'GUADALAJARA', '', serial(h + 6), 'BODA', 5, 'CLIENTE DEMO', 2800, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
+  ventas.push([opDemo++, 'OSVALDO', 'GUADALAJARA', '', serial(h - 2), 'BODA', 5, 'CLIENTE DEMO', 3000, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
+  ventas.push([opDemo++, 'OSVALDO', 'LEON', 'BUSCAR', serial(h - 4), 'XV', 5, 'CLIENTE DEMO', 3500, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
   const fmt = (n) => n.toLocaleString('en-US');
   const personas = [...new Set(deudas.map((d) => d[0]))].sort();
   const mesLargo = (idx) => MESES[ymdDesdeIdx(idx).m - 1].toLowerCase();

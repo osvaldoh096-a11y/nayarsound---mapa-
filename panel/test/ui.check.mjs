@@ -84,7 +84,7 @@ try {
     revisar(await pagina.locator('.inicio-rejilla .eventos').count() === 0, 'Inicio: sin la tarjeta de NayarSound (lo cubren los pendientes)');
     {
       const al = pagina.locator('#alerta-sindj');
-      revisar(/2 eventos sin DJ/.test(await al.locator('summary').innerText()) && /\$6,500/.test(await al.locator('summary').innerText()), 'Alerta urgente: eventos sin DJ con el dinero en riesgo');
+      revisar(/2 eventos por cobrar sin DJ/.test(await al.locator('summary').innerText()) && /\$6,500/.test(await al.locator('summary').innerText()), 'Alerta urgente: solo eventos ya pasados sin DJ (no los próximos)');
       await al.locator('summary').click();
       revisar(await al.locator('.as-lista li').count() === 2, 'Alerta urgente: al tocarla lista cada evento sin DJ');
       if (capturas) await al.screenshot({ path: `${capturas}/alerta-sindj.png` });
