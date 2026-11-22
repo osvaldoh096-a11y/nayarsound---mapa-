@@ -138,6 +138,9 @@ try {
 
     // NayarSound
     await pagina.goto(`${url}/panel/#/nayarsound`);
+    await pagina.waitForSelector('.ns-entrega');
+    if (capturas) await pagina.locator(".ns-entrega").screenshot({ path: `${capturas}/ns-entrega.png` });
+    revisar(/Entregar a Osvaldo por semana/.test(await texto(pagina, '.ns-entrega')) && await pagina.locator('.ns-ent-fila').count() === 13, 'NayarSound: «Entregar a Osvaldo» por semana (12 semanas + la actual)');
     if (!rutaSnapshot) {
       // Cobros de eventos: primero a quien le falta anotar el pago al DJ, luego más días.
       await pagina.goto(`${url}/panel/#/inicio`);

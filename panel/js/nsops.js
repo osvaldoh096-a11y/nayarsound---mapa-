@@ -2,8 +2,8 @@
 // VENTAS (todos los eventos, realizados y agendados) y los números del
 // DASHBOARD de la hoja (operación mensual, resultado histórico).
 
-import { normalizar, ymdDesdeIdx, idxDesdeYMD } from './fechas.js?v=202611220209';
-import { importeCelda } from './dashprestamos.js?v=202611220209';
+import { normalizar, ymdDesdeIdx, idxDesdeYMD } from './fechas.js?v=202611221549';
+import { importeCelda } from './dashprestamos.js?v=202611221549';
 
 const texto = (v) => String(v ?? '').trim();
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : importeCelda(v));
@@ -81,8 +81,24 @@ export function modeloOperacion(registros, dashboard, hoyIdx) {
   const desde = idxDesdeYMD(desdeClave(kHoy - 11).y, desdeClave(kHoy - 11).m, 1);
   const ciudadesAnio = agrupar(eventos.filter((r) => r.idx >= desde && r.idx <= hoyIdx), 'ciudad');
 
+  // «ENTREGAR A OSVALDO» por semana (lunes a domingo), solo eventos realizados:
+  // las últimas 12 semanas y la actual (aún abierta).
+  const lunesHoy = hoyIdx - ((new Date(hoyIdx * 86400000).getUTCDay() + 6) % 7);
+  const semanas = [];
+  for (let k = 12; k >= 0; k--) {
+    const ini = lunesHoy - k * 7;
+    const lista = eventos.filter((r) => r.idx >= ini && r.idx <= ini + 6 && normalizar(r.realizado) === 'SI');
+    const conMonto = lista.filter((r) => typeof r.entregar === 'number' && Number.isFinite(r.entregar));
+    semanas.push({ ini, fin: ini + 6, actual: k === 0, eventos: lista.length,
+      entregar: conMonto.reduce((t, r) => t + r.entregar, 0),
+      sinDj: lista.filter((r) => num(r.pagoDj) === null || num(r.pagoDj) <= 0).length,
+      sinMonto: lista.length - conMonto.length });
+  }
+  const cerradas = semanas.filter((x) => !x.actual).slice(-4);
+  const entregaSemanal = { semanas, promedio4: cerradas.length ? cerradas.reduce((t, x) => t + x.entregar, 0) / cerradas.length : null };
+
   return {
-    serie, anterior, actual, proximo, ciudades, djs, tipos, sinDj, porDia, ciudadesAnio,
+    serie, anterior, actual, proximo, ciudades, djs, tipos, sinDj, porDia, ciudadesAnio, entregaSemanal,
     totalEventos: eventos.filter((r) => normalizar(r.realizado) === 'SI').length,
     dashboard: leerDashboardNs(dashboard ?? []),
   };
