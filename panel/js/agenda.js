@@ -5,8 +5,8 @@
 //   Pagas:  intereses a tus inversores (REGISTRO DE INVERSORES) y las cuotas
 //           de tus créditos (SINDICATO, BBVA, Mercado Pago…) según su calendario.
 
-import { ymdDesdeIdx, idxDesdeYMD } from './fechas.js?v=202611221559';
-import { TIPO_CAMBIO_USDT } from './fuentes.js?v=202611221559';
+import { ymdDesdeIdx, idxDesdeYMD } from './fechas.js?v=202611221602';
+import { TIPO_CAMBIO_USDT } from './fuentes.js?v=202611221602';
 
 /** Fechas de un pago mensual (mismo día cada mes) entre desde y hasta. */
 export function fechasMensuales(dia, desde, hasta, inicioIdx = null) {

@@ -1036,3 +1036,5 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 @media (max-width: 640px) { .bloque-pagos-mes { grid-template-columns: minmax(0, 1fr); } .pm-total .cifra { font-size: 30px; } }
 .ns-entrega { margin-bottom: 16px; max-width: 420px; }
 .texto-tenue { color: var(--tenue); }
+.pf-kpis.ns-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 960px) { .pf-kpis.ns-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pf-kpis.ns-kpis > :last-child { grid-column: 1 / -1; } }

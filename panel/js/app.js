@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221559';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221559';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221559';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611221559';
-import { construirModelo, entregarCon } from './modelo.js?v=202611221559';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221602';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221602';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221602';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611221602';
+import { construirModelo, entregarCon } from './modelo.js?v=202611221602';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611221559';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221559';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221559';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221559';
-import { fuentesDemo } from './demo.js?v=202611221559';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221559';
-import { agendaDinero } from './agenda.js?v=202611221559';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221559';
-import { leerCashflow } from './dashprestamos.js?v=202611221559';
-import { icono } from './iconos.js?v=202611221559';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221559';
+} from './fechas.js?v=202611221602';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221602';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221602';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221602';
+import { fuentesDemo } from './demo.js?v=202611221602';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221602';
+import { agendaDinero } from './agenda.js?v=202611221602';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221602';
+import { leerCashflow } from './dashprestamos.js?v=202611221602';
+import { icono } from './iconos.js?v=202611221602';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221602';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1125,9 +1125,8 @@ function operacionNs(op, m) {
     <div class="pf-kpi-etq"><i class="pf-punto" aria-hidden="true"></i>${etiqueta}</div><div class="pf-kpi-valor">${valor}</div>
     <div class="pf-kpi-sub">${sub}</div></article>`;
   const promedio = c.realizados ? c.gananciaPersonal / c.realizados : null;
-  const kpis = `<section class="pf-kpis">
+  const kpis = `<section class="pf-kpis ns-kpis">
     ${kpi('azul', `Eventos de ${MESES[c.m - 1].toLowerCase()}`, esc(cuenta(c.eventos)), `${cuenta(c.realizados)} realizados · ${cuenta(c.agendados)} por realizar ${cambio(c.eventos, a.eventos)}`)}
-    ${kpi('azul', 'Generado del mes', cifraDoble(c.generado), `Total de eventos ${cambio(c.generado, a.generado)}`)}
     ${kpi('verde', 'Tu ganancia del mes', cifraDoble(c.gananciaPersonal), promedio !== null ? `${din(promedio, 0)} por evento realizado` : 'Aún sin eventos realizados')}
     ${kpi('ambar', `Agendados ${MESES[p.m - 1].toLowerCase()}`, esc(cuenta(p.eventos)), `${din(p.generado, 0)} por cobrar en eventos`)}
   </section>`;
