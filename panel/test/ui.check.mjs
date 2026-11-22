@@ -83,6 +83,10 @@ try {
     }
     revisar(await pagina.locator('.inicio-rejilla .eventos').count() === 0, 'Inicio: sin la tarjeta de NayarSound (lo cubren los pendientes)');
     {
+      const pm = await pagina.locator('.bloque-pagos-mes').innerText();
+      revisar(/Pagas al mes/i.test(pm) && /Interés a inversores/.test(pm) && /SINDICATO/.test(pm) && /BBVA/.test(pm), 'Inicio: «Pagas al mes» con inversores e institucionales');
+    }
+    {
       const textoPr = await pagina.locator('.bloque-alertas', { hasText: 'Préstamos e inversores' }).innerText();
       revisar(/Pago de crédito/.test(textoPr) && /(SINDICATO|BBVA)/.test(textoPr), 'Pendientes: avisa los pagos de tus créditos (SINDICATO, BBVA…) de los próximos días');
     }

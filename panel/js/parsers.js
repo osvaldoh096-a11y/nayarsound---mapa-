@@ -4,8 +4,8 @@
 
 import {
   normalizar, inferirFecha, mesDesdeNombre, diaSemanaDesdeNombre,
-} from './fechas.js?v=202611212350';
-import { leerMontoTexto } from './formato.js?v=202611212350';
+} from './fechas.js?v=202611220209';
+import { leerMontoTexto } from './formato.js?v=202611220209';
 
 const DIAS_RE = 'DOMINGO|LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|SABADO';
 const TITULO_RE = new RegExp(

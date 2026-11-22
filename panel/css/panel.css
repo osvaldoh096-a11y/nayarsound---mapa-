@@ -219,7 +219,7 @@ main > .tarjeta, main > article, main > details, main > section { margin-bottom:
 /* ---------- Inicio ---------- */
 .inicio-rejilla {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-bottom: 28px;
-  grid-template-areas: "pendientes" "finanzas";
+  grid-template-areas: "pendientes" "finanzas" "pagosmes";
 }
 .inicio-rejilla .protagonista { grid-area: pendientes; }
 .inicio-rejilla .eventos { grid-area: eventos; }
@@ -501,7 +501,7 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
   .pestanas-movil a .icono { width: 22px; height: 22px; }
   .pestanas-movil a[aria-current="page"] { color: var(--azul); }
   .rejilla-alertas, .rejilla-ns, .rejilla-dos { grid-template-columns: 1fr; }
-  .inicio-rejilla { grid-template-columns: 1fr; grid-template-areas: "pendientes" "finanzas"; }
+  .inicio-rejilla { grid-template-columns: 1fr; grid-template-areas: "pendientes" "finanzas" "pagosmes"; }
 }
 @media (max-width: 640px) {
   body { font-size: 14.5px; }
@@ -1023,3 +1023,14 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .fila-pago-int td { border-top: 0 !important; padding-top: 0 !important; }
 .pago-int { display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 6px; }
 .pago-int label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--tinta-2); }
+.inicio-rejilla .bloque-pagos-mes { grid-area: pagosmes; }
+.bloque-pagos-mes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 28px; align-items: start; }
+.bloque-pagos-mes .tarjeta-cab { grid-column: 1 / -1; }
+.pm-total .cifra { font-size: 36px; color: var(--coral-tinta); }
+.pm-total .sub { color: var(--tenue); font-size: 13px; }
+.pm-lista { display: grid; gap: 2px; }
+.pm-fila { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--borde); font-size: 14px; }
+.pm-fila:last-child { border-bottom: 0; }
+.pm-fila b { font-variant-numeric: tabular-nums; }
+.pm-fila.inst span::before { content: "🏦 "; }
+@media (max-width: 640px) { .bloque-pagos-mes { grid-template-columns: minmax(0, 1fr); } .pm-total .cifra { font-size: 30px; } }

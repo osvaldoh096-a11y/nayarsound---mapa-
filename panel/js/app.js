@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611212350';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611212350';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611212350';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611212350';
-import { construirModelo, entregarCon } from './modelo.js?v=202611212350';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611220209';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611220209';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611220209';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611220209';
+import { construirModelo, entregarCon } from './modelo.js?v=202611220209';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611212350';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611212350';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611212350';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611212350';
-import { fuentesDemo } from './demo.js?v=202611212350';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611212350';
-import { agendaDinero } from './agenda.js?v=202611212350';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611212350';
-import { leerCashflow } from './dashprestamos.js?v=202611212350';
-import { icono } from './iconos.js?v=202611212350';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611212350';
+} from './fechas.js?v=202611220209';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611220209';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611220209';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611220209';
+import { fuentesDemo } from './demo.js?v=202611220209';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611220209';
+import { agendaDinero } from './agenda.js?v=202611220209';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611220209';
+import { leerCashflow } from './dashprestamos.js?v=202611220209';
+import { icono } from './iconos.js?v=202611220209';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611220209';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -848,6 +848,34 @@ function tilesFinanzas(mes, { conOrigen = true } = {}) {
     + tile(`tile-sobrante ${negativo ? 'negativo' : ''}`, 'sobrante', `Sobrante ${del}`, mes.sobrante, 'Ganancia − gastos. Resultado calculado, no saldo bancario.');
 }
 
+/**
+ * Lo que pagas cada mes: interés a tus inversores (personas activas de
+ * REGISTRO DE INVERSORES) + la cuota mensual de cada crédito institucional.
+ * Es el mismo dato que «PAGO MENSUAL A INVERSORES» del DASHBOARD de tu hoja.
+ */
+function pagosMensuales(m) {
+  const personas = (m?.prestamos?.inversiones ?? []).reduce((t, x) => t + (x.pagoMes ? (x.divisa === 'USDT' ? x.pagoMes * TIPO_CAMBIO_USDT : x.pagoMes) : 0), 0);
+  const instituciones = PRESTAMOS_PROPIOS.map((P) => ({ nombre: P.titulo.replace(/^Préstamo\s+/i, ''), mensual: P.resumen(m.hoy.idx)?.mensual ?? null }))
+    .filter((x) => typeof x.mensual === 'number' && x.mensual > 0);
+  const inst = instituciones.reduce((t, x) => t + x.mensual, 0);
+  return { personas, instituciones, inst, total: personas + inst };
+}
+
+function tarjetaPagosMes(m) {
+  if (!m?.prestamos?.disponible) return '';
+  const pm = pagosMensuales(m);
+  if (!pm.total) return '';
+  const fila = (etq, v, extra = '') => `<div class="pm-fila ${extra}"><span>${etq}</span><b>${esc(dinero(v, 0))}</b></div>`;
+  return `<article class="tarjeta bloque-pagos-mes">
+      <div class="tarjeta-cab"><h2 class="etq-cab">${icono('pagar')}Pagas al mes</h2><a class="enlace-vista" href="#/prestamos">Ver ${icono('flecha')}</a></div>
+      <div class="pm-total"><div class="cifra">${esc(dinero(pm.total, 0))}</div><div class="sub">inversores + institucionales</div></div>
+      <div class="pm-lista">
+        ${fila('Interés a inversores', pm.personas)}
+        ${pm.instituciones.map((x) => fila(esc(x.nombre), x.mensual, 'inst')).join('')}
+      </div>
+    </article>`;
+}
+
 /** Ganancia, gastos y sobrante en una fila, como los eventos de hoy y mañana. */
 function resumenFinanzas(mes) {
   if (!mes) {
@@ -941,6 +969,7 @@ function vistaInicio(m) {
       <div class="tarjeta-cab"><h2 class="etq-cab">${icono('finanzas')}Finanzas</h2>${sel}</div>
       ${resumenFinanzas(mes)}
     </article>
+    ${tarjetaPagosMes(m)}
   </section>
   <section>
     <div class="seccion-cab"><h2 class="titulo-seccion">Lo que requiere tu atención${E.filtro ? ` · ${esc(URG[E.filtro])}` : ''}</h2></div>
@@ -1345,7 +1374,7 @@ function prResumen(m, pr, d) {
     ${kpi('verde', 'Capital prestado', prestado, 'Total en la calle')}
     ${kpi('verde', 'Capital propio', propio, `Tuyo${pctDe(propio)}`)}
     ${kpi('verde', 'Capital de inversores', inv, `De inversores${pctDe(inv)}`)}
-    ${kpi('rojo', 'Pago mensual a inversores', v('PAGO MENSUAL A INVERSORES'), 'Lo que pagas cada mes')}
+    ${kpi('rojo', 'Pago mensual a inversores', v('PAGO MENSUAL A INVERSORES'), (() => { const pm = pagosMensuales(m); return pm.inst ? `Inversores ${esc(dinero(pm.personas, 0))} + institucionales ${esc(dinero(pm.inst, 0))}` : 'Lo que pagas cada mes'; })())}
   </section>`;
 
   // Resumen financiero agrupado por colores, como en tu hoja
