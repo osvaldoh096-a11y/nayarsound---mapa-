@@ -1038,3 +1038,7 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .texto-tenue { color: var(--tenue); }
 .pf-kpis.ns-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 960px) { .pf-kpis.ns-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pf-kpis.ns-kpis > :last-child { grid-column: 1 / -1; } }
+.tabla tr.fila-ciudad td { background: var(--fondo, #f4f5f7); padding-top: 10px; padding-bottom: 10px; }
+.fila-ciudad .fc-in { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fila-ciudad .fc-in .etq-ciudad, .fila-ciudad .fc-in > :first-child { margin: 0; }
+.fila-ciudad .fc-n { color: var(--tenue); font-size: 13px; }

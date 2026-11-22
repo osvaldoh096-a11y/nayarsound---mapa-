@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221604';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221604';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221604';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611221604';
-import { construirModelo, entregarCon } from './modelo.js?v=202611221604';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221823';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221823';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221823';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611221823';
+import { construirModelo, entregarCon } from './modelo.js?v=202611221823';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611221604';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221604';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221604';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221604';
-import { fuentesDemo } from './demo.js?v=202611221604';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221604';
-import { agendaDinero } from './agenda.js?v=202611221604';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221604';
-import { leerCashflow } from './dashprestamos.js?v=202611221604';
-import { icono } from './iconos.js?v=202611221604';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221604';
+} from './fechas.js?v=202611221823';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221823';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221823';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221823';
+import { fuentesDemo } from './demo.js?v=202611221823';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221823';
+import { agendaDinero } from './agenda.js?v=202611221823';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221823';
+import { leerCashflow } from './dashprestamos.js?v=202611221823';
+import { icono } from './iconos.js?v=202611221823';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221823';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1195,15 +1195,27 @@ function tarjetaDeuda(deuda) {
   if (!deuda || deuda.estado === 'no-encontrado') return `<article class="tarjeta">${cab}<p class="sin-dato">No encontré el recordatorio de deuda.</p></article>`;
   if (deuda.estado === 'sin-deudas') return `<article class="tarjeta">${cab}<p class="vacio">✅ Sin deudas, según tu hoja.</p></article>`;
   if (deuda.estado !== 'ok') return `<article class="tarjeta">${cab}<p class="sin-dato">La celda del recordatorio de deuda está vacía o con error.</p></article>`;
-  const filas = deuda.personas.map((p) => {
+  // Agrupado por ciudad (la que más debe primero); dentro, quien debe hace más días primero.
+  const hoyIdx = E.modelo.hoy.idx;
+  const grupos = new Map();
+  for (const p of deuda.personas) {
+    const ciudad = E.pendientes.get(`deuda|${normalizar(p.nombre)}`)?.ciudades?.[0] ?? 'Sin ciudad';
+    if (!grupos.has(ciudad)) grupos.set(ciudad, []);
+    grupos.get(ciudad).push(p);
+  }
+  const suma = (l) => l.reduce((t, p) => t + (p.monto ?? 0), 0);
+  const fila = (p) => {
     const id = `deuda|${normalizar(p.nombre)}`;
     return `<tr data-pendiente="${esc(id)}" tabindex="0">
-      <td><b>${esc(p.nombre)}</b>${(E.pendientes.get(id)?.ciudades ?? []).map(etiquetaCiudad).join('')}${avisoEsperar(E.pendientes.get(id))}</td>
+      <td><b>${esc(p.nombre)}</b>${avisoEsperar(E.pendientes.get(id))}</td>
       <td class="num">${p.eventos}</td>
       <td class="num">${(() => { const n = diasDeuda(p, E.modelo.hoy.idx); return n === null ? '—' : `<span class="${n > 3 ? 'texto-rojo' : ''}">${esc(textoDias(n))}</span>`; })()}</td>
       <td>${p.fechas.map((f) => `<span class="fecha-mini">${esc(fechaCorta(f.idx))}</span>`).join(' ')}</td>
       <td class="num">${esc(dinero(p.monto, 0))}</td></tr>`;
-  }).join('');
+  };
+  const filas = [...grupos.entries()].sort((x, z) => suma(z[1]) - suma(x[1])).map(([ciudad, lista]) =>
+    `<tr class="fila-ciudad"><td colspan="5"><span class="fc-in">${etiquetaCiudad(ciudad)}<b class="monto-cobrar">${esc(dinero(suma(lista), 0))}</b><span class="fc-n">${plural(lista.length, 'persona', 'personas')}</span></span></td></tr>`
+    + [...lista].sort((x, z) => (diasDeuda(z, hoyIdx) ?? -1) - (diasDeuda(x, hoyIdx) ?? -1) || (z.monto ?? 0) - (x.monto ?? 0)).map(fila).join('')).join('');
   const cruce = deuda.cruce ? `<p class="nota ${deuda.cruce.coincide ? 'ok' : 'mal'}">${deuda.cruce.coincide ? '✓' : '⚠'} ${deuda.cruce.eventos} eventos por liquidar; tu hoja marca «${esc(deuda.cruce.texto.replace(/[❌✅]/gu, '').trim())}».</p>` : '';
   // Contraído: solo el total; al tocarlo se despliega la tabla.
   return `<details class="tarjeta desplegable" id="deuda-desplegable" ${E.deudaAbierta ? 'open' : ''}>

@@ -193,12 +193,14 @@ try {
         'Recordatorio de deuda: empieza contraído, mostrando solo el total');
       await pagina.locator('#deuda-desplegable summary').click();
       revisar(await pagina.locator('#deuda-desplegable .tabla').isVisible(), 'Recordatorio de deuda: al tocarlo se despliega la tabla');
+      revisar(await pagina.locator('#deuda-desplegable tr.fila-ciudad').count() > 0, 'Recordatorio de deuda: agrupado por ciudad con su total');
+      if (capturas) await pagina.locator('#deuda-desplegable').screenshot({ path: `${capturas}/deuda-ciudad.png` });
       const totalDeuda = await texto(pagina, '.tabla tfoot .num');
       revisar(totalDeuda === dinero(deuda.total, 0), `Total de deuda: ${totalDeuda} (esperado ${dinero(deuda.total, 0)})`);
       if (extra?.deuda) revisar(totalDeuda === extra.deuda, `  coincide con la hoja: ${extra.deuda}`);
     }
     if (deuda?.estado === 'ok') {
-      await pagina.locator('.tabla tbody tr').first().click();
+      await pagina.locator('.tabla tbody tr[data-pendiente]').first().click();
       await pagina.waitForSelector('#detalle[open]');
       const msg = await pagina.locator('.det-mensaje pre').innerText();
       revisar(msg.startsWith('*PAGOS PENDIENTES - ') && msg.includes('TOTAL A ENVIAR'), 'Deuda: mensaje «PAGOS PENDIENTES» listo para copiar');
@@ -209,7 +211,7 @@ try {
       revisar(copiado === msg, 'Deuda: «Copiar» pone el mensaje completo en el portapapeles');
       await pagina.locator('[data-cerrar]').click();
       // Pago al DJ: se edita en el detalle y se escribe en la columna DJ (L).
-      await pagina.locator('.tabla tbody tr').first().click();
+      await pagina.locator('.tabla tbody tr[data-pendiente]').first().click();
       await pagina.waitForSelector('#detalle[open]');
       const campo = pagina.locator('input[data-fila-pagodj]').first();
       const filaCampo = await campo.getAttribute('data-fila-pagodj');
@@ -241,7 +243,7 @@ try {
       await pagina.waitForSelector('.dia');
 
       // Marcar como pagado: confirma, verifica la fila y escribe SI en PAGO.
-      await pagina.locator('.tabla tbody tr').first().click();
+      await pagina.locator('.tabla tbody tr[data-pendiente]').first().click();
       await pagina.waitForSelector('#detalle[open]');
       pagina.once('dialog', (d) => d.accept());
       const antes = lecturas.length;
