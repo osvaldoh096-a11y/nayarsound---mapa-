@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611221828';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611221828';
+} from './fechas.js?v=202611231705';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611231705';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611221828';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611221828';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611221828';
-import { modeloST } from './st.js?v=202611221828';
-import { modeloOperacion } from './nsops.js?v=202611221828';
-import { dinero } from './formato.js?v=202611221828';
+} from './sheets.js?v=202611231705';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611231705';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611231705';
+import { modeloST } from './st.js?v=202611231705';
+import { modeloOperacion } from './nsops.js?v=202611231705';
+import { dinero } from './formato.js?v=202611231705';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -964,6 +964,9 @@ export function modeloFinanzas({ gastos }, hoy) {
       fecha: 'FECHA', cantidad: 'CANTIDAD', motivo: 'MOTIVO', con: 'GASTADO CON', mes: 'AUX',
     }, inicioG);
     salida.gastosRegistros = registros;
+    // Último gasto registrado (fecha más reciente con cantidad): para saber si la captura va al día.
+    const fechas = registros.filter((r) => typeof r.cantidad === 'number' && typeof r.fecha === 'number').map((r) => idxDesdeSerial(r.fecha)).filter((i) => i !== null && i <= hoy.idx);
+    salida.ultimoGasto = fechas.length ? Math.max(...fechas) : null;
     for (const mes of salida.meses) {
       const clave = mes.etiqueta.toUpperCase();
       const delMes = registros.filter((r) => String(r.mes).toUpperCase() === clave);

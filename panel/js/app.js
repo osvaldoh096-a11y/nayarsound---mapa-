@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611221828';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611221828';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611221828';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611221828';
-import { construirModelo, entregarCon } from './modelo.js?v=202611221828';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611231705';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611231705';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611231705';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611231705';
+import { construirModelo, entregarCon } from './modelo.js?v=202611231705';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611221828';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611221828';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611221828';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611221828';
-import { fuentesDemo } from './demo.js?v=202611221828';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611221828';
-import { agendaDinero } from './agenda.js?v=202611221828';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611221828';
-import { leerCashflow } from './dashprestamos.js?v=202611221828';
-import { icono } from './iconos.js?v=202611221828';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611221828';
+} from './fechas.js?v=202611231705';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611231705';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611231705';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611231705';
+import { fuentesDemo } from './demo.js?v=202611231705';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611231705';
+import { agendaDinero } from './agenda.js?v=202611231705';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611231705';
+import { leerCashflow } from './dashprestamos.js?v=202611231705';
+import { icono } from './iconos.js?v=202611231705';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611231705';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -878,6 +878,17 @@ function tarjetaPagosMes(m) {
 }
 
 /** Ganancia, gastos y sobrante en una fila, como los eventos de hoy y mañana. */
+/** «Gastos registrados hasta …»: el último día con un gasto anotado. */
+function lineaUltimoGasto(fi, hoyIdx) {
+  if (!fi) return '';
+  const u = fi.ultimoGasto;
+  if (u === null || u === undefined) return '<p class="ultimo-gasto mal">Sin fecha en los gastos registrados.</p>';
+  const n = hoyIdx - u;
+  const clase = n <= 1 ? 'ok' : n <= 3 ? 'medio' : 'mal';
+  const hace = n === 0 ? 'hoy' : n === 1 ? 'ayer' : `hace ${n} días`;
+  return `<p class="ultimo-gasto ${clase}"><i class="punto" aria-hidden="true"></i>Gastos registrados hasta el <b>${esc(fechaCorta(u))}</b> · ${hace}</p>`;
+}
+
 function resumenFinanzas(mes) {
   if (!mes) {
     const f = E.fuentes.gastos;
@@ -993,6 +1004,7 @@ function vistaInicio(m) {
     <article class="tarjeta bloque-finanzas">
       <div class="tarjeta-cab"><h2 class="etq-cab">${icono('finanzas')}Finanzas</h2>${sel}</div>
       ${resumenFinanzas(mes)}
+      ${lineaUltimoGasto(fi, m.hoy.idx)}
     </article>
     ${tarjetaPagosMes(m)}
   </section>

@@ -82,6 +82,7 @@ try {
       revisar(n === String(e), `  ${u}: ${n} (esperado ${e})`);
     }
     revisar(await pagina.locator('.inicio-rejilla .eventos').count() === 0, 'Inicio: sin la tarjeta de NayarSound (lo cubren los pendientes)');
+    revisar(/Gastos registrados hasta el/.test(await texto(pagina, '.bloque-finanzas .ultimo-gasto')), 'Finanzas: dice hasta qué día están registrados los gastos');
     {
       const al = pagina.locator('#alerta-sindj');
       revisar(/2 eventos por cobrar sin DJ/.test(await al.locator('summary').innerText()) && /\$6,500/.test(await al.locator('summary').innerText()), 'Alerta urgente: solo eventos ya pasados sin DJ (no los próximos)');

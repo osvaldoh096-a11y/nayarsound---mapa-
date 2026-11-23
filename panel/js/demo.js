@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, MESES, etiquetaMes } from './fechas.js?v=202611221828';
+import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611231705';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -197,7 +197,8 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     if (i === meses.length - 1 && hoy.d < 3) return; // mes actual sin gastos todavía
     categorias.forEach((c, k) => {
       const cantidad = 800 + ((i * 7 + k * 13) % 9) * 450 + (c === 'RENTA' ? 6000 : 0);
-      gastos.push([op++, '', cantidad, c, 'YO', etq, '']);
+      const dia = i === meses.length - 1 ? Math.max(1, hoy.d - 2) : 5 + k * 3;
+      gastos.push([op++, serial(idxDesdeYMD(hoy.y, i + 1, dia)), cantidad, c, 'YO', etq, '']);
     });
   });
   // Año anterior (para la vista por año): solo en ANALISIS, como en tu hoja.
