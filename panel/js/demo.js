@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611240553';
+import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611241638';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
