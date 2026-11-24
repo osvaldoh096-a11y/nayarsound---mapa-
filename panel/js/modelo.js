@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611240308';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611240308';
+} from './fechas.js?v=202611240542';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611240542';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611240308';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611240308';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611240308';
-import { modeloST } from './st.js?v=202611240308';
-import { modeloOperacion } from './nsops.js?v=202611240308';
-import { dinero } from './formato.js?v=202611240308';
+} from './sheets.js?v=202611240542';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611240542';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611240542';
+import { modeloST } from './st.js?v=202611240542';
+import { modeloOperacion } from './nsops.js?v=202611240542';
+import { dinero } from './formato.js?v=202611240542';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -171,6 +171,56 @@ function etiquetaControl(c) {
   return c.columna || 'Control';
 }
 
+const MES_LLAVE = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+/** Fecha de una llave «21NOV26-0739» como índice de día (o null). */
+export function fechaDeLlave(llave) {
+  const m = String(llave ?? '').match(/^(\d{2})([A-Z]{3})(\d{2})/);
+  if (!m) return null;
+  const mes = MES_LLAVE.indexOf(m[2]);
+  return mes < 0 ? null : idxDesdeYMD(2000 + Number(m[3]), mes + 1, Number(m[1]));
+}
+
+/**
+ * Pestaña PAGOS DJ (encabezados en la fila 3): A EVENTO (llave), B PAGO DJ,
+ * C PAGADO, H ESTADO (✅ LIGADO / ❌ NO ESTÁ EN LA AGENDA / ⚠️ REPETIDO) y
+ * J «realizados sin pago registrado». Solo A, B y C se escriben.
+ */
+function leerPagosDj(fuente, ventas, hoyIdx) {
+  const filas = fuente?.rangos?.pagosDj;
+  if (!filas || !ventas) return { disponible: false };
+  const enc = buscarFilaEncabezado(filas, ['PAGO DJ', 'PAGADO', 'ESTADO']);
+  if (enc < 0) return { disponible: false, error: 'No encontré los encabezados de PAGOS DJ (PAGO DJ, PAGADO, ESTADO).' };
+  const nombres = (filas[enc] ?? []).map(normalizar);
+  const cB = nombres.indexOf('PAGO DJ'); const cA = cB - 1; const cC = nombres.indexOf('PAGADO'); const cH = nombres.indexOf('ESTADO');
+  const cJ = nombres.findIndex((n) => n.startsWith('REALIZADOS SIN PAGO'));
+  const inicio = inicioRango(ARCHIVOS.nayarsound.rangos.pagosDj);
+  const registros = [];
+  const pendientesLlave = [];
+  for (let f = enc + 1; f < filas.length; f++) {
+    const fila = filas[f] ?? [];
+    const llave = String(fila[cA] ?? '').trim();
+    if (llave) registros.push({ fila: inicio.fila + f, llave, pagoDj: fila[cB], pagado: normalizar(fila[cC]), estado: String(fila[cH] ?? '').trim() });
+    const j = cJ >= 0 ? String(fila[cJ] ?? '').trim() : '';
+    if (j && !j.startsWith('✅')) pendientesLlave.push(j);
+  }
+  const porLlave = new Map(ventas.registros.filter((r) => r.llave).map((r) => [r.llave, r]));
+  const enHoja = new Set(registros.map((r) => r.llave));
+  const datoEvento = (r) => ({ llave: r.llave, dj: String(r.dj ?? '').trim(), ciudad: String(r.ciudad ?? '').trim(), idx: r.idx, total: typeof r.total === 'number' ? r.total : null, fila: r.fila });
+  const pendientes = pendientesLlave.map((l) => (porLlave.has(l) ? datoEvento(porLlave.get(l)) : { llave: l, dj: '', ciudad: '', idx: fechaDeLlave(l), total: null }));
+  // ❌: Amal cambió la fecha o el teléfono. Candidatos: eventos sin cobro registrado, primero los de la misma fecha o mismo teléfono.
+  const libres = ventas.registros.filter((r) => r.llave && !enHoja.has(r.llave) && r.idx !== null && r.idx <= hoyIdx + 60);
+  const sinLigar = registros.filter((r) => r.estado.startsWith('❌')).map((r) => {
+    const idx = fechaDeLlave(r.llave);
+    const tel = r.llave.split('-')[1]?.replace(/\s*#\d+$/, '') ?? '';
+    const candidatos = libres.map((x) => ({ x, puntos: (idx !== null && x.idx === idx ? 2 : 0) + (tel && x.llave.split('-')[1]?.startsWith(tel) ? 2 : 0), dist: idx === null ? 0 : Math.abs(x.idx - idx) }))
+      .sort((a, z) => z.puntos - a.puntos || a.dist - z.dist).slice(0, 40).map((c) => datoEvento(c.x));
+    return { ...r, idx, candidatos };
+  });
+  const repetidos = registros.filter((r) => r.estado.startsWith('⚠'));
+  return { disponible: true, registros, pendientes, sinLigar, repetidos, url: urlHoja(fuente.id, fuente.meta?.pestanas?.['PAGOS DJ'] ?? ARCHIVOS.nayarsound.pestanas['PAGOS DJ']) };
+}
+
 function tablaVentas(fuente) {
   const filas = fuente?.rangos?.ventas;
   if (!filas) return null;
@@ -185,9 +235,10 @@ function tablaVentas(fuente) {
     total: 'TOTAL EVENTO', anticipo: 'ANTICIPO', gas: 'GAS A COBRAR', horas: 'TOT.HORAS', dia: 'DIA',
     pagado: colPagado, pago: 'PAGO', pagoDj: ['DJ', 2], realizado: 'REALIZADO', op: 'OP', sonido: 'SONIDO DE',
     tipo: 'TIPO EVENTO', ganancia: 'GANANCIA', ganancia2: 'GANANCIA 2', cliente: 'CLIENTE',
+    llave: 'LLAVE', fechaAnticipo: 'FECHA ANTICIPO',
   }, inicio);
   const letra = (clave) => (indices[clave] >= 0 ? letraColumna(inicio.col + indices[clave]) : null);
-  const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago'), pagoDj: letra('pagoDj') };
+  const columnas = { dj: letra('dj'), fecha: letra('fecha'), pagado: letra('pagado'), pago: letra('pago'), pagoDj: letra('pagoDj'), llave: letra('llave') };
   const controles = [];
   const nombres = filas[encabezado] ?? [];
   for (let f = 0; f < encabezado; f++) {
@@ -197,7 +248,7 @@ function tablaVentas(fuente) {
       controles.push({ ...control, a1: `${letraColumna(inicio.col + c)}${inicio.fila + f}`, columna: String(nombres[c] ?? '').trim() });
     });
   }
-  return { registros: registros.map((r) => ({ ...r, fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha) })), controles, columnas };
+  return { registros: registros.map((r) => ({ ...r, llave: String(r.llave ?? '').trim(), fila: filaPorOp(r, 12), idx: idxDesdeSerial(r.fecha) })), controles, columnas };
 }
 
 const MESES_TEXTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
@@ -393,6 +444,10 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
   const origenDeuda = hacerOrigen(nayarsound, 'dashboard', 'DASHBOARD', celdaDeuda.a1);
   const ventas = tablaVentas(nayarsound);
   salida.operacion = modeloOperacion(ventas?.registros ?? [], dashboard, hoyIdx);
+  salida.pagosDj = leerPagosDj(nayarsound, ventas, hoyIdx);
+  const destinoPago = salida.pagosDj.disponible && ventas?.columnas?.llave && !nayarsound.demo
+    ? { archivo: nayarsound.id, pestana: 'PAGOS DJ', columnas: ventas.columnas } : null;
+  salida.pagosDj.destino = destinoPago;
   // Eventos por cobrar sin DJ en AGENDA Y VENTAS: ya pasaron (o están marcados
   // REALIZADO) y el DJ está vacío o «BUSCAR», así que no hay a quién cobrarle.
   // Los próximos no entran: solo lo que ya deberías estar cobrando.
@@ -438,8 +493,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
         mensajeAnticipado: p.registros && p.hoy.length ? mensajeDeuda(p.nombre, [...p.registros, ...p.hoy]) : null,
         ciudades: [...new Set((p.registros ?? []).map((r) => String(r.ciudad ?? '').trim()).filter(Boolean))],
         esperar: eventoDelDj(p.nombre, datosAgenda.eventos, hoyIdx, minuto),
-        pago: ventas?.columnas?.pago && !nayarsound.demo
-          ? { archivo: nayarsound.id, pestana: 'AGENDA Y VENTAS', columnas: ventas.columnas } : null,
+        pago: destinoPago,
       });
     }
     if (deuda.cuadraTotal === false) {
@@ -475,7 +529,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
       p.hoy = hoyRows;
       p.deudaPrevia = debe.length;
       p.mensaje = mensajeDeuda(p.titulo, [...debe, ...hoyRows]);
-      p.pago = ventas?.columnas?.pago && !nayarsound.demo ? { archivo: nayarsound.id, pestana: 'AGENDA Y VENTAS', columnas: ventas.columnas } : null;
+      p.pago = destinoPago;
     }
   }
 

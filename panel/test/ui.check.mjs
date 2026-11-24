@@ -62,6 +62,10 @@ async function entrar(pagina) {
   await pagina.waitForSelector('.inicio-rejilla');
 }
 
+// Escrituras en PAGOS DJ: A:C (fila nueva: llave, pago, pagado) o B:C (fila existente).
+const enPagosDj = (e) => /^'PAGOS DJ'!(A\d+:C\d+|B\d+:C\d+|A\d+)$/.test(e.celda);
+const pagoEscrito = (e) => (/!A/.test(e.celda) ? e.valores?.[0]?.[1] : e.valores?.[0]?.[0]);
+const pagadoEscrito = (e) => (/!A/.test(e.celda) ? e.valores?.[0]?.[2] : e.valores?.[0]?.[1]);
 const texto = async (pagina, sel) => (await pagina.locator(sel).first().innerText()).trim();
 
 try {
@@ -121,7 +125,7 @@ try {
       const put = lecturas.slice(antesHoyAg).filter((l) => l.metodo === 'PUT');
       for (let i = 0; i < 60 && !/DJ: \$950/.test(await pagina.locator('#detalle .det-mensaje pre').innerText().catch(() => '')); i++) await pagina.waitForTimeout(100);
       const msg = await pagina.locator('#detalle .det-mensaje pre').innerText().catch(() => '');
-      revisar(put.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(put[0].celda) && /· HOY\*/.test(msg) && /DJ: \$950/.test(msg),
+      revisar(put.length === 1 && enPagosDj(put[0]) && pagoEscrito(put[0]) === 950 && /· HOY\*/.test(msg) && /DJ: \$950/.test(msg),
         'Eventos de hoy: desde la agenda se anota el pago al DJ y sale la cuenta anticipada para mandar');
       await pagina.locator('#detalle [data-cerrar]').first().click();
     }
@@ -148,6 +152,25 @@ try {
     // NayarSound
     await pagina.goto(`${url}/panel/#/nayarsound`);
     await pagina.waitForSelector('.ns-entrega');
+    {
+      // PAGOS DJ: realizados sin pago registrado y cobros desligados (❌) para volver a ligar.
+      const pdj = pagina.locator('.pagos-dj');
+      const t = await pdj.innerText();
+      revisar(/Cobros desligados/.test(t) && /01ENE20-9999/.test(t) && /Realizados sin pago registrado/.test(t) && /DJ GAMA/.test(t), 'PAGOS DJ: muestra cobros desligados (❌) y realizados sin pago');
+      if (capturas) await pdj.screenshot({ path: `${capturas}/pagos-dj.png` });
+      const sel = pdj.locator('select[data-religar-de]').first();
+      const opciones = await sel.locator('option').count();
+      revisar(opciones > 1, `PAGOS DJ: ofrece eventos para volver a ligar (${opciones - 1})`);
+      const nueva = await sel.locator('option').nth(1).getAttribute('value');
+      await sel.selectOption(nueva);
+      const antesLigar = lecturas.length;
+      pagina.once('dialog', (d) => d.accept());
+      await pdj.locator('[data-accion="religar-pagodj"]').first().click();
+      for (let i = 0; i < 40 && !lecturas.slice(antesLigar).some((l) => l.metodo === 'PUT'); i++) await pagina.waitForTimeout(100);
+      const lig = lecturas.slice(antesLigar).filter((l) => l.metodo === 'PUT');
+      revisar(lig.length === 1 && /^'PAGOS DJ'!A\d+$/.test(lig[0].celda) && lig[0].valor === nueva, `PAGOS DJ: «Ligar» cambia solo la columna A por la llave nueva (${lig.map((e) => `${e.celda}=${e.valor}`).join(', ')})`);
+      await pagina.waitForSelector('.ns-entrega');
+    }
     if (capturas) await pagina.locator(".ns-entrega").screenshot({ path: `${capturas}/ns-entrega.png` });
     revisar(/Entregar a Osvaldo/.test(await texto(pagina, '.ns-entrega')) && await pagina.locator('.ns-entrega .pm-fila').count() === 4, 'NayarSound: «Entregar a Osvaldo» de las últimas 4 semanas');
     if (!rutaSnapshot) {
@@ -238,8 +261,8 @@ try {
       await pagina.locator('[data-accion="guardar-pagodj"]').first().click();
       await pagina.waitForSelector('.pagodj-estado.ok, .pagodj-estado.mal');
       const pagoDj = lecturas.slice(previo).filter((l) => l.metodo === 'PUT');
-      revisar(pagoDj.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(pagoDj[0].celda) && pagoDj[0].valor === 1234,
-        `Pago al DJ: escribe 1234 en la columna DJ (${pagoDj.map((e) => `${e.celda}=${e.valor}`).join(', ')})`);
+      revisar(pagoDj.length === 1 && enPagosDj(pagoDj[0]) && pagoEscrito(pagoDj[0]) === 1234,
+        `Pago al DJ: escribe 1234 en PAGOS DJ por llave (${pagoDj.map((e) => `${e.celda}=${JSON.stringify(e.valores)}`).join(', ')})`);
       // Se queda en la ventana, avisa «Guardado» y pasa al siguiente evento.
       await pagina.waitForSelector('.pagodj-estado.ok');
       revisar(await pagina.locator('#detalle[open]').count() === 1 && /Guardado/.test(await pagina.locator('.pagodj-estado.ok').first().innerText()), 'Pago al DJ: guarda sin cerrar la ventana');
@@ -263,9 +286,9 @@ try {
       for (let i = 0; i < 50 && lecturas.slice(antes).filter((l) => l.metodo === 'PUT').length < primera.eventos; i++) await pagina.waitForTimeout(100);
       await pagina.waitForTimeout(200);
       const escrituras = lecturas.slice(antes).filter((l) => l.metodo === 'PUT');
-      revisar(escrituras.length === primera.eventos && escrituras.every((e) => e.valor === 'SI' && /^'AGENDA Y VENTAS'!T\d+$/.test(e.celda)),
-        `Marcar pagado: escribe «SI» en PAGO de ${primera.eventos} evento(s) (${escrituras.map((e) => e.celda).join(', ')})`);
-      revisar(lecturas.filter((l) => l.clave !== 'tareas').every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT' && l.clave !== 'tareas').every((l) => /^'AGENDA Y VENTAS'!(T|L)\d+$/.test(l.celda)), 'Solo se escribe en PAGO (T) y pago al DJ (L) de AGENDA Y VENTAS');
+      revisar(escrituras.length === primera.eventos && escrituras.every((e) => enPagosDj(e) && pagadoEscrito(e) === 'SI'),
+        `Marcar pagado: escribe «SI» en PAGADO de PAGOS DJ para ${primera.eventos} evento(s) (${escrituras.map((e) => e.celda).join(', ')})`);
+      revisar(lecturas.filter((l) => l.clave !== 'tareas').every((l) => l.metodo === 'GET' || l.metodo === 'PUT') && lecturas.filter((l) => l.metodo === 'PUT' && l.clave !== 'tareas').every(enPagosDj), 'Solo se escribe en PAGOS DJ (A, B, C); nunca en L ni T de AGENDA Y VENTAS');
     }
     const djs = await pagina.locator('.dia').first().locator('.dj').count();
     const primerDia = esperado.nayarsound.agenda.dias[0];
@@ -641,7 +664,7 @@ try {
       await pagina.locator('#detalle .det-hoy [data-accion="guardar-pagodj"]').first().click();
       await pagina.waitForSelector('#detalle .det-hoy .pagodj-estado.ok, #detalle .det-hoy .pagodj-estado.mal');
       const escHoy = lecturas.slice(antesHoy).filter((l) => l.metodo === 'PUT');
-      revisar(escHoy.length === 1 && /^'AGENDA Y VENTAS'!L\d+$/.test(escHoy[0].celda) && escHoy[0].valor === 900, `Evento de hoy: escribe el pago al DJ en la columna DJ (${escHoy.map((e) => `${e.celda}=${e.valor}`).join(', ')})`);
+      revisar(escHoy.length === 1 && enPagosDj(escHoy[0]) && pagoEscrito(escHoy[0]) === 900, `Evento de hoy: guarda el pago al DJ en PAGOS DJ (${escHoy.map((e) => `${e.celda}=${JSON.stringify(e.valores)}`).join(', ')})`);
       for (let i = 0; i < 60 && !/DJ: \$900/.test(await pagina.locator('.det-mensaje pre').innerText()); i++) await pagina.waitForTimeout(100);
       const msgHoy = await pagina.locator('.det-mensaje pre').innerText();
       revisar(/· HOY\*/.test(msgHoy) && /DJ: \$900/.test(msgHoy), 'Evento de hoy: el resumen anticipado incluye el evento de hoy con su pago al DJ');

@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611240308';
+import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611240542';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -95,6 +95,25 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   ventas.push([opDemo++, 'OSVALDO', 'GUADALAJARA', '', serial(h + 6), 'BODA', 5, 'CLIENTE DEMO', 2800, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
   ventas.push([opDemo++, 'OSVALDO', 'GUADALAJARA', '', serial(h - 2), 'BODA', 5, 'CLIENTE DEMO', 3000, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
   ventas.push([opDemo++, 'OSVALDO', 'LEON', 'BUSCAR', serial(h - 4), 'XV', 5, 'CLIENTE DEMO', 3500, 100, 0, '', '', '', '', 'NO', '', '', '', '']);
+  // LLAVE (columna W) como la fórmula de la hoja: ddMMMyy-últimos 4 del teléfono.
+  const MESL = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const llaveDe = (fila) => {
+    const { y, m, d } = ymdDesdeIdx(fila[4] - 25569);
+    return `${String(d).padStart(2, '0')}${MESL[m - 1]}${String(y % 100).padStart(2, '0')}-${String(7000 + Number(fila[0])).slice(-4)}`;
+  };
+  ventas[1].push('Horas Extra', 'FECHA ANTICIPO', 'LLAVE');
+  for (const fila of ventas.slice(2)) { while (fila.length < 20) fila.push(''); fila.push('', '', llaveDe(fila)); }
+  // PAGOS DJ: cobros por llave. DJ GAMA aún no tiene fila (sale en «realizados sin pago»)
+  // y una fila quedó desligada (❌) porque Amal cambió la fecha del evento.
+  const pagosDj = [['PAGOS DJ'], ['Elige el evento en la columna A…'],
+    ['EVENTO (FECHA-TELÉFONO)', 'PAGO DJ', 'PAGADO', 'CIUDAD', 'DJ', 'TOTAL EVENTO', 'REALIZADO', 'ESTADO', '', 'REALIZADOS SIN PAGO REGISTRADO']];
+  const llaveGama = ventas[4][22];
+  for (const fila of ventas.slice(2)) {
+    if (fila[15] !== 'SI' || fila[3] === 'DJ GAMA' && fila[18] === 'DEUDOR') continue;
+    pagosDj.push([fila[22], fila[11], fila[18] === 'DEUDOR' ? 'NO' : 'SI', fila[2], fila[3], fila[8], 'SI', '✅ LIGADO']);
+  }
+  pagosDj.push(['01ENE20-9999', 1500, 'NO', '', '', '', '', '❌ NO ESTÁ EN LA AGENDA: revisa fecha o teléfono']);
+  pagosDj[3][9] = llaveGama;
   const fmt = (n) => n.toLocaleString('en-US');
   const personas = [...new Set(deudas.map((d) => d[0]))].sort();
   const mesLargo = (idx) => MESES[ymdDesdeIdx(idx).m - 1].toLowerCase();
@@ -270,8 +289,8 @@ export function fuentesDemo(hoy = hoyCDMX()) {
 
   const meta = (titulo, pestanas) => ({ titulo, zona: 'America/Mexico_City', pestanas });
   return {
-    nayarsound: { clave: 'nayarsound', id: 'DEMO', demo: true, meta: meta('🐯NAYARSOUND - PERSONAL', { DASHBOARD: 1, 'AGENDA Y VENTAS': 2 }),
-      rangos: { dashboard: dashboardNs, ventas } },
+    nayarsound: { clave: 'nayarsound', id: 'DEMO', demo: true, meta: meta('🐯NAYARSOUND - PERSONAL', { DASHBOARD: 1, 'AGENDA Y VENTAS': 2, 'PAGOS DJ': 3 }),
+      rangos: { dashboard: dashboardNs, ventas, pagosDj } },
     agenda: { clave: 'agenda', id: 'DEMO', demo: true, meta: meta('AMAL AGENDA', { AGENDA: 0 }), rangos: { agenda: agendaFilas, djs: [
       ['', 'DJ CON PENDIENTES', 'FECHAS DJ', '', 'FECHA', '', '', '', '', '', '', '', '', '', '', 'CIUDAD', 'NOMBRE', 'COORDENADAS', 'SONIDO', 'TELEFONO'],
       ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'GUADALAJARA', 'DJ ALFA', '20.6, -103.4', 'MACKIE', '(33) 1234-5678'],

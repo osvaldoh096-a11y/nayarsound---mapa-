@@ -1042,13 +1042,13 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .fila-ciudad .fc-in { position: sticky; left: 0; display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .fila-ciudad .fc-in .etq-ciudad, .fila-ciudad .fc-in > :first-child { margin: 0; }
 .fila-ciudad .fc-n { color: var(--tenue); font-size: 13px; }
-.alerta-sindj { background: var(--rojo-fondo, #FEF2F2); border: 2px solid var(--rojo, #DC2626); border-radius: 16px; margin-bottom: 16px; color: var(--texto); }
+.alerta-sindj { background: var(--rojo-fondo, #FEF2F2); border: 2px solid var(--rojo, #DC2626); border-radius: 16px; margin-bottom: 16px; color: var(--tinta); }
 .alerta-sindj > summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; }
 .alerta-sindj > summary::-webkit-details-marker { display: none; }
 .alerta-sindj .as-icono { font-size: 24px; animation: as-latido 1.6s ease-in-out infinite; }
 .alerta-sindj .as-texto { flex: 1; display: grid; gap: 2px; }
 .alerta-sindj .as-texto > b { color: var(--rojo, #DC2626); font-size: 17px; }
-.alerta-sindj .as-texto small { color: var(--texto); font-size: 13px; }
+.alerta-sindj .as-texto small { color: var(--tinta); font-size: 13px; }
 .alerta-sindj[open] .desp-flecha { transform: rotate(-90deg); }
 .as-lista { list-style: none; margin: 0; padding: 0 16px 12px; display: grid; gap: 0; }
 .as-lista li { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--borde); }
@@ -1066,3 +1066,14 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .ultimo-gasto.medio .punto { background: var(--ambar, #D97706); }
 .ultimo-gasto.mal { color: var(--rojo-tinta); }
 .ultimo-gasto.mal .punto { background: var(--rojo); }
+.pagos-dj { margin-top: 16px; }
+.pdj-sec { margin-top: 10px; }
+.pdj-sec h3 { font-size: 15px; margin: 8px 0 4px; display: flex; align-items: center; gap: 8px; }
+.pdj-sec.mal h3 { color: var(--rojo-tinta); }
+.pdj-n { font-size: 12px; background: var(--fondo); border-radius: 999px; padding: 1px 8px; color: var(--tinta); }
+.pdj-lista { list-style: none; margin: 0; padding: 0; }
+.pdj-lista li { padding: 9px 0; border-top: 1px solid var(--borde); display: grid; gap: 6px; font-size: 14px; }
+.pdj-lista small { color: var(--tenue); }
+.pdj-lista code { font-size: 12px; background: var(--fondo); padding: 1px 5px; border-radius: 4px; }
+.pdj-accion { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pdj-accion select { max-width: 100%; min-width: 0; flex: 1 1 260px; padding: 6px 8px; border: 1px solid var(--borde); border-radius: 8px; background: var(--tarjeta); color: var(--tinta); font: inherit; font-size: 13px; }

@@ -16,11 +16,14 @@ export const ARCHIVOS = {
   nayarsound: {
     nombre: '🐯NAYARSOUND - PERSONAL',
     id: '1wMaqW1iCiL8Lv4u-6Txd_m662xSmjzqzcXB_NzYK0qg',
-    pestanas: { DASHBOARD: 1764740539, 'AGENDA Y VENTAS': 399951478 },
+    pestanas: { DASHBOARD: 1764740539, 'AGENDA Y VENTAS': 399951478, 'PAGOS DJ': 515151 },
     zona: 'America/Los_Angeles',
     rangos: {
       dashboard: "'DASHBOARD'!A1:E200",
-      ventas: "'AGENDA Y VENTAS'!A11:U",
+      // Hasta Y: incluye FECHA ANTICIPO (V) y LLAVE (W), la llave fija de cada evento.
+      ventas: "'AGENDA Y VENTAS'!A11:Y",
+      // Cobros de DJ por llave: A EVENTO (llave), B PAGO DJ, C PAGADO; D-H y J son fórmulas.
+      pagosDj: "'PAGOS DJ'!A3:J",
     },
   },
   agenda: {

@@ -82,6 +82,23 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     }
     return salida;
   };
+  // Como en la hoja: AGENDA Y VENTAS L (pago DJ) y T (PAGO) son fórmulas que buscan la
+  // LLAVE en PAGOS DJ. (S no se recalcula: los datos se comparten entre escenarios de prueba.)
+  const sincronizarPagosDj = (clave) => {
+    const v = cuadricula(clave, 'AGENDA Y VENTAS'); const pg = cuadricula(clave, 'PAGOS DJ');
+    if (!v || !pg) return;
+    const enc = v.filas.findIndex((f) => (f ?? []).includes('LLAVE'));
+    if (enc < 0) return;
+    const h = v.filas[enc].map((x) => String(x).trim());
+    const cLl = h.indexOf('LLAVE'); const cDj = h.indexOf('DJ', h.indexOf('DJ') + 1); const cPago = h.indexOf('PAGO');
+    const mapa = new Map();
+    for (const f of pg.filas.slice(1)) if (f?.[0]) mapa.set(String(f[0]).trim(), f);
+    for (const f of v.filas.slice(enc + 1)) {
+      const reg = mapa.get(String(f?.[cLl] ?? '').trim());
+      if (!f || !f[cLl]) continue;
+      f[cDj] = reg ? (reg[1] ?? '') : ''; f[cPago] = reg ? (reg[2] ?? '') : '';
+    }
+  };
   await contexto.route('https://sheets.googleapis.com/**', async (ruta) => {
     const url = new URL(ruta.request().url());
     const metodo = ruta.request().method();
@@ -99,12 +116,16 @@ export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['
     if (!clave) return ruta.fulfill({ status: 404, headers: cors, contentType: 'application/json', body: '{"error":{"message":"no existe"}}' });
     if (metodo === 'PUT' && m[2]) {
       const celda = decodeURIComponent(m[2]);
-      const valor = JSON.parse(ruta.request().postData() ?? '{}').values?.[0]?.[0];
-      lecturas.push({ metodo, clave, celda, valor });
+      const valores = JSON.parse(ruta.request().postData() ?? '{}').values ?? [[]];
+      const valor = valores[0]?.[0];
+      lecturas.push({ metodo, clave, celda, valor, valores });
       const r = partir(celda);
       const g = cuadricula(clave, r.hoja);
-      const fila = g.filas[r.f1 - g.base.f1] ?? (g.filas[r.f1 - g.base.f1] = []);
-      fila[r.c1 - g.base.c1] = valor;
+      valores.forEach((vf, k) => {
+        const fila = g.filas[r.f1 - g.base.f1 + k] ?? (g.filas[r.f1 - g.base.f1 + k] = []);
+        vf.forEach((v, c) => { fila[r.c1 - g.base.c1 + c] = v; });
+      });
+      if (r.hoja === 'PAGOS DJ') sincronizarPagosDj(clave);
       return ruta.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ updatedCells: 1 }) });
     }
     lecturas.push({ metodo, clave });
