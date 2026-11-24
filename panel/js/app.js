@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611231705';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611231705';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611231705';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611231705';
-import { construirModelo, entregarCon } from './modelo.js?v=202611231705';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611240308';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611240308';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611240308';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611240308';
+import { construirModelo, entregarCon } from './modelo.js?v=202611240308';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611231705';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611231705';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611231705';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611231705';
-import { fuentesDemo } from './demo.js?v=202611231705';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611231705';
-import { agendaDinero } from './agenda.js?v=202611231705';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611231705';
-import { leerCashflow } from './dashprestamos.js?v=202611231705';
-import { icono } from './iconos.js?v=202611231705';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611231705';
+} from './fechas.js?v=202611240308';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611240308';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611240308';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611240308';
+import { fuentesDemo } from './demo.js?v=202611240308';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611240308';
+import { agendaDinero } from './agenda.js?v=202611240308';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611240308';
+import { leerCashflow } from './dashprestamos.js?v=202611240308';
+import { icono } from './iconos.js?v=202611240308';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611240308';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },

@@ -29,7 +29,8 @@ export const ARCHIVOS = {
     pestanas: { AGENDA: 0, DATA: 1286754118 },
     zona: 'America/Mexico_City',
     rangos: {
-      agenda: "'AGENDA'!A9:T",
+      // Desde que agregaste FECHA ANTICIPO en B, la tabla llega hasta V (se lee por encabezados).
+      agenda: "'AGENDA'!A9:V",
       // DJs de planta (CIUDAD, NOMBRE, COORDENADAS, SONIDO, TELEFONO): de aquí sale el WhatsApp.
       djs: "'DATA'!A2:Z200",
     },

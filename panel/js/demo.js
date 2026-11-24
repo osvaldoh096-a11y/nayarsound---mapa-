@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611231705';
+import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611240308';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -36,13 +36,14 @@ export function fuentesDemo(hoy = hoyCDMX()) {
     ['GUADALAJARA', 'DJ ALFA', h - 3, 20 / 24, 5, 3000, 300],
   ];
   const agendaFilas = [
-    ['', '', '', 'HAY 2 BUSCAR ❌'],
-    ['', '', '', 'HAY 1 VACIO ❌'],
-    ['', '', '', '', '✅ Fechas en orden', '', 'HAY 1 ERRORES ❌', '', '', '', '', 'EN ORDEN ✅', '', 'HAY 1 ERRORES ❌'],
-    ['', 'SONIDO DE', 'CIUDAD', 'DJ', 'FECHA', 'TIPO EVENTO', 'INICIO DEL EVENTO', 'TOT.HORAS', 'CLIENTE',
-      'TIPO MUSICA', 'DOMICILIO', 'TOTAL EVENTO', 'ANTICIPO', 'GAS A COBRAR', 'REALIZADO', 'OP'],
-    ...eventos.map(([ciudad, dj, idx, inicio, horas, total, gas], i) => ['', 'EJEMPLO', ciudad, dj, serial(idx), 'CUMPLEAÑOS',
-      inicio, horas, 'CLIENTE DEMO', 'VARIADA', 'DOMICILIO DEMO', total, 500, gas, idx < h ? 'SI' : 'NO', i + 1]),
+    // Columnas como en tu hoja desde que agregaste FECHA ANTICIPO en B (y TIPO SONIDO después de DJ).
+    ['', '', '', '', 'HAY 2 BUSCAR ❌'],
+    ['', '', '', '', 'HAY 1 VACIO ❌'],
+    ['', '', '', '', '', '', '✅ Fechas en orden', '', 'HAY 1 ERRORES ❌', '', '', '', '', 'EN ORDEN ✅', '', 'HAY 1 ERRORES ❌'],
+    ['', 'FECHA ANTICIPO', 'SONIDO DE', 'CIUDAD', 'DJ', 'TIPO SONIDO', 'FECHA', 'TIPO EVENTO', 'INICIO DEL EVENTO', 'TOT.HORAS', 'CLIENTE',
+      'TIPO MUSICA', 'DOMICILIO', 'TOTAL EVENTO', 'ANTICIPO', 'GAS A COBRAR', 'REALIZADO', 'OP', 'COORDENADAS', 'BLOQUEADO', 'Horas Extra'],
+    ...eventos.map(([ciudad, dj, idx, inicio, horas, total, gas], i) => ['', serial(idx - 20), 'EJEMPLO', ciudad, dj, 'MACKIE', serial(idx), 'CUMPLEAÑOS',
+      inicio, horas, 'CLIENTE DEMO', 'VARIADA', 'DOMICILIO DEMO', total, 500, gas, idx < h ? 'SI' : 'NO', i + 1, '', '', '']),
   ];
 
   // Texto de RECORDATORIOS con la misma forma que la fórmula de la hoja.
