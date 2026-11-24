@@ -1496,33 +1496,33 @@
   // ================= CONFIGURACIÓN =================
   var SHEET_ID    = '1FKaobilQ1HNHXntMxnFgoPld5In4dwSNsQgt-78yk4o';
   var SHEET_NAME  = 'AGENDA';
-  // Se agregó la columna "TIPO SONIDO" en E, recorriendo una posición todo lo
-  // que sigue (antes: C=CIUDAD,D=DJ,E=FECHA,...,Q=COORDENADAS,R=BLOQUEADO).
-  var DATA_RANGE  = 'C13:S5000'; // columna C (CIUDAD) ... columna S (BLOQUEADO)
-  var CITY_COL_IDX  = 0;  // C es la primera columna del rango
-  var DJ_ASSIGNED_COL_IDX = 1; // D (DJ) — DJ asignado al evento, usado por OCUPADO/DISPONIBLE
-  var FECHA_COL_IDX = 3;  // F (FECHA)
-  var COORD_COL_IDX = 15; // R
-  var BLOQUEADO_COL_IDX = 16; // S — evento bloqueado (conserva su DJ actual, fuera de OPTIMIZAR ASIGNACIONES)
-  var HORA_INICIO_COL_IDX = 5; // H — hora de inicio del evento, usada para detectar choques de horario
-  var TOT_HORAS_COL_IDX = 6; // I — duración del evento en horas (puede venir decimal, ej. 3.5)
+  // Las columnas de AGENDA se ubican por el NOMBRE de su encabezado (fila 12),
+  // no por letra: así agregar o mover columnas en la hoja (como TIPO SONIDO o
+  // FECHA ANTICIPO) ya no rompe el mapa. El rango es amplio a propósito; si un
+  // nombre se repite (p. ej. FECHA en la tabla de rechazados) se toma el primero.
+  var DATA_RANGE  = 'A12:W5000';
+  // Respaldo si algún encabezado no se encuentra: posiciones actuales en A12:W
+  // (B=FECHA ANTICIPO, C=SONIDO DE, D=CIUDAD, E=DJ, F=TIPO SONIDO, G=FECHA,
+  //  I=INICIO DEL EVENTO, J=TOT.HORAS, S=COORDENADAS, T=BLOQUEADO).
+  var CITY_COL_IDX  = 3;
+  var DJ_ASSIGNED_COL_IDX = 4;
+  var FECHA_COL_IDX = 6;
+  var COORD_COL_IDX = 18;
+  var BLOQUEADO_COL_IDX = 19;
+  var HORA_INICIO_COL_IDX = 8;
+  var TOT_HORAS_COL_IDX = 9;
   var REFRESH_MS  = 5 * 60 * 1000;
 
   // ---- Rango para la página DJS (estadísticas de eventos/horas extra por DJ) ----
-  // Empieza en la fila 12 (encabezados) para poder leer las columnas por su nombre
-  // real (REALIZADO, Horas Extra) con headers=1 en vez de asumir letras fijas, y se
-  // extiende hasta S porque "Horas Extra" queda una columna después de BLOQUEADO,
-  // fuera del rango C13:S5000 que ya usa loadEvents() para el mapa.
-  var AGENDA_STATS_RANGE = 'C12:S5000';
+  // Mismo rango que el mapa, con encabezados: REALIZADO y Horas Extra se ubican por nombre.
+  var AGENDA_STATS_RANGE = DATA_RANGE;
 
   // ---- Rango para la página DEMANDA (solicitudes rechazadas, misma pestaña AGENDA) ----
   // Tabla aparte dentro de la misma hoja AGENDA ("LUGARES A LOS QUE SE HA RECHAZADO
-  // EL SERVICIO"), mismo renglón de encabezados (12) que la tabla principal. Cada
-  // fila ya trae su propia coordenada capturada a mano (columna COORDENADAS) — no
-  // se geocodifica nada, se lee igual que cualquier coordenada de AGENDA con
-  // parseCoordinate(). Columnas V-Z (antes U-Y: se recorrieron por la columna
-  // "TIPO SONIDO" agregada en la tabla principal).
-  var DEMAND_RANGE = 'V12:Z5000';
+  // EL SERVICIO"), mismo renglón de encabezados (12). Hoy vive en X-AB; se lee
+  // desde W con margen y por nombre de encabezado (FECHA, ESTADO, MUNICIPIO,
+  // FECHA NEGADA, COORDENADAS), para que mover columnas no la rompa.
+  var DEMAND_RANGE = 'W12:AH5000';
 
   // ---- Hoja externa de ventas/pagos (otro spreadsheet), para GENERADO/PAGADO/GANANCIA ----
   // Misma técnica de conexión (gviz JSONP público, sin backend ni login) contra un
@@ -2497,7 +2497,7 @@
     var callbackName = '__gvizCallback_' + Date.now();
     var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
               '/gviz/tq?sheet=' + encodeURIComponent(SHEET_NAME) +
-              '&range=' + DATA_RANGE + '&headers=0' +
+              '&range=' + DATA_RANGE + '&headers=1' +
               '&tqx=out:json;responseHandler:' + callbackName +
               '&_=' + Date.now(); // evita cualquier caché intermedia (Google/navegador)
 
@@ -2525,21 +2525,32 @@
       cleanup();
 
       try {
+        var cols = (json.table && json.table.cols) ? json.table.cols : [];
         var rows = (json.table && json.table.rows) ? json.table.rows : [];
         var events = [];
 
+        // Columnas por nombre de encabezado (con respaldo a la posición conocida).
+        function col(nombres, respaldo){ var i = findHeaderOffset(cols, nombres); return i === -1 ? respaldo : i; }
+        var cityIdx   = col(['CIUDAD'], CITY_COL_IDX);
+        var djIdx     = col(['DJ'], DJ_ASSIGNED_COL_IDX);
+        var fechaIdx  = col(['FECHA'], FECHA_COL_IDX);
+        var coordIdx  = col(['COORDENADAS'], COORD_COL_IDX);
+        var bloqIdx   = col(['BLOQUEADO'], BLOQUEADO_COL_IDX);
+        var inicioIdx = col(['INICIO DEL EVENTO', 'INICIO'], HORA_INICIO_COL_IDX);
+        var horasIdx  = col(['TOT.HORAS', 'TOT. HORAS', 'TOTAL HORAS'], TOT_HORAS_COL_IDX);
+
         rows.forEach(function(row){
           var cells = row.c || [];
-          var cityRaw     = cells[CITY_COL_IDX]  ? cells[CITY_COL_IDX].v  : null;
-          var djRaw       = cells[DJ_ASSIGNED_COL_IDX] ? cells[DJ_ASSIGNED_COL_IDX].v : null;
-          var coordRaw    = cells[COORD_COL_IDX] ? cells[COORD_COL_IDX].v : null;
-          var bloqueadoRaw = cells[BLOQUEADO_COL_IDX] ? cells[BLOQUEADO_COL_IDX].v : null;
-          var eventDate = parseSheetDate(cells[FECHA_COL_IDX]);
+          var cityRaw     = cells[cityIdx]  ? cells[cityIdx].v  : null;
+          var djRaw       = cells[djIdx] ? cells[djIdx].v : null;
+          var coordRaw    = cells[coordIdx] ? cells[coordIdx].v : null;
+          var bloqueadoRaw = cells[bloqIdx] ? cells[bloqIdx].v : null;
+          var eventDate = parseSheetDate(cells[fechaIdx]);
           var coord = parseCoordinate(coordRaw);
           if (!coord) return;
 
-          var horaInicioMin = parseHoraCelda(cells[HORA_INICIO_COL_IDX]);
-          var duracionHoras = parseDuracionHoras(cells[TOT_HORAS_COL_IDX] ? cells[TOT_HORAS_COL_IDX].v : null);
+          var horaInicioMin = parseHoraCelda(cells[inicioIdx]);
+          var duracionHoras = parseDuracionHoras(cells[horasIdx] ? cells[horasIdx].v : null);
           var horaFinMin = (horaInicioMin != null && duracionHoras != null) ? horaInicioMin + duracionHoras * 60 : null;
 
           events.push({
@@ -2583,7 +2594,7 @@
   // Misma hoja AGENDA y misma conexión (gviz JSONP) que loadEvents(), pero con su
   // propia consulta: incluye la fila de encabezados (headers=1) para poder ubicar
   // REALIZADO y Horas Extra por su nombre en vez de por letra fija, y llega hasta la
-  // columna S porque Horas Extra queda fuera del rango C13:S5000 que usa el mapa.
+  // misma fila de encabezados y mismo rango que el mapa (A12:W5000).
   function loadDjAgendaStats(){
     return new Promise(function(resolveLoad){
       var callbackName = '__gvizDjStatsCallback_' + Date.now();
