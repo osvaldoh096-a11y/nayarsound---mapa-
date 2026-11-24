@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611240542';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611240542';
+} from './fechas.js?v=202611240553';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611240553';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611240542';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611240542';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611240542';
-import { modeloST } from './st.js?v=202611240542';
-import { modeloOperacion } from './nsops.js?v=202611240542';
-import { dinero } from './formato.js?v=202611240542';
+} from './sheets.js?v=202611240553';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611240553';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611240553';
+import { modeloST } from './st.js?v=202611240553';
+import { modeloOperacion } from './nsops.js?v=202611240553';
+import { dinero } from './formato.js?v=202611240553';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -169,6 +169,36 @@ function etiquetaControl(c) {
   if (col === 'GAS A COBRAR') return 'Guadalajara sin gas a cobrar';
   if (col === 'DJ' && t.includes('ERROR')) return 'Eventos realizados sin pago de DJ';
   return c.columna || 'Control';
+}
+
+/**
+ * Texto con el mismo formato que «RECORDATORIO DE DEUDA» del DASHBOARD, armado
+ * con los eventos que deben (PAGOS DJ con PAGADO vacío): así el resto del panel
+ * (tarjeta, pendientes, mensaje) funciona igual.
+ */
+function textoDeudaDesde(eventos) {
+  if (!eventos.length) return '💸 RECORDATORIO DE DEUDA\n\n✅ Sin deudas';
+  const miles = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const grupos = new Map();
+  for (const r of eventos) {
+    const k = normalizar(r.dj);
+    if (!grupos.has(k)) grupos.set(k, { nombre: String(r.dj ?? '').trim(), lista: [] });
+    grupos.get(k).lista.push(r);
+  }
+  const monto = (r) => Math.round(typeof r.entregar === 'number' ? r.entregar : 0);
+  let total = 0;
+  const bloques = [...grupos.values()].sort((a, z) => a.nombre.localeCompare(z.nombre)).map((g) => {
+    const suma = g.lista.reduce((t, r) => t + monto(r), 0);
+    total += suma;
+    const fechas = [...g.lista].sort((a, z) => a.idx - z.idx).map((r) => {
+      const { m, d } = ymdDesdeIdx(r.idx);
+      return `📅 ${String(d).padStart(2, '0')} ${meses[m - 1]} - ${dias[new Date(r.idx * 86400000).getUTCDay()]}`;
+    });
+    return `🎧 ${g.nombre} | 📌 ${g.lista.length} ${g.lista.length === 1 ? 'evento' : 'eventos'} | 💰 $${miles.format(suma)}\n${fechas.join('\n')}`;
+  });
+  return `💸 RECORDATORIO DE DEUDA\n\n${bloques.join('\n\n')}\n\n💰 TOTAL DE DEUDA: $${miles.format(total)}`;
 }
 
 const MES_LLAVE = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -458,12 +488,25 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
       total: typeof r.total === 'number' ? r.total : null, pasado: r.idx < hoyIdx, hoy: r.idx === hoyIdx, fila: r.fila,
       url: nayarsound && !nayarsound.demo ? urlFila(nayarsound, 'AGENDA Y VENTAS', r.fila) : null }))
     .sort((a, z) => a.idx - z.idx);
+  // Deudores: los eventos realizados cuya fila en PAGOS DJ tiene PAGADO vacío (o NO).
+  // Si PAGOS DJ no se pudo leer, se usa el RECORDATORIO DE DEUDA del DASHBOARD como antes.
+  const desdePagos = salida.pagosDj.disponible && ventas?.columnas?.llave;
+  const sinPagar = desdePagos ? new Set(salida.pagosDj.registros.filter((x) => x.pagado === '' || x.pagado === 'NO').map((x) => x.llave)) : null;
+  const deudoresLista = desdePagos
+    ? ventas.registros.filter((r) => r.llave && sinPagar.has(r.llave) && normalizar(r.realizado) === 'SI')
+    : (ventas?.registros.filter((r) => normalizar(r.pagado) === 'DEUDOR') ?? null);
+  if (desdePagos) {
+    Object.assign(origenDeuda, { archivo: nayarsound.meta?.titulo ?? ARCHIVOS.nayarsound.nombre, pestana: 'PAGOS DJ', a1: 'C', url: salida.pagosDj.url });
+    celdaDeuda.encontrado = true;
+    celdaDeuda.texto = textoDeudaDesde(deudoresLista);
+  }
   if (!celdaDeuda.encontrado) {
     salida.deuda = { estado: 'no-encontrado', personas: [], origen: origenDeuda };
     avisos.push({ texto: 'No encontré el encabezado «RECORDATORIO DE DEUDA» en DASHBOARD.', tipo: 'lectura' });
   } else {
     const deuda = leerDeuda(celdaDeuda.texto, hoyIdx);
-    const deudores = ventas?.registros.filter((r) => normalizar(r.pagado) === 'DEUDOR') ?? null;
+    if (desdePagos) deuda.fuente = 'PAGOS DJ';
+    const deudores = deudoresLista;
     for (const p of deuda.personas) {
       p.registros = deudores
         ? deudores.filter((r) => normalizar(r.dj) === normalizar(p.nombre))
@@ -512,7 +555,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
   // Eventos de HOY desde la agenda: también aquí se anota el pago al DJ y sale
   // la cuenta anticipada (con lo que ya debía, si debía), aunque no tenga deuda.
   {
-    const deudoresHoy = ventas?.registros.filter((r) => normalizar(r.pagado) === 'DEUDOR') ?? [];
+    const deudoresHoy = deudoresLista ?? [];
     for (const p of pendientes) {
       if (p.tipo !== 'agenda' || p.sinDj || p.fechaIdx !== hoyIdx) continue;
       const hoyRows = (ventas?.registros ?? [])

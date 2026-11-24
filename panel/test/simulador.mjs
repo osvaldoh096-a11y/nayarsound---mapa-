@@ -40,7 +40,9 @@ export const IDS = Object.fromEntries(ORDEN_ARCHIVOS.map((k) => [k, ARCHIVOS[k].
  * datos: { [clave]: { meta: {titulo, zona, pestanas}, valores: [rango1, rango2, ...] } }
  * fallas: { [clave]: estadoHttp | () => estadoHttp } para simular errores.
  */
-export async function simularGoogle(contexto, datos, { fallas = {}, tareas = [['TAREA', 'HECHA', 'CREADA', 'COMPLETADA'], ['Llamar al banco', '', '2026-11-01 10:00', '']] } = {}) {
+export async function simularGoogle(contexto, datosOriginales, { fallas = {}, tareas = [['TAREA', 'HECHA', 'CREADA', 'COMPLETADA'], ['Llamar al banco', '', '2026-11-01 10:00', '']] } = {}) {
+  // Cada escenario trabaja sobre su propia copia: lo que escribe uno no cambia al siguiente.
+  const datos = structuredClone(datosOriginales);
   await contexto.addInitScript(() => {
     window.google = { accounts: { oauth2: {
       initTokenClient: (cfg) => ({

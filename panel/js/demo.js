@@ -2,7 +2,7 @@
 // Nombres y cifras inventados. Imitan la forma de tus hojas, no su contenido.
 // La página muestra una banda «DATOS DE EJEMPLO» cuando se usan.
 
-import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611240542';
+import { hoyCDMX, ymdDesdeIdx, idxDesdeYMD, MESES, etiquetaMes } from './fechas.js?v=202611240553';
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const serial = (idx) => idx + 25569;
@@ -107,13 +107,16 @@ export function fuentesDemo(hoy = hoyCDMX()) {
   // y una fila quedó desligada (❌) porque Amal cambió la fecha del evento.
   const pagosDj = [['PAGOS DJ'], ['Elige el evento en la columna A…'],
     ['EVENTO (FECHA-TELÉFONO)', 'PAGO DJ', 'PAGADO', 'CIUDAD', 'DJ', 'TOTAL EVENTO', 'REALIZADO', 'ESTADO', '', 'REALIZADOS SIN PAGO REGISTRADO']];
-  const llaveGama = ventas[4][22];
-  for (const fila of ventas.slice(2)) {
-    if (fila[15] !== 'SI' || fila[3] === 'DJ GAMA' && fila[18] === 'DEUDOR') continue;
-    pagosDj.push([fila[22], fila[11], fila[18] === 'DEUDOR' ? 'NO' : 'SI', fila[2], fila[3], fila[8], 'SI', '✅ LIGADO']);
+  // Deudores = filas con PAGADO vacío: DJ ALFA (con pago al DJ) y DJ GAMA (sin pago al DJ todavía).
+  // El último evento realizado del historial no tiene fila: sale en «realizados sin pago».
+  const realizados = ventas.slice(2).filter((f) => f[15] === 'SI');
+  const sinFila = realizados.filter((f) => f[18] === 'PAGADO').at(-1);
+  for (const fila of realizados) {
+    if (fila === sinFila) continue;
+    pagosDj.push([fila[22], fila[11], fila[18] === 'DEUDOR' ? '' : 'SI', fila[2], fila[3], fila[8], 'SI', '✅ LIGADO']);
   }
   pagosDj.push(['01ENE20-9999', 1500, 'NO', '', '', '', '', '❌ NO ESTÁ EN LA AGENDA: revisa fecha o teléfono']);
-  pagosDj[3][9] = llaveGama;
+  pagosDj[3][9] = sinFila[22];
   const fmt = (n) => n.toLocaleString('en-US');
   const personas = [...new Set(deudas.map((d) => d[0]))].sort();
   const mesLargo = (idx) => MESES[ymdDesdeIdx(idx).m - 1].toLowerCase();

@@ -156,7 +156,7 @@ try {
       // PAGOS DJ: realizados sin pago registrado y cobros desligados (❌) para volver a ligar.
       const pdj = pagina.locator('.pagos-dj');
       const t = await pdj.innerText();
-      revisar(/Cobros desligados/.test(t) && /01ENE20-9999/.test(t) && /Realizados sin pago registrado/.test(t) && /DJ GAMA/.test(t), 'PAGOS DJ: muestra cobros desligados (❌) y realizados sin pago');
+      revisar(/Cobros desligados/.test(t) && /01ENE20-9999/.test(t) && /Realizados sin pago registrado/.test(t) && await pdj.locator('[data-registrar-llave]').count() === 1, 'PAGOS DJ: muestra cobros desligados (❌) y realizados sin pago');
       if (capturas) await pdj.screenshot({ path: `${capturas}/pagos-dj.png` });
       const sel = pdj.locator('select[data-religar-de]').first();
       const opciones = await sel.locator('option').count();
