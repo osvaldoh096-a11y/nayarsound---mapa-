@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611241638';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611241638';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611241638';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611241638';
-import { construirModelo, entregarCon } from './modelo.js?v=202611241638';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611251849';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611251849';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611251849';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611251849';
+import { construirModelo, entregarCon } from './modelo.js?v=202611251849';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611241638';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611241638';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611241638';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611241638';
-import { fuentesDemo } from './demo.js?v=202611241638';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611241638';
-import { agendaDinero } from './agenda.js?v=202611241638';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611241638';
-import { leerCashflow } from './dashprestamos.js?v=202611241638';
-import { icono } from './iconos.js?v=202611241638';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611241638';
+} from './fechas.js?v=202611251849';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611251849';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611251849';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611251849';
+import { fuentesDemo } from './demo.js?v=202611251849';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611251849';
+import { agendaDinero } from './agenda.js?v=202611251849';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611251849';
+import { leerCashflow } from './dashprestamos.js?v=202611251849';
+import { icono } from './iconos.js?v=202611251849';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611251849';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -252,6 +252,7 @@ function alHacerClic(evento) {
     if (t && confirm(`¿Borrar la tarea «${t.texto}»?`)) borrarTarea(t, tokenParaEscribir, pintarTareas);
   }
   if (accion === 'copiar-mensaje') copiarMensaje(el);
+  if (accion === 'copiar-renov') copiarRenovacion(el);
   if (accion === 'marcar-pagado') marcarPagado(el);
   if (accion === 'guardar-pagodj') guardarPagoDj(el);
   if (accion === 'registrar-pagodj') registrarPagoDj(el);
@@ -571,6 +572,7 @@ document.addEventListener('keydown', (e) => {
 
 function alEscribir(evento) {
   const el = evento.target;
+  if (el.matches?.('input[data-pago-int]')) { pintarRenovacion(el); return; }
   if (!el.matches?.('input[data-fila-pagodj]')) return;
   const p = E.pendientes.get(el.dataset.pendientePago);
   const r = registroDe(p, el.dataset.filaPagodj);
@@ -2054,28 +2056,89 @@ async function confirmarPagoInteres(boton) {
         cell: { userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'd mmm' } } }, fields: 'userEnteredFormat.numberFormat' } }]).catch(() => {});
     }
     E.avisoTemporal = `Pago de ${dinero(monto)} ${inversor ? 'a' : 'de'} ${boton.dataset.nombre} (op. ${op}) anotado en tu hoja.`;
+    const credito = inversor ? null : (E.modelo?.prestamos?.sinInteres ?? []).find((c) => Number(c.op) === op);
+    const resumen = credito ? resumenRenovacion(credito, monto) : null;
     if ($('#detalle').open) $('#detalle').close();
     await actualizar({ interactivo: true });
+    if (resumen) {
+      E.ultimaRenovacion = resumen;
+      abrirDialogo(`<header class="det-cab"><span class="chip u-sin-fecha"><i class="punto" aria-hidden="true"></i>Anotado</span><h2>Pago de ${esc(boton.dataset.nombre)}</h2></header>
+        <p class="nota">Se anotó ${esc(dinero(monto))} (op. ${op}) en tu hoja. Este es el resumen para mandarle:</p>
+        <div class="int-renov"><div class="int-renov-cab"><span>Renovación de préstamo</span><button class="boton boton-chico boton-primario" data-accion="copiar-renov" data-ultimo="1">Copiar</button></div><pre class="linea-hoja">${esc(ocultarImportes(resumen))}</pre></div>`);
+    }
   } catch (error) {
     alert(error.message);
     boton.disabled = false; boton.textContent = 'Confirmar pago';
   }
 }
 
+/**
+ * Resumen «RENOVACIÓN DE PRÉSTAMO» con la misma fórmula que tu hoja
+ * (REGISTRO PRESTAMOS!F2 con «REESTRUCTURACION DE CREDITO»):
+ *   total = capital × (1 + tasa); nuevo préstamo = total − abonado;
+ *   interés = nuevo préstamo × tasa; periodos de mes en mes desde FECHA INICIO.
+ */
+function resumenRenovacion(x, abono) {
+  if (!(abono > 0) || typeof x?.capital !== 'number' || typeof x?.tasa !== 'number' || x.inicioIdx === null || x.inicioIdx === undefined) return null;
+  const miles = (n) => `$${Math.round(n).toLocaleString('en-US')}`;
+  const mesMas = (idx, k) => { const { y, m, d } = ymdDesdeIdx(idx); const mm = m - 1 + k; const yy = y + Math.floor(mm / 12); const mes = ((mm % 12) + 12) % 12 + 1;
+    const ult = ymdDesdeIdx(idxDesdeYMD(mes === 12 ? yy + 1 : yy, mes === 12 ? 1 : mes + 1, 1) - 1).d; return idxDesdeYMD(yy, mes, Math.min(d, ult)); };
+  const f = (idx) => { const { m, d } = ymdDesdeIdx(idx); return `${String(d).padStart(2, '0')}-${MES_CORTO[m - 1]}`; };
+  const pct = `${Math.round(x.tasa * 100)}%`;
+  const total = x.capital * (1 + x.tasa);
+  const saldo = total - abono;
+  const cab = `📌 *RENOVACIÓN DE PRÉSTAMO*\n\n👤 *Cliente:* ${x.nombre}\n📆 *Periodo anterior:* ${f(x.inicioIdx)} a ${f(mesMas(x.inicioIdx, 1))}\n💰 *Total a pagar:* ${miles(total)}\n💵 *Abonado:* ${miles(abono)}\n\n`;
+  if (saldo <= 0.5) return `${cab}✅ *Préstamo liquidado.*${saldo < -0.5 ? `\n💸 Pagó ${miles(-saldo)} de más.` : ''}`;
+  return `${cab}🔁 *Nuevo préstamo:* ${miles(saldo)}\n📈 *Interés (${pct}):* ${miles(saldo * x.tasa)}\n📆 *Nuevo periodo:* ${f(mesMas(x.inicioIdx, 1))} a ${f(mesMas(x.inicioIdx, 2))}\n💳 *A pagar:* ${miles(saldo * (1 + x.tasa))}`;
+}
+
+/** Actualiza la vista previa del resumen de renovación al escribir la cantidad. */
+function pintarRenovacion(entrada) {
+  const op = entrada.dataset.pagoInt;
+  const caja = document.querySelector(`[data-renov="${CSS.escape(op)}"]`);
+  if (!caja) return;
+  const x = (E.modelo?.prestamos?.sinInteres ?? []).find((c) => String(c.op) === String(op));
+  const abono = Number(String(entrada.value ?? '').replace(/[$,\s]/g, ''));
+  const texto = resumenRenovacion(x, abono);
+  caja.hidden = !texto;
+  if (texto) caja.querySelector('pre').textContent = ocultarImportes(texto);
+}
+
+/** Copia el resumen de renovación (siempre con los importes reales). */
+async function copiarRenovacion(boton) {
+  let texto = null;
+  if (boton.dataset.ultimo) texto = E.ultimaRenovacion;
+  else {
+    const x = (E.modelo?.prestamos?.sinInteres ?? []).find((c) => String(c.op) === boton.dataset.op);
+    const entrada = document.querySelector(`input[data-pago-int="${CSS.escape(boton.dataset.op)}"]`);
+    texto = resumenRenovacion(x, Number(String(entrada?.value ?? '').replace(/[$,\s]/g, '')));
+  }
+  if (!texto) return;
+  try { await navigator.clipboard.writeText(texto); boton.textContent = 'Copiado ✓'; } catch { boton.textContent = 'No se pudo copiar'; }
+  setTimeout(() => { boton.textContent = 'Copiar'; }, 1600);
+}
+
 /** Detalle de intereses atrasados: cada crédito o inversión con su número de OP. */
 function abrirSinInteres(tipo = 'cobrar') {
   const cobrar = tipo === 'cobrar';
   const lista = (cobrar ? E.modelo?.prestamos?.sinInteres : E.modelo?.prestamos?.sinInteresInversores) ?? [];
-  const filas = lista.map((x) => `<tr><td><b>${esc(x.nombre)}</b></td><td class="num"><b>${x.op ? `op. ${esc(x.op)}` : '—'}</b></td>
-    <td class="num">${esc(importeInteres(x.interes, x.divisa))}</td><td class="num">${esc(importeInteres(x.pago, x.divisa))}</td><td class="num">día ${esc(x.diaInicio)}</td>
-</tr>
-    <tr class="fila-pago-int"><td colspan="5"><div class="pago-int"><label>Cantidad <span class="campo-dinero campo-pago-int">${x.divisa === 'USDT' ? 'USDT' : '$'}<input inputmode="decimal" data-pago-int="${esc(x.op)}" placeholder="${esc(String(Math.round(x.interes * 100) / 100))}" aria-label="Cantidad pagada por ${esc(x.nombre)}"></span></label>
-      <button class="boton boton-chico boton-exito" data-accion="confirmar-pago-int" data-tipo="${tipo}" data-op="${esc(x.op)}" data-nombre="${esc(x.nombre)}">Confirmar pago</button></div></td></tr>`).join('');
+  // Una tarjeta por crédito: cabe en el celular sin cortarse.
+  const tarjetas = lista.map((x) => `<li class="int-tarjeta">
+      <div class="int-cab"><b>${esc(x.nombre)}</b><span class="int-op">${x.op ? `op. ${esc(x.op)}` : '—'}</span></div>
+      <dl class="int-datos">
+        <div><dt>Interés restante</dt><dd>${esc(importeInteres(x.interes, x.divisa))}</dd></div>
+        <div><dt>Pago del mes</dt><dd>${esc(importeInteres(x.pago, x.divisa))}</dd></div>
+        <div><dt>Inicio</dt><dd>día ${esc(x.diaInicio)}</dd></div>
+      </dl>
+      <div class="pago-int"><label>Cantidad <span class="campo-dinero campo-pago-int">${x.divisa === 'USDT' ? 'USDT' : '$'}<input inputmode="decimal" data-pago-int="${esc(x.op)}" placeholder="${esc(String(Math.round(x.interes * 100) / 100))}" aria-label="Cantidad pagada por ${esc(x.nombre)}"></span></label>
+        <button class="boton boton-chico boton-exito" data-accion="confirmar-pago-int" data-tipo="${tipo}" data-op="${esc(x.op)}" data-nombre="${esc(x.nombre)}">Confirmar pago</button></div>
+      ${cobrar ? `<div class="int-renov" data-renov="${esc(x.op)}" hidden><div class="int-renov-cab"><span>Resumen para el cliente</span><button class="boton boton-chico boton-primario" data-accion="copiar-renov" data-op="${esc(x.op)}">Copiar</button></div><pre class="linea-hoja"></pre></div>` : ''}
+    </li>`).join('');
   abrirDialogo(`
     <header class="det-cab"><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>Interés</span><h2>${cobrar ? 'No ha pagado interés' : 'No les he pagado interés'}</h2></header>
-    ${lista.length ? `<div class="tabla-scroll"><table class="tabla det-tabla-interes"><thead><tr><th>${cobrar ? 'Nombre' : 'Inversor'}</th><th class="num">OP</th><th class="num">Interés restante</th><th class="num">Pago del mes</th><th class="num">Inicio</th></tr></thead><tbody>${filas}</tbody></table></div>`
+    ${lista.length ? `<ul class="int-lista">${tarjetas}</ul>`
     : `<p class="vacio">${cobrar ? 'Nadie debe interés.' : 'Estás al corriente con tus inversores.'}</p>`}
-    ${cobrar ? '<p class="nota">Escribe cuánto te pagó y toca «Confirmar pago»: se anota en tu registro de intereses (REGISTRO PRESTAMOS, columnas U:W) con la fecha de hoy.</p>' : '<p class="nota">Escribe cuánto le pagaste y toca «Confirmar pago»: se anota en el registro de pagos de REGISTRO DE INVERSORES (columnas U:W) con la fecha de hoy. Si es en USDT, escribe los USDT.</p>'}`);
+    ${cobrar ? '<p class="nota">Escribe cuánto te pagó: abajo sale el resumen de renovación (igual que «Reestructuración de crédito» de tu hoja) para copiar y mandar. Toca «Confirmar pago» para anotarlo en REGISTRO PRESTAMOS (columnas U:W) con la fecha de hoy.</p>' : '<p class="nota">Escribe cuánto le pagaste y toca «Confirmar pago»: se anota en el registro de pagos de REGISTRO DE INVERSORES (columnas U:W) con la fecha de hoy. Si es en USDT, escribe los USDT.</p>'}`);
 }
 
 function abrirDialogo(html) {

@@ -315,12 +315,20 @@ try {
       await pagina.locator('#detalle [data-cerrar]').first().click();
       if (!rutaSnapshot) {
         await pagina.locator('[data-accion="ver-sin-interes"]').click();
-        await pagina.waitForSelector('#detalle[open] .det-tabla-interes');
+        await pagina.waitForSelector('#detalle[open] .int-lista');
         const txtInt = await pagina.locator('#detalle').innerText();
         revisar(/CLIENTE DEMO DOS/.test(txtInt) && /op\. 2/.test(txtInt) && /\$1,500/.test(txtInt), 'Préstamos: «No ha pagado interés» al tocarlo muestra cada crédito con su OP');
         // Confirmar pago: se anota en el registro de intereses (U:W) de REGISTRO PRESTAMOS.
         if (capturas) await pagina.locator('#detalle').screenshot({ path: `${capturas}/pago-interes.png` });
         await pagina.locator('#detalle input[data-pago-int="2"]').fill('1500');
+        {
+          // Resumen de renovación con la fórmula de la hoja: 20,000 al 5% → total 21,000 − 1,500 = 19,500; interés 975; a pagar 20,475.
+          const renov = await pagina.locator('#detalle [data-renov="2"] pre').innerText();
+          revisar(/RENOVACIÓN DE PRÉSTAMO/.test(renov) && /Total a pagar:\* \$21,000/.test(renov) && /Nuevo préstamo:\* \$19,500/.test(renov) && /Interés \(5%\):\* \$975/.test(renov) && /A pagar:\* \$20,475/.test(renov),
+            `Préstamos: al escribir lo abonado sale el resumen de renovación (${renov.replace(/\n/g, ' | ')})`);
+          const ancho = await pagina.evaluate(() => { const d = document.querySelector('#detalle'); return d.scrollWidth - d.clientWidth; });
+          revisar(ancho <= 1, `Préstamos: la ventana de interés no se corta a lo ancho (${ancho}px)`);
+        }
         const antesPago = lecturas.length;
         pagina.once('dialog', (dlg) => dlg.accept());
         await pagina.locator('#detalle [data-accion="confirmar-pago-int"][data-op="2"]').click();
@@ -328,7 +336,8 @@ try {
         const pagoInt = lecturas.slice(antesPago).filter((l) => l.metodo === 'PUT');
         revisar(pagoInt.length === 1 && /^'REGISTRO PRESTAMOS'!U\d+:W\d+$/.test(pagoInt[0].celda) && /^\d{4}-\d{2}-\d{2}$/.test(pagoInt[0].valor),
           `Confirmar pago: anota fecha, OP y cantidad en REGISTRO PRESTAMOS (${pagoInt.map((e) => e.celda).join(', ')})`);
-        await pagina.waitForSelector('#detalle', { state: 'hidden' }).catch(() => {});
+        for (let i = 0; i < 50 && !/Renovación de préstamo/.test(await pagina.locator('#detalle[open]').innerText().catch(() => '')); i++) await pagina.waitForTimeout(100);
+        revisar(/Nuevo préstamo:\* \$19,500/.test(await pagina.locator('#detalle[open]').innerText().catch(() => '')), 'Préstamos: al confirmar el pago queda el resumen de renovación para copiar');
         if (await pagina.locator('#detalle[open]').count()) await pagina.locator('#detalle [data-cerrar]').first().click();
       }
       await pagina.goto(`${url}/panel/#/prestamos`);

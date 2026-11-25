@@ -1079,3 +1079,19 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .pdj-lista code { font-size: 12px; background: var(--fondo); padding: 1px 5px; border-radius: 4px; }
 .pdj-accion { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .pdj-accion select { max-width: 100%; min-width: 0; flex: 1 1 260px; padding: 6px 8px; border: 1px solid var(--borde); border-radius: 8px; background: var(--tarjeta); color: var(--tinta); font: inherit; font-size: 13px; }
+.int-lista { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 12px; }
+.int-tarjeta { border: 1px solid var(--borde); border-radius: 14px; padding: 12px 14px; display: grid; gap: 10px; min-width: 0; }
+.int-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.int-cab b { font-size: 16px; overflow-wrap: anywhere; }
+.int-op { font-weight: 700; color: var(--tinta-2); white-space: nowrap; }
+.int-datos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.int-datos div { min-width: 0; }
+.int-datos dt { font-size: 11px; color: var(--tenue); }
+.int-datos dd { margin: 2px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.int-tarjeta .pago-int { justify-content: flex-start; padding: 0; }
+.int-tarjeta .pago-int label { flex: 1 1 auto; min-width: 0; }
+.int-tarjeta .campo-pago-int { flex: 1; min-width: 0; }
+.int-tarjeta .campo-pago-int input { width: 100%; min-width: 0; }
+.int-renov { background: var(--suave); border-radius: 12px; padding: 10px 12px; }
+.int-renov-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--tinta-2); margin-bottom: 6px; }
+.int-renov pre { margin: 0; white-space: pre-wrap; font-size: 13px; }

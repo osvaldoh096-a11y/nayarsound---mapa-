@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611241638';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611241638';
+} from './fechas.js?v=202611251849';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611251849';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611241638';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611241638';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611241638';
-import { modeloST } from './st.js?v=202611241638';
-import { modeloOperacion } from './nsops.js?v=202611241638';
-import { dinero } from './formato.js?v=202611241638';
+} from './sheets.js?v=202611251849';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611251849';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611251849';
+import { modeloST } from './st.js?v=202611251849';
+import { modeloOperacion } from './nsops.js?v=202611251849';
+import { dinero } from './formato.js?v=202611251849';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -751,6 +751,14 @@ export function mensajeCobro(nombre, idx, hoyIdx, item) {
  * INICIO (si se registró el 7, cuenta desde el 8 de cada mes). J J H F no
  * cuenta: su préstamo se maneja distinto.
  */
+/** FECHA INICIO como día: serie de Sheets o texto «18 oct» (la fecha pasada más reciente). */
+function fechaInicioPasada(v, hoyIdx) {
+  const i = fechaCelda(v, hoyIdx);
+  if (i === null || typeof v === 'number' || i <= hoyIdx) return i;
+  const { y, m, d } = ymdDesdeIdx(i);
+  return idxDesdeYMD(y - 1, m, d);
+}
+
 export function creditosSinInteres(registro, hoyIdx) {
   const dia = ymdDesdeIdx(hoyIdx).d;
   return (registro ?? [])
@@ -762,7 +770,10 @@ export function creditosSinInteres(registro, hoyIdx) {
     .filter((r) => typeof r.intRestante === 'number' && typeof r.pagoMes === 'number' && r.pagoMes > 0 && r.intRestante > r.pagoMes + 0.005
       && r.diaInicio !== null && dia > r.diaInicio)
     .map((r) => ({ nombre: String(r.nombre).trim(), op: r.op, fila: r.fila, interes: r.intRestante, pago: r.pagoMes, diaInicio: r.diaInicio,
-      divisa: normalizar(r.divisa) === 'USDT' ? 'USDT' : 'MXN' }))
+      divisa: normalizar(r.divisa) === 'USDT' ? 'USDT' : 'MXN',
+      // Para el resumen de renovación (misma fórmula que REGISTRO PRESTAMOS!F2).
+      capital: typeof r.capital === 'number' ? r.capital : null, tasa: typeof r.intMes === 'number' ? r.intMes : null,
+      inicioIdx: fechaInicioPasada(r.fechaInicio, hoyIdx) }))
     .sort((a, b) => (b.interes - b.pago) - (a.interes - a.pago));
 }
 
