@@ -5,9 +5,9 @@
 //   H:I  (opcional) calendario: N, VENCE. Sin calendario se usan quincenas
 //        desde INICIO PRIMERA QUINCENA (como el SINDICATO).
 
-import { TAREAS } from './fuentes.js?v=202611251849';
-import { leerRangos, agregarFila, borrarRango, escribirRango, actualizarHoja } from './api.js?v=202611251849';
-import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611251849';
+import { TAREAS } from './fuentes.js?v=202611262113';
+import { leerRangos, agregarFila, borrarRango, escribirRango, actualizarHoja } from './api.js?v=202611262113';
+import { idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, normalizar } from './fechas.js?v=202611262113';
 
 const numero = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(/[$,\s%]/g, '')));
 /** Número o null (celda vacía o texto). */

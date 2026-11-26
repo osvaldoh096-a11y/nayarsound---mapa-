@@ -2,7 +2,7 @@
 // rangos A1, enlaces a celdas, celdas vacías o con error y búsqueda por
 // encabezado.
 
-import { normalizar } from './fechas.js?v=202611251849';
+import { normalizar } from './fechas.js?v=202611262113';
 
 // ---------- utilidades sobre la cuadrícula leída ----------
 

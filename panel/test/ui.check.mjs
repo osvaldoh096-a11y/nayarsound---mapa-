@@ -318,6 +318,7 @@ try {
         await pagina.waitForSelector('#detalle[open] .int-lista');
         const txtInt = await pagina.locator('#detalle').innerText();
         revisar(/CLIENTE DEMO DOS/.test(txtInt) && /op\. 2/.test(txtInt) && /\$1,500/.test(txtInt), 'Préstamos: «No ha pagado interés» al tocarlo muestra cada crédito con su OP');
+        revisar(/6 días de atraso/.test(txtInt), 'Préstamos: muestra los días de atraso (día 7 − día 1 = 6)');
         // Confirmar pago: se anota en el registro de intereses (U:W) de REGISTRO PRESTAMOS.
         if (capturas) await pagina.locator('#detalle').screenshot({ path: `${capturas}/pago-interes.png` });
         await pagina.locator('#detalle input[data-pago-int="2"]').fill('1500');

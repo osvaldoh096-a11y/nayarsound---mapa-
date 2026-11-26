@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611251849';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611251849';
+} from './fechas.js?v=202611262113';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611262113';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611251849';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611251849';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611251849';
-import { modeloST } from './st.js?v=202611251849';
-import { modeloOperacion } from './nsops.js?v=202611251849';
-import { dinero } from './formato.js?v=202611251849';
+} from './sheets.js?v=202611262113';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611262113';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611262113';
+import { modeloST } from './st.js?v=202611262113';
+import { modeloOperacion } from './nsops.js?v=202611262113';
+import { dinero } from './formato.js?v=202611262113';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -773,7 +773,9 @@ export function creditosSinInteres(registro, hoyIdx) {
       divisa: normalizar(r.divisa) === 'USDT' ? 'USDT' : 'MXN',
       // Para el resumen de renovación (misma fórmula que REGISTRO PRESTAMOS!F2).
       capital: typeof r.capital === 'number' ? r.capital : null, tasa: typeof r.intMes === 'number' ? r.intMes : null,
-      inicioIdx: fechaInicioPasada(r.fechaInicio, hoyIdx) }))
+      inicioIdx: fechaInicioPasada(r.fechaInicio, hoyIdx),
+      // Días de atraso: desde el día de pago de este mes (el día de FECHA INICIO).
+      atraso: dia - r.diaInicio }))
     .sort((a, b) => (b.interes - b.pago) - (a.interes - a.pago));
 }
 

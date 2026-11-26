@@ -1,23 +1,23 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611251849';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611251849';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611251849';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611251849';
-import { construirModelo, entregarCon } from './modelo.js?v=202611251849';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611262113';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611262113';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611262113';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611262113';
+import { construirModelo, entregarCon } from './modelo.js?v=202611262113';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611251849';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611251849';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611251849';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611251849';
-import { fuentesDemo } from './demo.js?v=202611251849';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611251849';
-import { agendaDinero } from './agenda.js?v=202611251849';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611251849';
-import { leerCashflow } from './dashprestamos.js?v=202611251849';
-import { icono } from './iconos.js?v=202611251849';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611251849';
+} from './fechas.js?v=202611262113';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611262113';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611262113';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611262113';
+import { fuentesDemo } from './demo.js?v=202611262113';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611262113';
+import { agendaDinero } from './agenda.js?v=202611262113';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611262113';
+import { leerCashflow } from './dashprestamos.js?v=202611262113';
+import { icono } from './iconos.js?v=202611262113';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611262113';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -1984,8 +1984,8 @@ function filaInteres(lista, tipo) {
   const porPersona = new Map();
   for (const x of lista) {
     const k = `${normalizar(x.nombre)}|${x.divisa}`;
-    const p = porPersona.get(k) ?? { nombre: x.nombre, divisa: x.divisa, interes: 0, creditos: 0 };
-    p.interes += x.interes; p.creditos += 1;
+    const p = porPersona.get(k) ?? { nombre: x.nombre, divisa: x.divisa, interes: 0, creditos: 0, atraso: 0 };
+    p.interes += x.interes; p.creditos += 1; p.atraso = Math.max(p.atraso, x.atraso ?? 0);
     porPersona.set(k, p);
   }
   const personas = [...porPersona.values()].sort((a, b) => aMXN(b) - aMXN(a));
@@ -1993,7 +1993,7 @@ function filaInteres(lista, tipo) {
   return `<button class="fila-pend u-aviso" data-accion="ver-sin-interes" data-tipo="${tipo}">
       <span class="fp-icono tipo-aviso">${icono('aviso')}</span>
       <span class="fp-texto"><span class="fp-titulo">${cobrar ? 'No ha pagado interés' : 'No les he pagado interés'}</span>
-        <ul class="lista-interes">${personas.map((p) => `<li><span>${esc(p.nombre)}${p.creditos > 1 ? ` <small>(${p.creditos} ${cobrar ? 'créditos' : 'inversiones'})</small>` : ''}</span><b>${esc(importeInteres(p.interes, p.divisa))}</b></li>`).join('')}</ul></span>
+        <ul class="lista-interes">${personas.map((p) => `<li><span>${esc(p.nombre)}${p.creditos > 1 ? ` <small>(${p.creditos} ${cobrar ? 'créditos' : 'inversiones'})</small>` : ''}${p.atraso > 0 ? ` <small class="texto-rojo">· ${esc(plural(p.atraso, 'día', 'días'))} de atraso</small>` : ''}</span><b>${esc(importeInteres(p.interes, p.divisa))}</b></li>`).join('')}</ul></span>
       <span class="fp-derecha"><span class="fp-monto ${cobrar ? 'monto-cobrar' : 'monto-pagar'}">${esc(dinero(lista.reduce((t, x) => t + aMXN(x), 0), 0))}</span><span class="chip u-aviso"><i class="punto" aria-hidden="true"></i>${plural(personas.length, 'persona', 'personas')}</span></span></button>`;
 }
 
@@ -2124,7 +2124,7 @@ function abrirSinInteres(tipo = 'cobrar') {
   const lista = (cobrar ? E.modelo?.prestamos?.sinInteres : E.modelo?.prestamos?.sinInteresInversores) ?? [];
   // Una tarjeta por crédito: cabe en el celular sin cortarse.
   const tarjetas = lista.map((x) => `<li class="int-tarjeta">
-      <div class="int-cab"><b>${esc(x.nombre)}</b><span class="int-op">${x.op ? `op. ${esc(x.op)}` : '—'}</span></div>
+      <div class="int-cab"><span class="int-nombre"><b>${esc(x.nombre)}</b>${x.atraso > 0 ? `<span class="int-atraso">${esc(plural(x.atraso, 'día', 'días'))} de atraso</span>` : ''}</span><span class="int-op">${x.op ? `op. ${esc(x.op)}` : '—'}</span></div>
       <dl class="int-datos">
         <div><dt>Interés restante</dt><dd>${esc(importeInteres(x.interes, x.divisa))}</dd></div>
         <div><dt>Pago del mes</dt><dd>${esc(importeInteres(x.pago, x.divisa))}</dd></div>
