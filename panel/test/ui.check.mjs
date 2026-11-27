@@ -153,6 +153,11 @@ try {
     await pagina.goto(`${url}/panel/#/nayarsound`);
     await pagina.waitForSelector('.ns-entrega');
     {
+      const pc = pagina.locator('.ns-porcobrar');
+      revisar(await pc.locator('details.pc-mes').count() === 2 && /Por cobrar/.test(await pc.innerText()), 'NayarSound: «Por cobrar» del próximo mes y el siguiente');
+      if (capturas) await pc.screenshot({ path: `${capturas}/por-cobrar.png` });
+    }
+    {
       // PAGOS DJ: realizados sin pago registrado y cobros desligados (❌) para volver a ligar.
       const pdj = pagina.locator('.pagos-dj');
       const t = await pdj.innerText();

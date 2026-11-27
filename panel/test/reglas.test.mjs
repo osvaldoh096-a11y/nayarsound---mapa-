@@ -6,7 +6,7 @@ import { leerAgenda, leerDeuda, leerPrestamos, leerControl, estadoCelda } from '
 import { idxDesdeYMD, hoyCDMX, inferirFecha, ymdDesdeIdx, horaDesdeFraccion, leerEtiquetaMes } from '../js/fechas.js';
 import { leerMontoTexto, dinero } from '../js/formato.js';
 import { numeroCelda, textoBajoEncabezado, tablaPorEncabezados, letraColumna } from '../js/sheets.js';
-import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj, creditosSinInteres, mensajeCobro } from '../js/modelo.js';
+import { construirModelo, mensajeDeuda, minutosDeHora, numeroWhatsApp, nombreCategoria, inversionesActivas, eventoDelDj, creditosSinInteres, mensajeCobro, proyeccionCobros } from '../js/modelo.js';
 import { fuentesDemo } from '../js/demo.js';
 import { agendaDinero, fechasMensuales } from '../js/agenda.js';
 
@@ -382,4 +382,27 @@ test('Agenda de dinero: cobros, pagos y créditos por fecha, con lo atrasado hoy
   ]);
   assert.equal(Math.round(ag.sale), Math.round(1500 + 87 * 18 + 3479.21 * 2 + 1500));
   assert.ok(ag.semanas.every((s) => s.pesada === s.sale > s.entra));
+});
+
+test('Por cobrar: estima con el pago promedio de cada DJ y resta el anticipo', () => {
+  const hoy = idxDesdeYMD(2026, 11, 27);
+  const s = (idx) => idx + 25569;
+  const ev = (dj, idx, total, anticipo, gas, pago, realizado, sonido = 'OSVALDO', ciudad = 'GUADALAJARA') =>
+    ({ dj, ciudad, sonido, fecha: s(idx), idx, total, anticipo, gas, pagoDj: pago, realizado });
+  const regs = [
+    ev('GAMMA', hoy - 10, 3000, 100, 0, 1300, 'SI'), ev('GAMMA', hoy - 20, 3000, 100, 0, 1500, 'SI'), // promedio 1400
+    ev('JORGE', hoy - 5, 2500, 100, 0, 600, 'SI', 'JORGE', 'TEPIC'),
+    ev('GAMMA', idxDesdeYMD(2026, 12, 5), 3500, 200, 100, '', 'NO'),            // 3500 − 200 − 1400 + 100 = 2000
+    ev('JORGE', idxDesdeYMD(2026, 12, 6), 2500, 100, 0, '', 'NO', 'JORGE', 'TEPIC'), // 2500 − 100 − 600 − 950 = 850
+    ev('BUSCAR', idxDesdeYMD(2026, 12, 19), 3500, 100, 0, '', 'NO'),           // ciudad GDL: 1400 → 3500 − 100 − 1400 = 2000
+    ev('GAMMA', idxDesdeYMD(2027, 1, 9), 3000, 0, 0, '', 'NO'),                // 3000 − 1400 = 1600
+  ];
+  const [dic, ene] = proyeccionCobros(regs, hoy);
+  assert.equal(dic.m, 12); assert.equal(ene.m, 1); assert.equal(ene.y, 2027);
+  assert.equal(dic.djs.find((g) => g.dj === 'GAMMA').estimado, 2000);
+  assert.equal(dic.djs.find((g) => g.dj === 'JORGE').estimado, 850);
+  assert.equal(dic.estimado, 2850);
+  assert.equal(dic.estimadoSinDj, 2000);
+  assert.equal(dic.anticipo, 400);
+  assert.equal(ene.estimado, 1600);
 });

@@ -7,17 +7,17 @@
 
 import {
   normalizar, idxDesdeSerial, idxDesdeYMD, ymdDesdeIdx, inferirFecha, etiquetaMes, leerEtiquetaMes, horaDesdeFraccion, fechaLarga,
-} from './fechas.js?v=202611262113';
-import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611262113';
+} from './fechas.js?v=202611270032';
+import { leerAgenda, leerDeuda, leerPrestamos, leerControl } from './parsers.js?v=202611270032';
 import {
   textoBajoEncabezado, tablaPorEncabezados, buscarFilaEncabezado, inicioRango, urlHoja,
   numeroCelda, letraColumna,
-} from './sheets.js?v=202611262113';
-import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611262113';
-import { leerDashboardPrestamos } from './dashprestamos.js?v=202611262113';
-import { modeloST } from './st.js?v=202611262113';
-import { modeloOperacion } from './nsops.js?v=202611262113';
-import { dinero } from './formato.js?v=202611262113';
+} from './sheets.js?v=202611270032';
+import { ARCHIVOS, TIPO_CAMBIO_USDT, CATEGORIAS_IGUALES } from './fuentes.js?v=202611270032';
+import { leerDashboardPrestamos } from './dashprestamos.js?v=202611270032';
+import { modeloST } from './st.js?v=202611270032';
+import { modeloOperacion } from './nsops.js?v=202611270032';
+import { dinero } from './formato.js?v=202611270032';
 
 export const URGENCIAS = ['vencido', 'hoy', 'proximo', 'sin-fecha', 'aviso'];
 const RANGO_URGENCIA = Object.fromEntries(URGENCIAS.map((u, i) => [u, i]));
@@ -199,6 +199,56 @@ function textoDeudaDesde(eventos) {
     return `🎧 ${g.nombre} | 📌 ${g.lista.length} ${g.lista.length === 1 ? 'evento' : 'eventos'} | 💰 $${miles.format(suma)}\n${fechas.join('\n')}`;
   });
   return `💸 RECORDATORIO DE DEUDA\n\n${bloques.join('\n\n')}\n\n💰 TOTAL DE DEUDA: $${miles.format(total)}`;
+}
+
+/**
+ * Por cobrar en los próximos meses: por cada evento aún no realizado se estima
+ * «ENTREGAR A OSVALDO» (misma fórmula de la hoja: total − anticipo − DJ + gas,
+ * y en sonido de JORGE/PAUL menos su 50%) usando lo que en promedio le pagas a
+ * ese DJ por evento (últimos 3 meses; si no, su histórico; si no, el de la ciudad).
+ * Los eventos sin DJ (vacío o «BUSCAR») se estiman con el promedio de la ciudad.
+ */
+export function proyeccionCobros(registros, hoyIdx, meses = 2) {
+  const pagado = (r) => normalizar(r.realizado) === 'SI' && typeof r.pagoDj === 'number' && r.pagoDj > 1 && r.idx !== null && r.idx <= hoyIdx;
+  const prom = (lista) => (lista.length ? lista.reduce((t, x) => t + x, 0) / lista.length : null);
+  const recientes = new Map(); const todos = new Map(); const ciudad = new Map();
+  const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  for (const r of registros) {
+    if (!pagado(r)) continue;
+    const dj = normalizar(r.dj); const c = normalizar(r.ciudad);
+    push(todos, dj, r.pagoDj);
+    if (r.idx >= hoyIdx - 91) { push(recientes, dj, r.pagoDj); push(ciudad, c, r.pagoDj); }
+  }
+  const pagoDe = (r) => {
+    const dj = normalizar(r.dj); const c = normalizar(r.ciudad);
+    if (dj && dj !== 'BUSCAR' && recientes.has(dj)) return { valor: prom(recientes.get(dj)), base: `${recientes.get(dj).length} eventos (3 meses)` };
+    if (dj && dj !== 'BUSCAR' && todos.has(dj)) return { valor: prom(todos.get(dj)), base: `${todos.get(dj).length} eventos (histórico)` };
+    return { valor: prom(ciudad.get(c) ?? []) ?? 0, base: 'promedio de la ciudad' };
+  };
+  const { y, m } = ymdDesdeIdx(hoyIdx);
+  const salida = [];
+  for (let k = 1; k <= meses; k++) {
+    const mm = m - 1 + k; const yy = y + Math.floor(mm / 12); const mes = (mm % 12) + 1;
+    const ini = idxDesdeYMD(yy, mes, 1); const fin = idxDesdeYMD(mes === 12 ? yy + 1 : yy, mes === 12 ? 1 : mes + 1, 1) - 1;
+    const eventos = registros.filter((r) => r.idx !== null && r.idx >= ini && r.idx <= fin && normalizar(r.realizado) !== 'SI' && typeof r.total === 'number');
+    const djs = new Map(); const sinDj = [];
+    for (const r of eventos) {
+      const p = pagoDe(r);
+      const est = entregarCon({ ...r, realizado: 'SI' }, p.valor) ?? 0;
+      const anticipo = typeof r.anticipo === 'number' ? r.anticipo : 0;
+      const dj = normalizar(r.dj);
+      if (!dj || dj === 'BUSCAR') { sinDj.push({ idx: r.idx, ciudad: String(r.ciudad ?? '').trim(), total: r.total, anticipo, pago: p.valor, estimado: est }); continue; }
+      const g = djs.get(dj) ?? { dj: String(r.dj).trim(), ciudad: String(r.ciudad ?? '').trim(), eventos: 0, total: 0, anticipo: 0, estimado: 0, pago: p.valor, base: p.base };
+      g.eventos += 1; g.total += r.total; g.anticipo += anticipo; g.estimado += est;
+      djs.set(dj, g);
+    }
+    const lista = [...djs.values()].sort((a, z) => z.estimado - a.estimado);
+    const suma = (l, c) => l.reduce((t, x) => t + x[c], 0);
+    salida.push({ y: yy, m: mes, djs: lista, sinDj, eventos: eventos.length,
+      total: suma(lista, 'total') + suma(sinDj, 'total'), anticipo: suma(lista, 'anticipo') + suma(sinDj, 'anticipo'),
+      estimado: suma(lista, 'estimado'), estimadoSinDj: suma(sinDj, 'estimado') });
+  }
+  return salida;
 }
 
 const MES_LLAVE = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
@@ -475,6 +525,7 @@ export function modeloNayarsound({ nayarsound, agenda }, hoyIdx, minuto = null) 
   const ventas = tablaVentas(nayarsound);
   salida.operacion = modeloOperacion(ventas?.registros ?? [], dashboard, hoyIdx);
   salida.pagosDj = leerPagosDj(nayarsound, ventas, hoyIdx);
+  salida.proyeccion = ventas ? proyeccionCobros(ventas.registros, hoyIdx) : null;
   const destinoPago = salida.pagosDj.disponible && ventas?.columnas?.llave && !nayarsound.demo
     ? { archivo: nayarsound.id, pestana: 'PAGOS DJ', columnas: ventas.columnas } : null;
   salida.pagosDj.destino = destinoPago;

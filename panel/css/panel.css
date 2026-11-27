@@ -1097,3 +1097,14 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .int-renov pre { margin: 0; white-space: pre-wrap; font-size: 13px; }
 .int-nombre { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .int-atraso { align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--rojo-tinta); background: var(--rojo-fondo); border-radius: 999px; padding: 2px 9px; }
+.ns-porcobrar { margin-bottom: 16px; }
+.pc-mes { border-top: 1px solid var(--borde); }
+.pc-mes:first-of-type { border-top: 0; }
+.pc-mes > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; }
+.pc-mes > summary::-webkit-details-marker { display: none; }
+.pc-titulo { font-weight: 700; }
+.pc-resumen { margin-left: auto; color: var(--tinta-2); font-size: 14px; }
+.pc-resumen b { color: var(--verde-tinta); font-size: 16px; }
+.pc-mes[open] .desp-flecha { transform: rotate(-90deg); }
+.pc-lista .pm-fila small { display: inline; }
+.pc-sindj { color: var(--rojo-tinta); }
