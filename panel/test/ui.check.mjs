@@ -153,6 +153,20 @@ try {
     await pagina.goto(`${url}/panel/#/nayarsound`);
     await pagina.waitForSelector('.ns-entrega');
     {
+      // Publicidad hoy: se pega el enlace de la API (con clave) y se lee el gasto por cuenta.
+      await pagina.route('https://gasto-prueba.vercel.app/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ cuentas: [{ nombre: 'NS - GUADALAJARA', gasto: 168.79, moneda: 'MXN' }, { nombre: 'NS - TEPIC', gasto: 156.12, moneda: 'MXN' }, { nombre: 'NS - LEON', gasto: 95.54, moneda: 'MXN' }], total: 420.45, moneda: 'MXN', actualizado: '2026-11-07T20:00:00Z' }) }));
+      const tg = pagina.locator('.gasto-ads');
+      revisar(await tg.locator('form[data-form="gasto-url"]').count() === 1, 'Publicidad hoy: pide el enlace de la API la primera vez');
+      await tg.locator('input[name="url"]').fill('https://gasto-prueba.vercel.app/api/gasto?key=abc&format=html');
+      await tg.locator('button[type="submit"]').click();
+      await pagina.waitForSelector('.gasto-ads .gasto-total');
+      const tt = await pagina.locator('.gasto-ads').innerText();
+      revisar(/\$420\.45/.test(tt) && /GUADALAJARA/i.test(tt) && /\$168\.79/.test(tt), 'Publicidad hoy: muestra el total y el gasto por ciudad');
+      const pref = await pagina.evaluate(() => JSON.parse(localStorage.getItem('panel.preferencias.v1') ?? '{}').gastoUrl);
+      revisar(/format=json/.test(pref ?? ''), 'Publicidad hoy: el enlace se guarda solo en este navegador y se pide en JSON');
+    }
+    {
       const pc = pagina.locator('.ns-porcobrar');
       revisar(await pc.locator('details.pc-mes').count() === 2 && /Por cobrar/.test(await pc.innerText()), 'NayarSound: «Por cobrar» del próximo mes y el siguiente');
       if (capturas) await pc.screenshot({ path: `${capturas}/por-cobrar.png` });

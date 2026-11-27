@@ -1108,3 +1108,10 @@ dialog section h3 { font-size: 12.5px; color: var(--tenue); font-weight: 600; ma
 .pc-mes[open] .desp-flecha { transform: rotate(-90deg); }
 .pc-lista .pm-fila small { display: inline; }
 .pc-sindj { color: var(--rojo-tinta); }
+.gasto-ads { margin-bottom: 16px; }
+.gasto-total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 2px 0 8px; }
+.gasto-total .cifra { font-size: 30px; color: var(--coral-tinta); }
+.gasto-total .sub { color: var(--tenue); font-size: 13px; }
+.gasto-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.gasto-form label { display: grid; gap: 4px; flex: 1 1 240px; font-size: 13px; color: var(--tinta-2); }
+.gasto-form input { padding: 8px 10px; border: 1px solid var(--borde); border-radius: 8px; font: inherit; min-width: 0; background: var(--tarjeta); color: var(--tinta); }
