@@ -1,24 +1,24 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611270240';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611270240';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611270240';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611270240';
-import { construirModelo, entregarCon } from './modelo.js?v=202611270240';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611270242';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611270242';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611270242';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611270242';
+import { construirModelo, entregarCon } from './modelo.js?v=202611270242';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611270240';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611270240';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611270240';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611270240';
-import { leerGasto, normalizarEnlaceGasto, ENLACE_GASTO } from './publicidad.js?v=202611270240';
-import { fuentesDemo } from './demo.js?v=202611270240';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611270240';
-import { agendaDinero } from './agenda.js?v=202611270240';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611270240';
-import { leerCashflow } from './dashprestamos.js?v=202611270240';
-import { icono } from './iconos.js?v=202611270240';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611270240';
+} from './fechas.js?v=202611270242';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611270242';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611270242';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611270242';
+import { leerGasto, normalizarEnlaceGasto, ENLACE_GASTO } from './publicidad.js?v=202611270242';
+import { fuentesDemo } from './demo.js?v=202611270242';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611270242';
+import { agendaDinero } from './agenda.js?v=202611270242';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611270242';
+import { leerCashflow } from './dashprestamos.js?v=202611270242';
+import { icono } from './iconos.js?v=202611270242';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611270242';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -715,7 +715,7 @@ function tarjetaGasto() {
     <div class="gasto-total"><span class="cifra">${esc(dinero(principal, 2))}</span><span class="sub">${conPresupuesto ? 'presupuesto diario en Meta' : 'gastado hoy'}${hora ? ` · ${esc(hora)}` : ''}${g.error ? ` · <span class="texto-rojo">${esc(g.error)}</span>` : ''}</span></div>
     ${conPresupuesto ? `<div class="gasto-mes"><span>Al mes (${diasMes} días de ${esc(MESES[hoy.m - 1].toLowerCase())})</span><b>${esc(dinero(d.presupuesto * diasMes, 0))}</b></div>
     <p class="gasto-hoy">Gastado hoy: <b>${esc(dinero(d.total, 2))}</b></p>` : ''}
-    <div class="gasto-lista">${[...d.cuentas].sort((x, z) => (valor(z) ?? 0) - (valor(x) ?? 0)).map((c) => `<div class="pm-fila"><span>${etiquetaCiudad(nombre(c.nombre))}${conPresupuesto ? ` <small class="texto-tenue">hoy ${esc(dinero(c.gasto, 0))}</small>` : ''}</span><span class="gasto-cifras"><b>${valor(c) === null || valor(c) === undefined ? '—' : esc(dinero(valor(c), 2))}</b>${conPresupuesto && typeof c.presupuesto === 'number' ? `<small>${esc(dinero(c.presupuesto * diasMes, 0))} al mes</small>` : ''}</span></div>`).join('')}</div>
+    <div class="gasto-lista">${[...d.cuentas].filter((c) => (c.presupuesto ?? 0) > 0 || (c.gasto ?? 0) > 0).sort((x, z) => (valor(z) ?? 0) - (valor(x) ?? 0)).map((c) => `<div class="pm-fila"><span>${etiquetaCiudad(nombre(c.nombre))}${conPresupuesto && c.gasto > 0 ? ` <small class="texto-tenue">hoy ${esc(dinero(c.gasto, 0))}</small>` : ''}</span><span class="gasto-cifras"><b>${valor(c) === null || valor(c) === undefined ? '—' : esc(dinero(valor(c), 2))}</b>${conPresupuesto && typeof c.presupuesto === 'number' ? `<small>${esc(dinero(c.presupuesto * diasMes, 0))} al mes</small>` : ''}</span></div>`).join('')}</div>
   </article>`;
 }
 

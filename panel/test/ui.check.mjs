@@ -156,7 +156,7 @@ try {
       // Publicidad hoy: lee el gasto de hoy de la API fija (Vercel) por cuenta.
       for (let i = 0; i < 50 && !(await pagina.locator('.gasto-ads .gasto-total').count()); i++) await pagina.waitForTimeout(100);
       const tt = await pagina.locator('.gasto-ads').innerText();
-      revisar(/\$600\.00/.test(tt) && /presupuesto diario/.test(tt) && /\$245\.00/.test(tt) && /Gastado hoy: \$420\.45/.test(tt) && /Al mes \(30 días de noviembre\)\s*\$18,000/.test(tt) && /\$7,350 al mes/.test(tt), `Publicidad al día: muestra el presupuesto diario de Meta por ciudad (y lo gastado hoy aparte) (${tt.replace(/\s+/g, ' ').slice(0, 80)})`);
+      revisar(/\$600\.00/.test(tt) && /presupuesto diario/.test(tt) && /\$245\.00/.test(tt) && /Gastado hoy: \$420\.45/.test(tt) && /Al mes \(30 días de noviembre\)\s*\$18,000/.test(tt) && /\$7,350 al mes/.test(tt) && !/MONTERREY/i.test(tt), `Publicidad al día: muestra el presupuesto diario de Meta por ciudad (y lo gastado hoy aparte) (${tt.replace(/\s+/g, ' ').slice(0, 80)})`);
     }
     {
       const pc = pagina.locator('.ns-porcobrar');
