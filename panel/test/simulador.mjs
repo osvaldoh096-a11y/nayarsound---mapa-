@@ -55,7 +55,7 @@ export async function simularGoogle(contexto, datosOriginales, { fallas = {}, ta
   await contexto.route('https://accounts.google.com/**', (ruta) => ruta.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
   // API de gasto en anuncios (Vercel): respuesta fija para las pruebas.
   await contexto.route('https://*.vercel.app/**', (ruta) => ruta.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ cuentas: [{ nombre: 'NS - GUADALAJARA', gasto: 168.79, moneda: 'MXN' }, { nombre: 'NS - TEPIC', gasto: 156.12, moneda: 'MXN' }, { nombre: 'NS - LEON', gasto: 95.54, moneda: 'MXN' }, { nombre: 'NS - MONTERREY', gasto: 0, moneda: 'MXN' }], total: 420.45, moneda: 'MXN', actualizado: '2026-11-07T20:00:00Z' }) }));
+    body: JSON.stringify({ cuentas: [{ nombre: 'NS - GUADALAJARA', presupuesto: 245, gasto: 168.79, moneda: 'MXN' }, { nombre: 'NS - TEPIC', presupuesto: 215, gasto: 156.12, moneda: 'MXN' }, { nombre: 'NS - LEON', presupuesto: 140, gasto: 95.54, moneda: 'MXN' }, { nombre: 'NS - MONTERREY', presupuesto: 0, gasto: 0, moneda: 'MXN' }], presupuesto: 600, total: 420.45, moneda: 'MXN', actualizado: '2026-11-07T20:00:00Z' }) }));
   const porId = Object.fromEntries(Object.entries(IDS).map(([k, id]) => [id, k]));
   // Un archivo que no viene en los datos (copia anterior a ese negocio) se lee vacío.
   for (const k of Object.keys(IDS)) datos[k] ??= { meta: {}, valores: [] };

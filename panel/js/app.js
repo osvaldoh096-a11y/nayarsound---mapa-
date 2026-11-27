@@ -1,24 +1,24 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611270224';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611270224';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611270224';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611270224';
-import { construirModelo, entregarCon } from './modelo.js?v=202611270224';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611270237';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611270237';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611270237';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611270237';
+import { construirModelo, entregarCon } from './modelo.js?v=202611270237';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611270224';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611270224';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611270224';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611270224';
-import { leerGasto, normalizarEnlaceGasto, ENLACE_GASTO } from './publicidad.js?v=202611270224';
-import { fuentesDemo } from './demo.js?v=202611270224';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611270224';
-import { agendaDinero } from './agenda.js?v=202611270224';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611270224';
-import { leerCashflow } from './dashprestamos.js?v=202611270224';
-import { icono } from './iconos.js?v=202611270224';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611270224';
+} from './fechas.js?v=202611270237';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611270237';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611270237';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611270237';
+import { leerGasto, normalizarEnlaceGasto, ENLACE_GASTO } from './publicidad.js?v=202611270237';
+import { fuentesDemo } from './demo.js?v=202611270237';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611270237';
+import { agendaDinero } from './agenda.js?v=202611270237';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611270237';
+import { leerCashflow } from './dashprestamos.js?v=202611270237';
+import { icono } from './iconos.js?v=202611270237';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611270237';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -690,7 +690,7 @@ async function cargarGasto() {
 
 /** Tarjeta «Publicidad hoy»: total y por cuenta (ciudad). */
 function tarjetaGasto() {
-  const cab = (extra = '') => `<header class="pf-cab"><h2>Publicidad hoy</h2>${extra}</header>`;
+  const cab = (extra = '') => `<header class="pf-cab"><h2>Publicidad al día</h2>${extra}</header>`;
   if (!(E.pref.gastoUrl || ENLACE_GASTO)) {
     return `<article class="tarjeta gasto-ads">${cab('<span class="pf-cab-der">Meta Ads</span>')}
       <form class="gasto-form" data-form="gasto-url"><label>Pega el enlace de tu API de gasto<input name="url" type="url" inputmode="url" placeholder="https://…/api/gasto?key=…" required></label>
@@ -704,9 +704,14 @@ function tarjetaGasto() {
   const d = g.datos;
   const nombre = (n) => String(n ?? '').replace(/^NS\s*-\s*/i, '');
   const hora = d.actualizado ? new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: 'numeric', minute: '2-digit' }).format(new Date(d.actualizado)) : '';
+  // Lo que Meta tiene destinado al día (presupuesto diario de lo activo); lo gastado hoy va aparte.
+  const conPresupuesto = typeof d.presupuesto === 'number';
+  const principal = conPresupuesto ? d.presupuesto : d.total;
+  const valor = (c) => (conPresupuesto ? c.presupuesto : c.gasto);
   return `<article class="tarjeta gasto-ads">${cab(cambiar)}
-    <div class="gasto-total"><span class="cifra">${esc(dinero(d.total, 2))}</span><span class="sub">${esc(d.moneda ?? 'MXN')}${hora ? ` · actualizado ${esc(hora)}` : ''}${g.error ? ` · <span class="texto-rojo">${esc(g.error)}</span>` : ''}</span></div>
-    <div class="gasto-lista">${[...d.cuentas].sort((x, z) => z.gasto - x.gasto).map((c) => `<div class="pm-fila"><span>${etiquetaCiudad(nombre(c.nombre))}</span><b>${esc(dinero(c.gasto, 2))}</b></div>`).join('')}</div>
+    <div class="gasto-total"><span class="cifra">${esc(dinero(principal, 2))}</span><span class="sub">${conPresupuesto ? 'presupuesto diario en Meta' : 'gastado hoy'}${hora ? ` · ${esc(hora)}` : ''}${g.error ? ` · <span class="texto-rojo">${esc(g.error)}</span>` : ''}</span></div>
+    ${conPresupuesto ? `<p class="gasto-hoy">Gastado hoy: <b>${esc(dinero(d.total, 2))}</b></p>` : ''}
+    <div class="gasto-lista">${[...d.cuentas].sort((x, z) => (valor(z) ?? 0) - (valor(x) ?? 0)).map((c) => `<div class="pm-fila"><span>${etiquetaCiudad(nombre(c.nombre))}${conPresupuesto ? ` <small class="texto-tenue">hoy ${esc(dinero(c.gasto, 0))}</small>` : ''}</span><b>${valor(c) === null || valor(c) === undefined ? '—' : esc(dinero(valor(c), 2))}</b></div>`).join('')}</div>
   </article>`;
 }
 
