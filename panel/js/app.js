@@ -1,24 +1,24 @@
 // Interfaz del panel: Inicio, NayarSound, Préstamos e inversores, Finanzas y Fuentes.
 
-import { leerPreferencias, guardarPreferencias } from './config.js?v=202611270221';
-import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611270221';
-import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611270221';
-import { leerTodo, datosDisponibles } from './carga.js?v=202611270221';
-import { construirModelo, entregarCon } from './modelo.js?v=202611270221';
+import { leerPreferencias, guardarPreferencias } from './config.js?v=202611270224';
+import { escribirCelda, leerRangos, escribirRango, actualizarHoja } from './api.js?v=202611270224';
+import { prepararSesion, iniciarSesion, tokenVigente, olvidarToken, cerrarSesion } from './auth.js?v=202611270224';
+import { leerTodo, datosDisponibles } from './carga.js?v=202611270224';
+import { construirModelo, entregarCon } from './modelo.js?v=202611270224';
 import {
   hoyCDMX, fechaLarga, fechaCorta, diasRelativos, momento, hora, nombreMes, MESES, normalizar, leerEtiquetaMes, ymdDesdeIdx, idxDesdeYMD,
-} from './fechas.js?v=202611270221';
-import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611270221';
-import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611270221';
-import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611270221';
-import { leerGasto, normalizarEnlaceGasto } from './publicidad.js?v=202611270221';
-import { fuentesDemo } from './demo.js?v=202611270221';
-import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611270221';
-import { agendaDinero } from './agenda.js?v=202611270221';
-import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611270221';
-import { leerCashflow } from './dashprestamos.js?v=202611270221';
-import { icono } from './iconos.js?v=202611270221';
-import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611270221';
+} from './fechas.js?v=202611270224';
+import { dinero, monto, esc, plural, capitalizar, fijarPrivado, esPrivado, ocultarImportes } from './formato.js?v=202611270224';
+import { barras, lineas, activarTips, ocultarTip } from './graficas.js?v=202611270224';
+import { ARCHIVOS, ORDEN_ARCHIVOS, TIPO_CAMBIO_USDT, CLIENTE_GOOGLE } from './fuentes.js?v=202611270224';
+import { leerGasto, normalizarEnlaceGasto, ENLACE_GASTO } from './publicidad.js?v=202611270224';
+import { fuentesDemo } from './demo.js?v=202611270224';
+import { PRESTAMOS_PROPIOS, cargarPrestamosPropios, crearCredito } from './sindicato.js?v=202611270224';
+import { agendaDinero } from './agenda.js?v=202611270224';
+import { HB, cargarHabitos, usarDemoHabitos, alternarHabito, htmlHabitos, moverSemana } from './habitos.js?v=202611270224';
+import { leerCashflow } from './dashprestamos.js?v=202611270224';
+import { icono } from './iconos.js?v=202611270224';
+import { T, cargarTareas, usarDemo, agregarTarea, alternarTarea, borrarTarea, tareaPorClave, htmlTareas, ordenarTareas, activarArrastre } from './tareas.js?v=202611270224';
 
 const VISTAS = {
   inicio: { titulo: 'Inicio', archivos: ORDEN_ARCHIVOS },
@@ -255,7 +255,7 @@ function alHacerClic(evento) {
   }
   if (accion === 'copiar-mensaje') copiarMensaje(el);
   if (accion === 'copiar-renov') copiarRenovacion(el);
-  if (accion === 'gasto-cambiar') { if (confirm('¿Quitar el enlace de la API de gasto de este navegador para pegar otro?')) { delete E.pref.gastoUrl; E.gasto = null; guardarPreferencias(E.pref); pintar(); } }
+  if (accion === 'gasto-cambiar') { if (confirm('¿Volver a usar el enlace fijo de la API de gasto?')) { delete E.pref.gastoUrl; E.gasto = null; guardarPreferencias(E.pref); pintar(); } }
   if (accion === 'marcar-pagado') marcarPagado(el);
   if (accion === 'guardar-pagodj') guardarPagoDj(el);
   if (accion === 'registrar-pagodj') registrarPagoDj(el);
@@ -675,7 +675,7 @@ function agregarPagosPendientes(m) {
 
 /** Gasto de hoy en anuncios: se pide aparte para no frenar la carga del panel. */
 async function cargarGasto() {
-  const enlace = E.pref.gastoUrl;
+  const enlace = E.pref.gastoUrl || ENLACE_GASTO;
   if (!enlace || E.gasto?.cargando) return;
   E.gasto = { ...(E.gasto ?? {}), cargando: true };
   try {
@@ -683,20 +683,22 @@ async function cargarGasto() {
   } catch (error) {
     E.gasto = { ...(E.gasto ?? {}), cargando: false, error: error.message };
   }
-  if (E.ruta === 'nayarsound' || E.ruta === 'inicio') pintar();
+  // Solo se reemplaza su tarjeta: así no se repinta la página mientras escribes.
+  const caja = document.querySelector('.gasto-ads');
+  if (caja) caja.outerHTML = tarjetaGasto();
 }
 
 /** Tarjeta «Publicidad hoy»: total y por cuenta (ciudad). */
 function tarjetaGasto() {
   const cab = (extra = '') => `<header class="pf-cab"><h2>Publicidad hoy</h2>${extra}</header>`;
-  if (!E.pref.gastoUrl) {
+  if (!(E.pref.gastoUrl || ENLACE_GASTO)) {
     return `<article class="tarjeta gasto-ads">${cab('<span class="pf-cab-der">Meta Ads</span>')}
       <form class="gasto-form" data-form="gasto-url"><label>Pega el enlace de tu API de gasto<input name="url" type="url" inputmode="url" placeholder="https://…/api/gasto?key=…" required></label>
       <button class="boton boton-primario boton-chico" type="submit">Guardar</button></form>
       <p class="nota">Se guarda solo en este navegador; la clave no se publica.</p></article>`;
   }
   const g = E.gasto;
-  const cambiar = '<button class="boton-texto" data-accion="gasto-cambiar">Cambiar enlace</button>';
+  const cambiar = E.pref.gastoUrl ? '<button class="boton-texto" data-accion="gasto-cambiar">Usar el enlace fijo</button>' : '<span class="pf-cab-der">Meta Ads</span>';
   if (!g || (g.cargando && !g.datos)) return `<article class="tarjeta gasto-ads">${cab()}<p class="sin-dato">Cargando gasto…</p></article>`;
   if (!g.datos) return `<article class="tarjeta gasto-ads">${cab(cambiar)}<p class="sin-dato">No se pudo leer el gasto: ${esc(g.error ?? '')}</p></article>`;
   const d = g.datos;

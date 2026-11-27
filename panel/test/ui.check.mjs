@@ -153,18 +153,10 @@ try {
     await pagina.goto(`${url}/panel/#/nayarsound`);
     await pagina.waitForSelector('.ns-entrega');
     {
-      // Publicidad hoy: se pega el enlace de la API (con clave) y se lee el gasto por cuenta.
-      await pagina.route('https://gasto-prueba.vercel.app/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ cuentas: [{ nombre: 'NS - GUADALAJARA', gasto: 168.79, moneda: 'MXN' }, { nombre: 'NS - TEPIC', gasto: 156.12, moneda: 'MXN' }, { nombre: 'NS - LEON', gasto: 95.54, moneda: 'MXN' }], total: 420.45, moneda: 'MXN', actualizado: '2026-11-07T20:00:00Z' }) }));
-      const tg = pagina.locator('.gasto-ads');
-      revisar(await tg.locator('form[data-form="gasto-url"]').count() === 1, 'Publicidad hoy: pide el enlace de la API la primera vez');
-      await tg.locator('input[name="url"]').fill('https://gasto-prueba.vercel.app/api/gasto?key=abc&format=html');
-      await tg.locator('button[type="submit"]').click();
-      await pagina.waitForSelector('.gasto-ads .gasto-total');
+      // Publicidad hoy: lee el gasto de hoy de la API fija (Vercel) por cuenta.
+      for (let i = 0; i < 50 && !(await pagina.locator('.gasto-ads .gasto-total').count()); i++) await pagina.waitForTimeout(100);
       const tt = await pagina.locator('.gasto-ads').innerText();
-      revisar(/\$420\.45/.test(tt) && /GUADALAJARA/i.test(tt) && /\$168\.79/.test(tt), 'Publicidad hoy: muestra el total y el gasto por ciudad');
-      const pref = await pagina.evaluate(() => JSON.parse(localStorage.getItem('panel.preferencias.v1') ?? '{}').gastoUrl);
-      revisar(/format=json/.test(pref ?? ''), 'Publicidad hoy: el enlace se guarda solo en este navegador y se pide en JSON');
+      revisar(/\$420\.45/.test(tt) && /GUADALAJARA/i.test(tt) && /\$168\.79/.test(tt), `Publicidad hoy: muestra el total y el gasto por ciudad sin pedir nada (${tt.replace(/\s+/g, ' ').slice(0, 80)})`);
     }
     {
       const pc = pagina.locator('.ns-porcobrar');
@@ -213,6 +205,7 @@ try {
       await pagina.locator('#detalle [data-cerrar]').first().click();
       await pagina.goto(`${url}/panel/#/nayarsound`);
       await pagina.waitForSelector('.ns-cols');
+      await pagina.waitForSelector('.gasto-ads .gasto-total');
       const op = esperado.nayarsound.operacion;
       revisar(await pagina.locator('.ns-col').count() === 14 && await pagina.locator('.ns-col.actual').count() === 1, 'NayarSound: eventos por mes (12 atrás, 2 adelante) con el mes actual resaltado');
       revisar(await pagina.locator('.ns-comp').count() === 0 && !/DJs con más eventos/.test(await pagina.locator('#vista').innerText()), 'NayarSound: sin «Mes anterior · este mes · próximo» ni «DJs con más eventos»');

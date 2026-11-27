@@ -1,6 +1,7 @@
 // Gasto de hoy en anuncios (Meta) por cuenta de NayarSound, desde tu API en
-// Vercel. El enlace lleva una clave: se guarda solo en este navegador (no va
-// en el código publicado).
+// Vercel. El enlace va fijo aquí (decisión del dueño, para que funcione en
+// cualquier dispositivo); si se guarda otro en este navegador, ese manda.
+export const ENLACE_GASTO = 'https://gasto-meta-os-814e.vercel.app/api/gasto?key=LVmTFs68U0eVwm2zwfdxGXzn&format=json';
 
 /** Enlace válido de la API, siempre pidiendo JSON. Devuelve null si no lo es. */
 export function normalizarEnlaceGasto(texto) {
